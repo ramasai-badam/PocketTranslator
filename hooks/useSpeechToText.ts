@@ -1,115 +1,84 @@
 import { useState, useEffect } from 'react';
 import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from 'expo-speech-recognition';
+  AudioModule,
+  RecordingPresets,
+  setAudioModeAsync,
+  useAudioRecorder,
+  useAudioRecorderState,
+} from 'expo-audio';
 
-export function useSpeechToText() {
-  const [isListening, setIsListening] = useState(false);
-  const [recognizedText, setRecognizedText] = useState('');
+export function useAudioRecording() {
   const [error, setError] = useState<string | null>(null);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(audioRecorder);
 
-  // Listen for speech recognition events
-  useSpeechRecognitionEvent('start', () => {
-    setIsListening(true);
-    setError(null);
-  });
+  // Initialize audio on mount
+  useEffect(() => {
+    const initAudio = async () => {
+      try {
+        const status = await AudioModule.requestRecordingPermissionsAsync();
+        if (!status.granted) {
+          throw new Error('Permission to access microphone was denied');
+        }
 
-  useSpeechRecognitionEvent('end', () => {
-    setIsListening(false);
-  });
-
-  useSpeechRecognitionEvent('result', (event) => {
-    const results = event.results;
-    if (results && results.length > 0) {
-      // Get the most recent result
-      const latestResult = results[results.length - 1];
-      if (latestResult && latestResult.transcript) {
-        setRecognizedText(latestResult.transcript);
+        await setAudioModeAsync({
+          playsInSilentMode: true,
+          allowsRecording: true,
+        });
+      } catch (err) {
+        console.error('Failed to initialize audio:', err);
+        setError(err instanceof Error ? err.message : 'Failed to initialize audio');
       }
-    }
-  });
+    };
 
-  useSpeechRecognitionEvent('error', (event) => {
-    console.error('Speech recognition error:', event.error);
-    setError(event.error?.message || 'Speech recognition failed');
-    setIsListening(false);
-  });
+    initAudio();
+    
+    // Cleanup on unmount
+    return () => {
+      if (recorderState.isRecording) {
+        audioRecorder.stop().catch(console.error);
+      }
+    };
+  }, [audioRecorder, recorderState.isRecording]);
 
-  const startListening = async (language: string = 'en-US') => {
+  const startRecording = async () => {
     try {
       setError(null);
-      setRecognizedText('');
-      
-      // Check if speech recognition is available
-      const isAvailable = await ExpoSpeechRecognitionModule.getStateAsync();
-      if (!isAvailable.available) {
-        throw new Error('Speech recognition not available on this device');
-      }
-
-      // Request permissions
-      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!granted) {
-        throw new Error('Speech recognition permission denied');
-      }
-
-      // Map language codes to proper locale formats
-      const localeMap: Record<string, string> = {
-        'en': 'en-US',
-        'es': 'es-ES',
-        'fr': 'fr-FR',
-        'de': 'de-DE',
-        'it': 'it-IT',
-        'pt': 'pt-PT',
-        'ru': 'ru-RU',
-        'ja': 'ja-JP',
-        'ko': 'ko-KR',
-        'zh': 'zh-CN',
-        'ar': 'ar-SA',
-        'hi': 'hi-IN',
-      };
-
-      const locale = localeMap[language] || language;
-      
-      // Start speech recognition
-      await ExpoSpeechRecognitionModule.start({
-        lang: locale,
-        interimResults: true,
-        maxAlternatives: 1,
-        continuous: false,
-      });
-    } catch (error) {
-      console.error('Failed to start speech recognition:', error);
-      setError(error instanceof Error ? error.message : 'Failed to start speech recognition');
-      setIsListening(false);
+      await audioRecorder.prepareToRecordAsync();
+      await audioRecorder.record();
+    } catch (err) {
+      console.error('Failed to start recording:', err);
+      setError(err instanceof Error ? err.message : 'Failed to start recording');
     }
   };
 
-  const stopListening = async () => {
+  const stopRecording = async () => {
     try {
-      await ExpoSpeechRecognitionModule.stop();
-    } catch (error) {
-      console.error('Failed to stop speech recognition:', error);
-      setError('Failed to stop speech recognition');
+      await audioRecorder.stop();
+      return audioRecorder.uri;
+    } catch (err) {
+      console.error('Failed to stop recording:', err);
+      setError(err instanceof Error ? err.message : 'Failed to stop recording');
+      return null;
     }
   };
 
-  const cancelListening = async () => {
+  const cancelRecording = async () => {
     try {
-      await ExpoSpeechRecognitionModule.abort();
-      setIsListening(false);
-      setRecognizedText('');
-    } catch (error) {
-      console.error('Failed to cancel speech recognition:', error);
+      if (recorderState.isRecording) {
+        await audioRecorder.stop();
+      }
+    } catch (err) {
+      console.error('Failed to cancel recording:', err);
     }
   };
 
   return {
-    isListening,
-    recognizedText,
+    isRecording: recorderState.isRecording,
+    uri: audioRecorder.uri,
     error,
-    startListening,
-    stopListening,
-    cancelListening,
+    startRecording,
+    stopRecording,
+    cancelRecording
   };
 }
