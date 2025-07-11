@@ -29,7 +29,7 @@ export function useAudioRecording() {
           allowsRecording: true,
         });
 
-        // Initialize Whisper
+        // Initialize Whisper for speech-to-text
         const context = await initWhisper({
           filePath: 'ggml-base.en.bin', // You'll need to add this model file to your assets
         });
@@ -73,7 +73,7 @@ export function useAudioRecording() {
         if (uri && whisperContext) {
           setIsTranscribing(true);
           try {
-            // Transcribe the recorded audio
+            // Transcribe the recorded audio to text
             const { result } = await transcribeRealtime(whisperContext, {
               filePath: uri,
             });

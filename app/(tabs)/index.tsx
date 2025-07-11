@@ -66,25 +66,13 @@ export default function TranslatorScreen() {
       const { uri: audioUri, transcription } = await stopRecording();
       
       if (transcription) {
-        // Use the transcribed text
+        // Use the transcribed text (translation will be handled by llama.rn later)
         if (isTop) {
           setTopText(transcription);
-          // Translate to bottom language
-          try {
-            const translation = await translateText(transcription, topLanguage, bottomLanguage);
-            setBottomText(translation);
-          } catch (translationError) {
-            console.error('Translation failed:', translationError);
-          }
+          // TODO: Pass transcription to llama.rn for translation
         } else {
           setBottomText(transcription);
-          // Translate to top language
-          try {
-            const translation = await translateText(transcription, bottomLanguage, topLanguage);
-            setTopText(translation);
-          } catch (translationError) {
-            console.error('Translation failed:', translationError);
-          }
+          // TODO: Pass transcription to llama.rn for translation
         }
       } else if (audioUri) {
         // Fallback if transcription failed
