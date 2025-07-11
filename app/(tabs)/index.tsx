@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,18 +10,12 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { Mic, Volume2, RotateCcw } from 'lucide-react-native';
 import * as Speech from 'expo-speech';
+import { Audio } from 'expo-av';
 import LanguageSelector from '@/components/LanguageSelector';
 import RecordingIndicator from '@/components/RecordingIndicator';
 import TranslationDisplay from '@/components/TranslationDisplay';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
-import { useSpeechToText } from '@/hooks/useSpeechToText';
-import { LogBox } from 'react-native';
-
-LogBox.ignoreLogs([
-  '`new NativeEventEmitter()` was called with a non-null argument without the required `addListener` method',
-  '`new NativeEventEmitter()` was called with a non-null argument without the required `removeListeners` method',
-]);
 
 const { height, width } = Dimensions.get('window');
 
@@ -35,7 +29,6 @@ export default function TranslatorScreen() {
 
   const { translateText, isTranslating } = useTranslation();
   const { startRecording, stopRecording, isRecording } = useAudioRecording();
-  const { transcribeWav, isTranscribing } = useSpeechToText();
 
   const handleStartRecording = async (isTop: boolean) => {
     try {
@@ -45,9 +38,9 @@ export default function TranslatorScreen() {
         setIsBottomRecording(true);
       }
       
-      startRecording();
+      await startRecording();
     } catch (error) {
-      Alert.alert('Speech Recognition Error', 'Failed to start speech recognition');
+      Alert.alert('Recording Error', 'Failed to start recording');
       setIsTopRecording(false);
       setIsBottomRecording(false);
     }
@@ -55,31 +48,29 @@ export default function TranslatorScreen() {
 
   const handleStopRecording = async (isTop: boolean) => {
     try {
-      setIsTopRecording(false);
-      setIsBottomRecording(false);
-
-      const audioPath = await stopRecording();
-      if (!audioPath) return;
-
-      const fromLang = isTop ? topLanguage : bottomLanguage;
-      const toLang = isTop ? bottomLanguage : topLanguage;
-
-      // Transcribe audio to text
-      const transcribedText = await transcribeWav(audioPath, fromLang);
-      if (!transcribedText) return;
-
-      // Translate the text
-      const translatedText = await translateText(transcribedText, fromLang, toLang);
-
-      if (isTop) {
-        setTopText(transcribedText);
-        setBottomText(translatedText);
-      } else {
-        setBottomText(transcribedText);
-        setTopText(translatedText);
+      const audioUri = await stopRecording();
+      
+      if (audioUri) {
+        // TODO: Convert speech to text using local speech recognition
+        // For now, we'll use placeholder text
+        const speechText = "Hello, how are you?"; // This would come from speech-to-text
+        
+        const fromLang = isTop ? topLanguage : bottomLanguage;
+        const toLang = isTop ? bottomLanguage : topLanguage;
+        
+        const translatedText = await translateText(speechText, fromLang, toLang);
+        
+        if (isTop) {
+          setTopText(speechText);
+          setBottomText(translatedText);
+        } else {
+          setBottomText(speechText);
+          setTopText(translatedText);
+        }
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to process speech');
+      Alert.alert('Translation Error', 'Failed to translate speech');
+    } finally {
       setIsTopRecording(false);
       setIsBottomRecording(false);
     }
@@ -88,9 +79,9 @@ export default function TranslatorScreen() {
   const handleSpeak = (text: string, language: string) => {
     if (text) {
       Speech.speak(text, {
-        language: language === 'zh' ? 'zh-CN' : language,
+        language: language,
         pitch: 1.0,
-        rate: 0.75,
+        rate: 0.8,
       });
     }
   };
@@ -125,6 +116,7 @@ export default function TranslatorScreen() {
               style={[styles.micButton, isTopRecording && styles.recordingButton]}
               onPressIn={() => handleStartRecording(true)}
               onPressOut={() => handleStopRecording(true)}
+              disabled={isBottomRecording}
             >
               <Mic size={32} color="white" />
               {isTopRecording && <RecordingIndicator />}
@@ -166,6 +158,7 @@ export default function TranslatorScreen() {
             style={[styles.micButton, isBottomRecording && styles.recordingButton]}
             onPressIn={() => handleStartRecording(false)}
             onPressOut={() => handleStopRecording(false)}
+            disabled={isTopRecording}
           >
             <Mic size={32} color="white" />
             {isBottomRecording && <RecordingIndicator />}
