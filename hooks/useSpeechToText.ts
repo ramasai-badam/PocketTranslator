@@ -7,11 +7,14 @@ import {
   setAudioModeAsync,
   useAudioRecorderState,
 } from 'expo-audio';
+import { initWhisper, transcribeRealtime } from 'whisper.rn';
 
 export function useAudioRecording() {
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(audioRecorder);
   const [error, setError] = useState<string | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [whisperContext, setWhisperContext] = useState<any>(null);
 
   useEffect(() => {
     const initAudio = async () => {
@@ -25,13 +28,26 @@ export function useAudioRecording() {
           playsInSilentMode: true,
           allowsRecording: true,
         });
+
+        // Initialize Whisper
+        const context = await initWhisper({
+          filePath: 'ggml-base.en.bin', // You'll need to add this model file to your assets
+        });
+        setWhisperContext(context);
       } catch (err) {
-        console.error('Failed to initialize audio:', err);
-        setError(err instanceof Error ? err.message : 'Failed to initialize audio');
+        console.error('Failed to initialize audio or Whisper:', err);
+        setError(err instanceof Error ? err.message : 'Failed to initialize audio or Whisper');
       }
     };
 
     initAudio();
+
+    // Cleanup on unmount
+    return () => {
+      if (whisperContext) {
+        whisperContext.release();
+      }
+    };
   }, []);
 
   const startRecording = async () => {
@@ -48,18 +64,37 @@ export function useAudioRecording() {
     }
   };
 
-  const stopRecording = async () => {
+  const stopRecording = async (): Promise<{ uri: string | null; transcription: string | null }> => {
     try {
       if (recorderState.isRecording) {
         await audioRecorder.stop();
-        // The recording will be available on audioRecorder.uri
-        return audioRecorder.uri;
+        const uri = audioRecorder.uri;
+        
+        if (uri && whisperContext) {
+          setIsTranscribing(true);
+          try {
+            // Transcribe the recorded audio
+            const { result } = await transcribeRealtime(whisperContext, {
+              filePath: uri,
+            });
+            
+            setIsTranscribing(false);
+            return { uri, transcription: result };
+          } catch (transcriptionError) {
+            console.error('Transcription failed:', transcriptionError);
+            setIsTranscribing(false);
+            return { uri, transcription: null };
+          }
+        }
+        
+        return { uri, transcription: null };
       }
-      return null;
+      return { uri: null, transcription: null };
     } catch (err) {
       console.error('Failed to stop recording:', err);
       setError(err instanceof Error ? err.message : 'Failed to stop recording');
-      return null;
+      setIsTranscribing(false);
+      return { uri: null, transcription: null };
     }
   };
 
@@ -75,10 +110,12 @@ export function useAudioRecording() {
 
   return {
     isRecording: recorderState.isRecording,
+    isTranscribing,
     uri: audioRecorder.uri,
     error,
     startRecording,
     stopRecording,
-    cancelRecording
+    cancelRecording,
+    whisperReady: !!whisperContext,
   };
 }

@@ -63,16 +63,36 @@ export default function TranslatorScreen() {
         return;
       }
       
-      const audioUri = await stopRecording();
+      const { uri: audioUri, transcription } = await stopRecording();
       
-      // TODO: Process the audio recording for speech-to-text
-      if (audioUri) {
-        // Placeholder: For now, just show that recording was successful
-        const placeholderText = "Audio recorded successfully";
+      if (transcription) {
+        // Use the transcribed text
         if (isTop) {
-          setTopText(placeholderText);
+          setTopText(transcription);
+          // Translate to bottom language
+          try {
+            const translation = await translateText(transcription, topLanguage, bottomLanguage);
+            setBottomText(translation);
+          } catch (translationError) {
+            console.error('Translation failed:', translationError);
+          }
         } else {
-          setBottomText(placeholderText);
+          setBottomText(transcription);
+          // Translate to top language
+          try {
+            const translation = await translateText(transcription, bottomLanguage, topLanguage);
+            setTopText(translation);
+          } catch (translationError) {
+            console.error('Translation failed:', translationError);
+          }
+        }
+      } else if (audioUri) {
+        // Fallback if transcription failed
+        const fallbackText = "Audio recorded but transcription failed";
+        if (isTop) {
+          setTopText(fallbackText);
+        } else {
+          setBottomText(fallbackText);
         }
       } else {
         Alert.alert('Recording Error', 'Failed to record audio');
