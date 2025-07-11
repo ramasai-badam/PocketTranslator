@@ -29,6 +29,8 @@ export default function TranslatorScreen() {
 
   const { translateText, isTranslating } = useTranslation();
   const { startRecording, stopRecording, isRecording } = useAudioRecording();
+  const { transcribeWav, whisperReady, error: whisperError } = require('@/hooks/useSpeechToText').useSpeechToText();
+  const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
 
   const handleStartRecording = async (isTop: boolean) => {
     try {
@@ -47,28 +49,53 @@ export default function TranslatorScreen() {
   };
 
   const handleStopRecording = async (isTop: boolean) => {
+    setTranscriptionError(null);
     try {
       const audioUri = await stopRecording();
-      
       if (audioUri) {
-        // TODO: Convert speech to text using local speech recognition
-        // For now, we'll use placeholder text
-        const speechText = "Hello, how are you?"; // This would come from speech-to-text
-        
         const fromLang = isTop ? topLanguage : bottomLanguage;
         const toLang = isTop ? bottomLanguage : topLanguage;
-        
-        const translatedText = await translateText(speechText, fromLang, toLang);
-        
-        if (isTop) {
-          setTopText(speechText);
-          setBottomText(translatedText);
+        let speechText = '';
+        let errorMsg = null;
+        if (whisperReady) {
+          speechText = await transcribeWav(audioUri, fromLang) || '';
+          if (!speechText) {
+            errorMsg = 'Transcription failed or returned empty.';
+            setTranscriptionError(errorMsg);
+          }
         } else {
-          setBottomText(speechText);
-          setTopText(translatedText);
+          errorMsg = 'Whisper not initialized.';
+          setTranscriptionError(errorMsg);
+        }
+        const translatedText = await translateText(speechText, fromLang, toLang);
+        if (isTop) {
+          setTopText(errorMsg ? errorMsg : speechText);
+          setBottomText(errorMsg ? '' : translatedText);
+        } else {
+          setBottomText(errorMsg ? errorMsg : speechText);
+          setTopText(errorMsg ? '' : translatedText);
+        }
+        // Ensure only the transcribed text or error is shown on the side that pressed record,
+        // and only the translation (never the transcription) is shown on the other side.
+        if (!errorMsg) {
+          if (isTop) {
+            setTopText(speechText);
+            setBottomText(translatedText);
+          } else {
+            setBottomText(speechText);
+            setTopText(translatedText);
+          }
         }
       }
     } catch (error) {
+      setTranscriptionError('Failed to translate speech.');
+      if (isTop) {
+        setTopText('Failed to translate speech.');
+        setBottomText('');
+      } else {
+        setBottomText('Failed to translate speech.');
+        setTopText('');
+      }
       Alert.alert('Translation Error', 'Failed to translate speech');
     } finally {
       setIsTopRecording(false);
@@ -96,7 +123,6 @@ export default function TranslatorScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
-      
       {/* Top Section (Rotated 180 degrees) */}
       <View style={[styles.section, styles.topSection]}>
         <View style={styles.rotatedContent}>
@@ -105,12 +131,10 @@ export default function TranslatorScreen() {
             onLanguageChange={setTopLanguage}
             isRotated={true}
           />
-          
           <TranslationDisplay
             text={topText}
             isRotated={true}
           />
-          
           <View style={styles.controls}>
             <TouchableOpacity
               style={[styles.micButton, isTopRecording && styles.recordingButton]}
@@ -121,7 +145,6 @@ export default function TranslatorScreen() {
               <Mic size={32} color="white" />
               {isTopRecording && <RecordingIndicator />}
             </TouchableOpacity>
-            
             <TouchableOpacity
               style={styles.speakerButton}
               onPress={() => handleSpeak(topText, topLanguage)}
@@ -132,14 +155,12 @@ export default function TranslatorScreen() {
           </View>
         </View>
       </View>
-
       {/* Center Divider with Swap Button */}
       <View style={styles.divider}>
         <TouchableOpacity style={styles.swapButton} onPress={swapLanguages}>
           <RotateCcw size={24} color="white" />
         </TouchableOpacity>
       </View>
-
       {/* Bottom Section */}
       <View style={[styles.section, styles.bottomSection]}>
         <LanguageSelector
@@ -147,12 +168,10 @@ export default function TranslatorScreen() {
           onLanguageChange={setBottomLanguage}
           isRotated={false}
         />
-        
         <TranslationDisplay
           text={bottomText}
           isRotated={false}
         />
-        
         <View style={styles.controls}>
           <TouchableOpacity
             style={[styles.micButton, isBottomRecording && styles.recordingButton]}
@@ -163,7 +182,6 @@ export default function TranslatorScreen() {
             <Mic size={32} color="white" />
             {isBottomRecording && <RecordingIndicator />}
           </TouchableOpacity>
-          
           <TouchableOpacity
             style={styles.speakerButton}
             onPress={() => handleSpeak(bottomText, bottomLanguage)}

@@ -11,8 +11,8 @@ export function useSpeechToText() {
   useEffect(() => {
     const initWhisperModel = async () => {
       try {
-        const modelUrl = 'https://huggingface.co/ggerganov/whisper.cpp/release/main/ggml-base-q5_1.bin';
-        const modelPath = FileSystem.documentDirectory + 'ggml-base-q5_1.bin';
+        const modelUrl = 'https://huggingface.co/ggerganov/whisper.cpp/release/main/ggml-base.bin';
+        const modelPath = FileSystem.documentDirectory + 'ggml-base.bin';
 
         // Download if not already present
         const fileInfo = await FileSystem.getInfoAsync(modelPath);
