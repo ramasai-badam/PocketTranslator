@@ -15,10 +15,12 @@ export function useAudioRecording() {
   const [error, setError] = useState<string | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [whisperContext, setWhisperContext] = useState<any>(null);
+  const [whisperInitialized, setWhisperInitialized] = useState(false);
 
   useEffect(() => {
     const initAudio = async () => {
       try {
+        // Initialize audio permissions first
         const status = await AudioModule.requestRecordingPermissionsAsync();
         if (!status.granted) {
           throw new Error('Permission to access microphone was denied');
@@ -29,20 +31,50 @@ export function useAudioRecording() {
           allowsRecording: true,
         });
 
-        // Initialize Whisper for speech-to-text
-        // TODO: Place your GGUF model file (e.g., ggml-tiny.en.bin, ggml-base.en.bin) 
-        // in assets/models/ directory and update the path below
+        console.log('Audio initialized successfully');
+      } catch (err) {
+        console.error('Failed to initialize audio:', err);
+        setError(err instanceof Error ? err.message : 'Failed to initialize audio');
+      }
+    };
+
+    const initWhisperModel = async () => {
+      try {
+        // TODO: Download a Whisper GGUF model file and place it in assets/models/
+        // Popular options:
+        // - ggml-tiny.en.bin (~39MB, English only, fastest)
+        // - ggml-base.en.bin (~142MB, English only, better quality)
+        // - ggml-small.en.bin (~244MB, English only, even better quality)
+        // - ggml-tiny.bin (~39MB, multilingual)
+        // - ggml-base.bin (~142MB, multilingual)
+        
+        // For now, we'll skip Whisper initialization to prevent the app from crashing
+        // Uncomment the lines below once you have placed a model file:
+        
+        /*
         const context = await initWhisper({
           filePath: 'file://assets/models/ggml-tiny.en.bin', // Update this path to your model file
         });
         setWhisperContext(context);
+        setWhisperInitialized(true);
+        console.log('Whisper initialized successfully');
+        */
+        
+        console.log('Whisper initialization skipped - model file not configured');
+        console.log('To enable speech-to-text:');
+        console.log('1. Download a GGUF model (e.g., ggml-tiny.en.bin)');
+        console.log('2. Place it in assets/models/ directory');
+        console.log('3. Uncomment the initWhisper code in useSpeechToText.ts');
+        
       } catch (err) {
-        console.error('Failed to initialize audio or Whisper:', err);
-        setError(err instanceof Error ? err.message : 'Failed to initialize audio or Whisper');
+        console.error('Failed to initialize Whisper:', err);
+        console.log('Whisper model not found or failed to load');
+        console.log('The app will work for audio recording, but transcription will be disabled');
       }
     };
 
     initAudio();
+    initWhisperModel();
 
     // Cleanup on unmount
     return () => {
@@ -59,6 +91,7 @@ export function useAudioRecording() {
       if (!recorderState.isRecording) {
         await audioRecorder.prepareToRecordAsync();
         audioRecorder.record();
+        console.log('Recording started');
       }
     } catch (err) {
       console.error('Failed to start recording:', err);
@@ -71,16 +104,18 @@ export function useAudioRecording() {
       if (recorderState.isRecording) {
         await audioRecorder.stop();
         const uri = audioRecorder.uri;
+        console.log('Recording stopped, URI:', uri);
         
-        if (uri && whisperContext) {
+        if (uri && whisperContext && whisperInitialized) {
           setIsTranscribing(true);
           try {
-            // Use whisper.rn transcribe method following the provided example
+            console.log('Starting transcription with language:', language);
             const options = { language };
             const { stop, promise } = whisperContext.transcribe(uri, options);
             
             // Get the transcription result
             const { result } = await promise;
+            console.log('Transcription result:', result);
             
             setIsTranscribing(false);
             return { uri, transcription: result };
@@ -89,6 +124,9 @@ export function useAudioRecording() {
             setIsTranscribing(false);
             return { uri, transcription: null };
           }
+        } else if (uri && !whisperInitialized) {
+          console.log('Audio recorded but Whisper not initialized - transcription skipped');
+          return { uri, transcription: 'Whisper model not configured. See console for setup instructions.' };
         }
         
         return { uri, transcription: null };
@@ -106,6 +144,7 @@ export function useAudioRecording() {
     try {
       if (recorderState.isRecording) {
         await audioRecorder.stop();
+        console.log('Recording cancelled');
       }
     } catch (err) {
       console.error('Failed to cancel recording:', err);
@@ -120,6 +159,6 @@ export function useAudioRecording() {
     startRecording,
     stopRecording,
     cancelRecording,
-    whisperReady: !!whisperContext,
+    whisperReady: whisperInitialized,
   };
 }
