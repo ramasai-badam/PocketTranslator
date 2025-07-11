@@ -10,7 +10,6 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { Mic, Volume2, RotateCcw } from 'lucide-react-native';
 import * as Speech from 'expo-speech';
-import { Audio } from 'expo-av';
 import LanguageSelector from '@/components/LanguageSelector';
 import RecordingIndicator from '@/components/RecordingIndicator';
 import TranslationDisplay from '@/components/TranslationDisplay';
@@ -28,7 +27,7 @@ export default function TranslatorScreen() {
   const [isBottomRecording, setIsBottomRecording] = useState(false);
 
   const { translateText, isTranslating } = useTranslation();
-  const { startRecording, stopRecording, isRecording } = useAudioRecording();
+  const { startRecording, stopRecording, playAudio, isRecording } = useAudioRecording();
 
   const handleStartRecording = async (isTop: boolean) => {
     try {
@@ -51,9 +50,9 @@ export default function TranslatorScreen() {
       const audioUri = await stopRecording();
       
       if (audioUri) {
-        // TODO: Convert speech to text using local speech recognition
-        // For now, we'll use placeholder text
-        const speechText = "Hello, how are you?"; // This would come from speech-to-text
+        // TODO: Implement speech-to-text conversion
+        // For now, we'll simulate speech recognition with placeholder text
+        const speechText = isTop ? "Hello, how are you today?" : "Hola, ¿cómo estás hoy?";
         
         const fromLang = isTop ? topLanguage : bottomLanguage;
         const toLang = isTop ? bottomLanguage : topLanguage;
@@ -67,6 +66,11 @@ export default function TranslatorScreen() {
           setBottomText(speechText);
           setTopText(translatedText);
         }
+        
+        // Optionally play back the recorded audio
+        if (audioUri) {
+          // await playAudio(audioUri);
+        }
       }
     } catch (error) {
       Alert.alert('Translation Error', 'Failed to translate speech');
@@ -79,9 +83,9 @@ export default function TranslatorScreen() {
   const handleSpeak = (text: string, language: string) => {
     if (text) {
       Speech.speak(text, {
-        language: language,
+        language: language === 'zh' ? 'zh-CN' : language, // Handle Chinese language code
         pitch: 1.0,
-        rate: 0.8,
+        rate: 0.75,
       });
     }
   };
