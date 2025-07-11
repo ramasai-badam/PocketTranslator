@@ -1,14 +1,9 @@
 import { useState, useEffect } from 'react';
-import {
-  AudioModule,
-  RecordingPresets,
-  setAudioModeAsync,
-  AudioRecorder,
-} from 'expo-audio';
+import { Audio } from 'expo-av';
 
 export function useAudioRecording() {
   const [error, setError] = useState<string | null>(null);
-  const [audioRecorder, setAudioRecorder] = useState<AudioRecorder | null>(null);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [uri, setUri] = useState<string | null>(null);
 
@@ -16,14 +11,14 @@ export function useAudioRecording() {
   useEffect(() => {
     const initAudio = async () => {
       try {
-        const status = await AudioModule.requestRecordingPermissionsAsync();
+        const { status } = await Audio.requestPermissionsAsync();
         if (!status.granted) {
           throw new Error('Permission to access microphone was denied');
         }
 
-        await setAudioModeAsync({
-          playsInSilentMode: true,
-          allowsRecording: true,
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
         });
       } catch (err) {
         console.error('Failed to initialize audio:', err);
@@ -38,12 +33,11 @@ export function useAudioRecording() {
     try {
       setError(null);
       
-      // Create a new recorder instance for each recording session
       if (!isRecording) {
-        const newRecorder = new AudioRecorder(RecordingPresets.HIGH_QUALITY);
-        await newRecorder.prepareToRecordAsync();
-        await newRecorder.record();
-        setAudioRecorder(newRecorder);
+        const { recording: newRecording } = await Audio.Recording.createAsync(
+          Audio.RecordingOptionsPresets.HIGH_QUALITY
+        );
+        setRecording(newRecording);
         setIsRecording(true);
       }
     } catch (err) {
@@ -54,15 +48,12 @@ export function useAudioRecording() {
 
   const stopRecording = async () => {
     try {
-      if (isRecording && audioRecorder) {
-        await audioRecorder.stop();
-        const recordingUri = audioRecorder.uri;
+      if (isRecording && recording) {
+        await recording.stopAndUnloadAsync();
+        const recordingUri = recording.getURI();
         setUri(recordingUri);
         setIsRecording(false);
-        
-        // Release the recorder resources
-        await audioRecorder.release();
-        setAudioRecorder(null);
+        setRecording(null);
         
         return recordingUri;
       }
@@ -76,10 +67,9 @@ export function useAudioRecording() {
 
   const cancelRecording = async () => {
     try {
-      if (isRecording && audioRecorder) {
-        await audioRecorder.stop();
-        await audioRecorder.release();
-        setAudioRecorder(null);
+      if (isRecording && recording) {
+        await recording.stopAndUnloadAsync();
+        setRecording(null);
         setIsRecording(false);
         setUri(null);
       }
