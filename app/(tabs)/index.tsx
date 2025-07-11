@@ -35,13 +35,18 @@ export default function TranslatorScreen() {
 
   const handleStartRecording = async (isTop: boolean) => {
     try {
+      // Prevent starting if already recording
+      if (isRecording) {
+        return;
+      }
+      
       if (isTop) {
         setIsTopRecording(true);
-        await startRecording();
       } else {
         setIsBottomRecording(true);
-        await startRecording();
       }
+      
+      await startRecording();
     } catch (error) {
       Alert.alert('Speech Recognition Error', 'Failed to start speech recognition');
       setIsTopRecording(false);
@@ -51,6 +56,13 @@ export default function TranslatorScreen() {
 
   const handleStopRecording = async (isTop: boolean) => {
     try {
+      // Only proceed if we're actually recording
+      if (!isRecording) {
+        setIsTopRecording(false);
+        setIsBottomRecording(false);
+        return;
+      }
+      
       const audioUri = await stopRecording();
       
       // TODO: Process the audio recording for speech-to-text

@@ -44,8 +44,12 @@ export function useAudioRecording() {
   const startRecording = async () => {
     try {
       setError(null);
-      await audioRecorder.prepareToRecordAsync();
-      await audioRecorder.record();
+      
+      // Only prepare if not already prepared
+      if (!recorderState.isRecording) {
+        await audioRecorder.prepareToRecordAsync();
+        await audioRecorder.record();
+      }
     } catch (err) {
       console.error('Failed to start recording:', err);
       setError(err instanceof Error ? err.message : 'Failed to start recording');
@@ -54,11 +58,14 @@ export function useAudioRecording() {
 
   const stopRecording = async () => {
     try {
-      if (!recorderState.isRecording) {
+      // Only stop if actually recording
+      if (recorderState.isRecording) {
+        await audioRecorder.stop();
+        return audioRecorder.uri;
+      } else {
+        console.warn('Attempted to stop recording when not recording');
         return null;
       }
-      await audioRecorder.stop();
-      return audioRecorder.uri;
     } catch (err) {
       console.error('Failed to stop recording:', err);
       setError(err instanceof Error ? err.message : 'Failed to stop recording');
