@@ -14,7 +14,7 @@ import LanguageSelector from '@/components/LanguageSelector';
 import RecordingIndicator from '@/components/RecordingIndicator';
 import TranslationDisplay from '@/components/TranslationDisplay';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useSpeechToText } from '@/hooks/useSpeechToText';
+import { useAudioRecording } from '@/hooks/useSpeechToText';
 
 const { height, width } = Dimensions.get('window');
 
@@ -28,21 +28,19 @@ export default function TranslatorScreen() {
 
   const { translateText, isTranslating } = useTranslation();
   const { 
-    isListening, 
-    recognizedText, 
-    error: speechError, 
-    startListening, 
-    stopListening 
-  } = useSpeechToText();
+    isRecording, 
+    startRecording, 
+    stopRecording 
+  } = useAudioRecording();
 
   const handleStartRecording = async (isTop: boolean) => {
     try {
       if (isTop) {
         setIsTopRecording(true);
-        await startListening(topLanguage);
+        await startRecording();
       } else {
         setIsBottomRecording(true);
-        await startListening(bottomLanguage);
+        await startRecording();
       }
     } catch (error) {
       Alert.alert('Speech Recognition Error', 'Failed to start speech recognition');
@@ -53,26 +51,19 @@ export default function TranslatorScreen() {
 
   const handleStopRecording = async (isTop: boolean) => {
     try {
-      await stopListening();
+      const audioUri = await stopRecording();
       
-      // Process the recognized text
-      if (recognizedText.trim()) {
-        const fromLang = isTop ? topLanguage : bottomLanguage;
-        const toLang = isTop ? bottomLanguage : topLanguage;
-        
-        const translatedText = await translateText(recognizedText, fromLang, toLang);
-        
+      // TODO: Process the audio recording for speech-to-text
+      if (audioUri) {
+        // Placeholder: For now, just show that recording was successful
+        const placeholderText = "Audio recorded successfully";
         if (isTop) {
-          setTopText(recognizedText);
-          setBottomText(translatedText);
+          setTopText(placeholderText);
         } else {
-          setBottomText(recognizedText);
-          setTopText(translatedText);
+          setBottomText(placeholderText);
         }
-      } else if (speechError) {
-        Alert.alert('Speech Recognition Error', speechError);
       } else {
-        Alert.alert('No Speech Detected', 'Please try speaking again');
+        Alert.alert('Recording Error', 'Failed to record audio');
       }
       
       setIsTopRecording(false);
@@ -121,13 +112,13 @@ export default function TranslatorScreen() {
           
           <View style={styles.controls}>
             <TouchableOpacity
-              style={[styles.micButton, (isTopRecording || isListening) && styles.recordingButton]}
+              style={[styles.micButton, (isTopRecording || isRecording) && styles.recordingButton]}
               onPressIn={() => handleStartRecording(true)}
               onPressOut={() => handleStopRecording(true)}
               disabled={isBottomRecording}
             >
               <Mic size={32} color="white" />
-              {(isTopRecording || isListening) && <RecordingIndicator />}
+              {(isTopRecording || isRecording) && <RecordingIndicator />}
             </TouchableOpacity>
             
             <TouchableOpacity
@@ -163,13 +154,13 @@ export default function TranslatorScreen() {
         
         <View style={styles.controls}>
           <TouchableOpacity
-            style={[styles.micButton, (isBottomRecording || isListening) && styles.recordingButton]}
+            style={[styles.micButton, (isBottomRecording || isRecording) && styles.recordingButton]}
             onPressIn={() => handleStartRecording(false)}
             onPressOut={() => handleStopRecording(false)}
             disabled={isTopRecording}
           >
             <Mic size={32} color="white" />
-            {(isBottomRecording || isListening) && <RecordingIndicator />}
+            {(isBottomRecording || isRecording) && <RecordingIndicator />}
           </TouchableOpacity>
           
           <TouchableOpacity
