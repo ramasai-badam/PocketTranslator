@@ -23,7 +23,7 @@
       "expo-dev-client",
       "expo-speech-recognition",
       [
-        "expo-av",
+        "expo-audio",
         {
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for speech recognition and translation."
         }

@@ -42,7 +42,7 @@ export default function LanguageSelector({
           {selectedLang?.name || 'Select Language'}
         </Text>
         <ChevronDown 
-          size={20} 
+          size={12} 
           color="white" 
           style={[
             styles.chevron,
@@ -54,7 +54,7 @@ export default function LanguageSelector({
 
       {isExpanded && (
         <View style={styles.dropdown}>
-          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={true}>
             {LANGUAGES.map((language) => (
               <TouchableOpacity
                 key={language.code}
@@ -87,6 +87,7 @@ export default function LanguageSelector({
 const styles = StyleSheet.create({
   container: {
     zIndex: 1000,
+    position: 'relative',
   },
   selector: {
     flexDirection: 'row',
@@ -114,15 +115,17 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '180deg' }],
   },
   dropdown: {
-    position: 'absolute',
-    top: 50,
+    position: 'relative',
+    top: 10,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    borderRadius: 12,
-    maxHeight: 200,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    borderRadius: 10,
+    maxHeight: 240,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+    elevation: 40,
+    zIndex: 9999,
   },
   scrollView: {
     maxHeight: 200,

@@ -1,115 +1,66 @@
 import { useState, useEffect } from 'react';
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from 'expo-speech-recognition';
+import * as FileSystem from 'expo-file-system';
+import { initWhisper } from 'whisper.rn';
 
 export function useSpeechToText() {
-  const [isListening, setIsListening] = useState(false);
-  const [recognizedText, setRecognizedText] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [whisperContext, setWhisperContext] = useState<any>(null);
+  const [whisperInitialized, setWhisperInitialized] = useState(false);
 
-  // Listen for speech recognition events
-  useSpeechRecognitionEvent('start', () => {
-    setIsListening(true);
-    setError(null);
-  });
+  useEffect(() => {
+    const initWhisperModel = async () => {
+      try {
+        const modelUrl = 'https://huggingface.co/ggerganov/whisper.cpp/release/main/ggml-base.bin';
+        const modelPath = FileSystem.documentDirectory + 'ggml-base.bin';
 
-  useSpeechRecognitionEvent('end', () => {
-    setIsListening(false);
-  });
+        // Download if not already present
+        const fileInfo = await FileSystem.getInfoAsync(modelPath);
+        if (!fileInfo.exists) {
+          await FileSystem.downloadAsync(modelUrl, modelPath);
+        }
 
-  useSpeechRecognitionEvent('result', (event) => {
-    const results = event.results;
-    if (results && results.length > 0) {
-      // Get the most recent result
-      const latestResult = results[results.length - 1];
-      if (latestResult && latestResult.transcript) {
-        setRecognizedText(latestResult.transcript);
+        const context = await initWhisper({ filePath: modelPath });
+        setWhisperContext(context);
+        setWhisperInitialized(true);
+      } catch (err) {
+        setError('Failed to initialize Whisper');
       }
-    }
-  });
+    };
 
-  useSpeechRecognitionEvent('error', (event) => {
-    console.error('Speech recognition error:', event.error);
-    setError(event.error?.message || 'Speech recognition failed');
-    setIsListening(false);
-  });
+    initWhisperModel();
 
-  const startListening = async (language: string = 'en-US') => {
-    try {
-      setError(null);
-      setRecognizedText('');
-      
-      // Check if speech recognition is available
-      const isAvailable = await ExpoSpeechRecognitionModule.getStateAsync();
-      if (!isAvailable.available) {
-        throw new Error('Speech recognition not available on this device');
+    return () => {
+      if (whisperContext) {
+        whisperContext.release();
       }
+    };
+  }, []);
 
-      // Request permissions
-      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
-      if (!granted) {
-        throw new Error('Speech recognition permission denied');
-      }
-
-      // Map language codes to proper locale formats
-      const localeMap: Record<string, string> = {
-        'en': 'en-US',
-        'es': 'es-ES',
-        'fr': 'fr-FR',
-        'de': 'de-DE',
-        'it': 'it-IT',
-        'pt': 'pt-PT',
-        'ru': 'ru-RU',
-        'ja': 'ja-JP',
-        'ko': 'ko-KR',
-        'zh': 'zh-CN',
-        'ar': 'ar-SA',
-        'hi': 'hi-IN',
-      };
-
-      const locale = localeMap[language] || language;
-      
-      // Start speech recognition
-      await ExpoSpeechRecognitionModule.start({
-        lang: locale,
-        interimResults: true,
-        maxAlternatives: 1,
-        continuous: false,
-      });
-    } catch (error) {
-      console.error('Failed to start speech recognition:', error);
-      setError(error instanceof Error ? error.message : 'Failed to start speech recognition');
-      setIsListening(false);
+  // Accepts a WAV file path and transcribes it
+  const transcribeWav = async (wavFilePath: string, language: string = 'en'): Promise<string | null> => {
+    if (!whisperContext || !whisperInitialized) {
+      setError('Whisper not initialized');
+      return null;
     }
-  };
-
-  const stopListening = async () => {
+    setIsTranscribing(true);
     try {
-      await ExpoSpeechRecognitionModule.stop();
-    } catch (error) {
-      console.error('Failed to stop speech recognition:', error);
-      setError('Failed to stop speech recognition');
-    }
-  };
-
-  const cancelListening = async () => {
-    try {
-      await ExpoSpeechRecognitionModule.abort();
-      setIsListening(false);
-      setRecognizedText('');
-    } catch (error) {
-      console.error('Failed to cancel speech recognition:', error);
+      const options = { language };
+      const { stop, promise } = whisperContext.transcribe(wavFilePath, options);
+      const { result } = await promise;
+      setIsTranscribing(false);
+      return result;
+    } catch (err) {
+      setError('Transcription failed');
+      setIsTranscribing(false);
+      return null;
     }
   };
 
   return {
-    isListening,
-    recognizedText,
+    isTranscribing,
     error,
-    startListening,
-    stopListening,
-    cancelListening,
+    whisperReady: whisperInitialized,
+    transcribeWav,
   };
 }
