@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   Dimensions,
   TouchableOpacity,
   Alert,
-  ActivityIndicator
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Mic, Volume2, RotateCcw } from 'lucide-react-native';
@@ -14,9 +13,6 @@ import * as Speech from 'expo-speech';
 import LanguageSelector from '@/components/LanguageSelector';
 import RecordingIndicator from '@/components/RecordingIndicator';
 import TranslationDisplay from '@/components/TranslationDisplay';
-import { useTranslation } from '@/hooks/useTranslation';
-import { useAudioRecording } from '@/hooks/useAudioRecording';
-import { useSpeechToText } from '@/hooks/useSpeechToText';
 import { LogBox } from 'react-native';
 
 LogBox.ignoreLogs([
@@ -33,24 +29,27 @@ export default function TranslatorScreen() {
   const [bottomText, setBottomText] = useState('');
   const [isTopRecording, setIsTopRecording] = useState(false);
   const [isBottomRecording, setIsBottomRecording] = useState(false);
-  const { translateText, isTranslating, llamaReady, error: llamaError } = useTranslation();
-  const { isRecording, startRecording, stopRecording, audioUri } = useAudioRecording();
-  const { transcribeWav, whisperReady, error: whisperError } = useSpeechToText();
+  const [isTranslating, setIsTranslating] = useState(false);
+
+  // Placeholder translation function
+  const translateText = async (text: string, fromLang: string, toLang: string): Promise<string> => {
+    setIsTranslating(true);
+    // Simulate translation delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    setIsTranslating(false);
+    return `[${toLang.toUpperCase()}] ${text}`;
+  };
 
   const handleStartRecording = async (isTop: boolean) => {
     try {
-      // Prevent starting if already recording
-      if (isRecording) {
-        return;
-      }
-      
       if (isTop) {
         setIsTopRecording(true);
       } else {
         setIsBottomRecording(true);
       }
       
-      await startRecording();
+      // Placeholder for actual recording logic
+      console.log('Starting recording for', isTop ? 'top' : 'bottom');
     } catch (error) {
       Alert.alert('Speech Recognition Error', 'Failed to start speech recognition');
       setIsTopRecording(false);
@@ -60,54 +59,23 @@ export default function TranslatorScreen() {
 
   const handleStopRecording = async (isTop: boolean) => {
     try {
-      // Only proceed if we're actually recording
-      if (!isRecording) {
-        setIsTopRecording(false);
-        setIsBottomRecording(false);
-        return;
-      }
-
-      // Stop recording and get WAV file path
-      const wavUri = await stopRecording();
-      const language = isTop ? topLanguage : bottomLanguage;
-
-      if (wavUri && whisperReady) {
-        // Transcribe WAV file using Whisper
-        const transcription = await transcribeWav(wavUri, language);
-        if (transcription) {
-          if (isTop) {
-            setTopText(transcription);
-            // Translate to bottomLanguage and display for other user
-            const translated = await translateText(transcription, topLanguage, bottomLanguage);
-            setBottomText(translated);
-          } else {
-            setBottomText(transcription);
-            // Translate to topLanguage and display for other user
-            const translated = await translateText(transcription, bottomLanguage, topLanguage);
-            setTopText(translated);
-          }
-        } else {
-          const fallbackText = "Audio recorded but transcription failed";
-          if (isTop) {
-            setTopText(fallbackText);
-          } else {
-            setBottomText(fallbackText);
-          }
-        }
-      } else if (wavUri) {
-        // Fallback if transcription not available
-        const fallbackText = "Audio recorded but Whisper not ready";
-        if (isTop) {
-          setTopText(fallbackText);
-        } else {
-          setBottomText(fallbackText);
-        }
-      } else {
-        Alert.alert('Recording Error', 'Failed to record audio');
-      }
-
       setIsTopRecording(false);
       setIsBottomRecording(false);
+
+      // Placeholder text for demonstration
+      const mockText = isTop ? "Hello, how are you?" : "Hola, ¿cómo estás?";
+      const fromLang = isTop ? topLanguage : bottomLanguage;
+      const toLang = isTop ? bottomLanguage : topLanguage;
+
+      if (isTop) {
+        setTopText(mockText);
+        const translated = await translateText(mockText, fromLang, toLang);
+        setBottomText(translated);
+      } else {
+        setBottomText(mockText);
+        const translated = await translateText(mockText, fromLang, toLang);
+        setTopText(translated);
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to process speech');
       setIsTopRecording(false);
@@ -118,7 +86,7 @@ export default function TranslatorScreen() {
   const handleSpeak = (text: string, language: string) => {
     if (text) {
       Speech.speak(text, {
-        language: language === 'zh' ? 'zh-CN' : language, // Handle Chinese language code
+        language: language === 'zh' ? 'zh-CN' : language,
         pitch: 1.0,
         rate: 0.75,
       });
@@ -152,12 +120,12 @@ export default function TranslatorScreen() {
           
           <View style={styles.controls}>
             <TouchableOpacity
-              style={[styles.micButton, (isTopRecording || isRecording) && styles.recordingButton]}
+              style={[styles.micButton, isTopRecording && styles.recordingButton]}
               onPressIn={() => handleStartRecording(true)}
               onPressOut={() => handleStopRecording(true)}
             >
               <Mic size={32} color="white" />
-              {(isTopRecording || isRecording) && <RecordingIndicator />}
+              {isTopRecording && <RecordingIndicator />}
             </TouchableOpacity>
             
             <TouchableOpacity
@@ -193,12 +161,12 @@ export default function TranslatorScreen() {
         
         <View style={styles.controls}>
           <TouchableOpacity
-            style={[styles.micButton, (isBottomRecording || isRecording) && styles.recordingButton]}
+            style={[styles.micButton, isBottomRecording && styles.recordingButton]}
             onPressIn={() => handleStartRecording(false)}
             onPressOut={() => handleStopRecording(false)}
           >
             <Mic size={32} color="white" />
-            {(isBottomRecording || isRecording) && <RecordingIndicator />}
+            {isBottomRecording && <RecordingIndicator />}
           </TouchableOpacity>
           
           <TouchableOpacity
