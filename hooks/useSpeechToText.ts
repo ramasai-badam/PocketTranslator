@@ -1,64 +1,58 @@
 import { useState, useEffect } from 'react';
-import Voice from '@react-native-voice/voice';
+import {
+  ExpoSpeechRecognitionModule,
+  useSpeechRecognitionEvent,
+} from 'expo-speech-recognition';
 
 export function useSpeechToText() {
   const [isListening, setIsListening] = useState(false);
   const [recognizedText, setRecognizedText] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Set up voice recognition event listeners
-    Voice.onSpeechStart = onSpeechStart;
-    Voice.onSpeechRecognized = onSpeechRecognized;
-    Voice.onSpeechEnd = onSpeechEnd;
-    Voice.onSpeechError = onSpeechError;
-    Voice.onSpeechResults = onSpeechResults;
-    Voice.onSpeechPartialResults = onSpeechPartialResults;
-
-    return () => {
-      // Clean up listeners
-      Voice.destroy().then(Voice.removeAllListeners);
-    };
-  }, []);
-
-  const onSpeechStart = () => {
+  // Listen for speech recognition events
+  useSpeechRecognitionEvent('start', () => {
     setIsListening(true);
     setError(null);
-  };
+  });
 
-  const onSpeechRecognized = () => {
-    // Speech has been recognized
-  };
-
-  const onSpeechEnd = () => {
+  useSpeechRecognitionEvent('end', () => {
     setIsListening(false);
-  };
+  });
 
-  const onSpeechError = (error: any) => {
-    console.error('Speech recognition error:', error);
-    setError(error.error?.message || 'Speech recognition failed');
-    setIsListening(false);
-  };
-
-  const onSpeechResults = (event: any) => {
-    const results = event.value;
+  useSpeechRecognitionEvent('result', (event) => {
+    const results = event.results;
     if (results && results.length > 0) {
-      setRecognizedText(results[0]);
+      // Get the most recent result
+      const latestResult = results[results.length - 1];
+      if (latestResult && latestResult.transcript) {
+        setRecognizedText(latestResult.transcript);
+      }
     }
-  };
+  });
 
-  const onSpeechPartialResults = (event: any) => {
-    const partialResults = event.value;
-    if (partialResults && partialResults.length > 0) {
-      setRecognizedText(partialResults[0]);
-    }
-  };
+  useSpeechRecognitionEvent('error', (event) => {
+    console.error('Speech recognition error:', event.error);
+    setError(event.error?.message || 'Speech recognition failed');
+    setIsListening(false);
+  });
 
   const startListening = async (language: string = 'en-US') => {
     try {
       setError(null);
       setRecognizedText('');
       
+      // Check if speech recognition is available
+      const isAvailable = await ExpoSpeechRecognitionModule.getStateAsync();
+      if (!isAvailable.available) {
+        throw new Error('Speech recognition not available on this device');
+      }
+
+      // Request permissions
+      const { granted } = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!granted) {
+        throw new Error('Speech recognition permission denied');
+      }
+
       // Map language codes to proper locale formats
       const localeMap: Record<string, string> = {
         'en': 'en-US',
@@ -77,29 +71,36 @@ export function useSpeechToText() {
 
       const locale = localeMap[language] || language;
       
-      await Voice.start(locale);
+      // Start speech recognition
+      await ExpoSpeechRecognitionModule.start({
+        lang: locale,
+        interimResults: true,
+        maxAlternatives: 1,
+        continuous: false,
+      });
     } catch (error) {
-      console.error('Failed to start voice recognition:', error);
-      setError('Failed to start speech recognition');
+      console.error('Failed to start speech recognition:', error);
+      setError(error instanceof Error ? error.message : 'Failed to start speech recognition');
+      setIsListening(false);
     }
   };
 
   const stopListening = async () => {
     try {
-      await Voice.stop();
+      await ExpoSpeechRecognitionModule.stop();
     } catch (error) {
-      console.error('Failed to stop voice recognition:', error);
+      console.error('Failed to stop speech recognition:', error);
       setError('Failed to stop speech recognition');
     }
   };
 
   const cancelListening = async () => {
     try {
-      await Voice.cancel();
+      await ExpoSpeechRecognitionModule.abort();
       setIsListening(false);
       setRecognizedText('');
     } catch (error) {
-      console.error('Failed to cancel voice recognition:', error);
+      console.error('Failed to cancel speech recognition:', error);
     }
   };
 

@@ -55,30 +55,28 @@ export default function TranslatorScreen() {
     try {
       await stopListening();
       
-      // Wait a moment for the final recognition result
-      setTimeout(async () => {
-        if (recognizedText.trim()) {
-          const fromLang = isTop ? topLanguage : bottomLanguage;
-          const toLang = isTop ? bottomLanguage : topLanguage;
-          
-          const translatedText = await translateText(recognizedText, fromLang, toLang);
-          
-          if (isTop) {
-            setTopText(recognizedText);
-            setBottomText(translatedText);
-          } else {
-            setBottomText(recognizedText);
-            setTopText(translatedText);
-          }
-        } else if (speechError) {
-          Alert.alert('Speech Recognition Error', speechError);
-        } else {
-          Alert.alert('No Speech Detected', 'Please try speaking again');
-        }
+      // Process the recognized text
+      if (recognizedText.trim()) {
+        const fromLang = isTop ? topLanguage : bottomLanguage;
+        const toLang = isTop ? bottomLanguage : topLanguage;
         
-        setIsTopRecording(false);
-        setIsBottomRecording(false);
-      }, 500);
+        const translatedText = await translateText(recognizedText, fromLang, toLang);
+        
+        if (isTop) {
+          setTopText(recognizedText);
+          setBottomText(translatedText);
+        } else {
+          setBottomText(recognizedText);
+          setTopText(translatedText);
+        }
+      } else if (speechError) {
+        Alert.alert('Speech Recognition Error', speechError);
+      } else {
+        Alert.alert('No Speech Detected', 'Please try speaking again');
+      }
+      
+      setIsTopRecording(false);
+      setIsBottomRecording(false);
     } catch (error) {
       Alert.alert('Error', 'Failed to process speech');
       setIsTopRecording(false);
