@@ -13,6 +13,9 @@ import * as Speech from 'expo-speech';
 import LanguageSelector from '@/components/LanguageSelector';
 import RecordingIndicator from '@/components/RecordingIndicator';
 import TranslationDisplay from '@/components/TranslationDisplay';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useAudioRecording } from '@/hooks/useAudioRecording';
+import { useSpeechToText } from '@/hooks/useSpeechToText';
 import { LogBox } from 'react-native';
 
 LogBox.ignoreLogs([
@@ -29,16 +32,10 @@ export default function TranslatorScreen() {
   const [bottomText, setBottomText] = useState('');
   const [isTopRecording, setIsTopRecording] = useState(false);
   const [isBottomRecording, setIsBottomRecording] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false);
 
-  // Placeholder translation function
-  const translateText = async (text: string, fromLang: string, toLang: string): Promise<string> => {
-    setIsTranslating(true);
-    // Simulate translation delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsTranslating(false);
-    return `[${toLang.toUpperCase()}] ${text}`;
-  };
+  const { translateText, isTranslating } = useTranslation();
+  const { startRecording, stopRecording, isRecording } = useAudioRecording();
+  const { transcribeWav, isTranscribing } = useSpeechToText();
 
   const handleStartRecording = async (isTop: boolean) => {
     try {
@@ -48,8 +45,7 @@ export default function TranslatorScreen() {
         setIsBottomRecording(true);
       }
       
-      // Placeholder for actual recording logic
-      console.log('Starting recording for', isTop ? 'top' : 'bottom');
+      startRecording();
     } catch (error) {
       Alert.alert('Speech Recognition Error', 'Failed to start speech recognition');
       setIsTopRecording(false);
@@ -62,19 +58,25 @@ export default function TranslatorScreen() {
       setIsTopRecording(false);
       setIsBottomRecording(false);
 
-      // Placeholder text for demonstration
-      const mockText = isTop ? "Hello, how are you?" : "Hola, ¿cómo estás?";
+      const audioPath = await stopRecording();
+      if (!audioPath) return;
+
       const fromLang = isTop ? topLanguage : bottomLanguage;
       const toLang = isTop ? bottomLanguage : topLanguage;
 
+      // Transcribe audio to text
+      const transcribedText = await transcribeWav(audioPath, fromLang);
+      if (!transcribedText) return;
+
+      // Translate the text
+      const translatedText = await translateText(transcribedText, fromLang, toLang);
+
       if (isTop) {
-        setTopText(mockText);
-        const translated = await translateText(mockText, fromLang, toLang);
-        setBottomText(translated);
+        setTopText(transcribedText);
+        setBottomText(translatedText);
       } else {
-        setBottomText(mockText);
-        const translated = await translateText(mockText, fromLang, toLang);
-        setTopText(translated);
+        setBottomText(transcribedText);
+        setTopText(translatedText);
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to process speech');
