@@ -6,6 +6,7 @@ import {
   Dimensions,
   TouchableOpacity,
   Alert,
+  ActivityIndicator
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Mic, Volume2, RotateCcw } from 'lucide-react-native';
@@ -14,7 +15,14 @@ import LanguageSelector from '@/components/LanguageSelector';
 import RecordingIndicator from '@/components/RecordingIndicator';
 import TranslationDisplay from '@/components/TranslationDisplay';
 import { useTranslation } from '@/hooks/useTranslation';
-import { useAudioRecording } from '@/hooks/useSpeechToText';
+import { useAudioRecording } from '@/hooks/useAudioRecording';
+import { useSpeechToText } from '@/hooks/useSpeechToText';
+import { LogBox } from 'react-native';
+
+LogBox.ignoreLogs([
+  '`new NativeEventEmitter()` was called with a non-null argument without the required `addListener` method',
+  '`new NativeEventEmitter()` was called with a non-null argument without the required `removeListeners` method',
+]);
 
 const { height, width } = Dimensions.get('window');
 
@@ -25,13 +33,9 @@ export default function TranslatorScreen() {
   const [bottomText, setBottomText] = useState('');
   const [isTopRecording, setIsTopRecording] = useState(false);
   const [isBottomRecording, setIsBottomRecording] = useState(false);
-
-  const { translateText, isTranslating } = useTranslation();
-  const { 
-    isRecording, 
-    startRecording, 
-    stopRecording 
-  } = useAudioRecording();
+  const { translateText, isTranslating, llamaReady, error: llamaError } = useTranslation();
+  const { isRecording, startRecording, stopRecording, audioUri } = useAudioRecording();
+  const { transcribeWav, whisperReady, error: whisperError } = useSpeechToText();
 
   const handleStartRecording = async (isTop: boolean) => {
     try {
@@ -62,23 +66,37 @@ export default function TranslatorScreen() {
         setIsBottomRecording(false);
         return;
       }
-      
-      // Pass the appropriate language for transcription
+
+      // Stop recording and get WAV file path
+      const wavUri = await stopRecording();
       const language = isTop ? topLanguage : bottomLanguage;
-      const { uri: audioUri, transcription } = await stopRecording(language);
-      
-      if (transcription) {
-        // Use the transcribed text from whisper.rn
-        if (isTop) {
-          setTopText(transcription);
-          // TODO: Pass transcription to llama.rn for translation to bottomLanguage
+
+      if (wavUri && whisperReady) {
+        // Transcribe WAV file using Whisper
+        const transcription = await transcribeWav(wavUri, language);
+        if (transcription) {
+          if (isTop) {
+            setTopText(transcription);
+            // Translate to bottomLanguage and display for other user
+            const translated = await translateText(transcription, topLanguage, bottomLanguage);
+            setBottomText(translated);
+          } else {
+            setBottomText(transcription);
+            // Translate to topLanguage and display for other user
+            const translated = await translateText(transcription, bottomLanguage, topLanguage);
+            setTopText(translated);
+          }
         } else {
-          setBottomText(transcription);
-          // TODO: Pass transcription to llama.rn for translation to topLanguage
+          const fallbackText = "Audio recorded but transcription failed";
+          if (isTop) {
+            setTopText(fallbackText);
+          } else {
+            setBottomText(fallbackText);
+          }
         }
-      } else if (audioUri) {
-        // Fallback if transcription failed
-        const fallbackText = "Audio recorded but transcription failed";
+      } else if (wavUri) {
+        // Fallback if transcription not available
+        const fallbackText = "Audio recorded but Whisper not ready";
         if (isTop) {
           setTopText(fallbackText);
         } else {
@@ -87,7 +105,7 @@ export default function TranslatorScreen() {
       } else {
         Alert.alert('Recording Error', 'Failed to record audio');
       }
-      
+
       setIsTopRecording(false);
       setIsBottomRecording(false);
     } catch (error) {
@@ -137,7 +155,6 @@ export default function TranslatorScreen() {
               style={[styles.micButton, (isTopRecording || isRecording) && styles.recordingButton]}
               onPressIn={() => handleStartRecording(true)}
               onPressOut={() => handleStopRecording(true)}
-              disabled={isBottomRecording}
             >
               <Mic size={32} color="white" />
               {(isTopRecording || isRecording) && <RecordingIndicator />}
@@ -179,7 +196,6 @@ export default function TranslatorScreen() {
             style={[styles.micButton, (isBottomRecording || isRecording) && styles.recordingButton]}
             onPressIn={() => handleStartRecording(false)}
             onPressOut={() => handleStopRecording(false)}
-            disabled={isTopRecording}
           >
             <Mic size={32} color="white" />
             {(isBottomRecording || isRecording) && <RecordingIndicator />}

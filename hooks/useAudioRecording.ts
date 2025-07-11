@@ -1,67 +1,38 @@
-import { useState } from 'react';
-import { Audio } from 'expo-av';
+import { useState, useEffect } from 'react';
+import AudioRecord from 'react-native-audio-record';
 
 export function useAudioRecording() {
-  const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [audioUri, setAudioUri] = useState<string | null>(null);
 
-  const startRecording = async () => {
-    try {
-      // Request permissions
-      const { granted } = await Audio.requestPermissionsAsync();
-      if (!granted) {
-        throw new Error('Permission to access microphone is required!');
-      }
+  useEffect(() => {
+    const options = {
+      sampleRate: 16000,
+      channels: 1,
+      bitsPerSample: 16,
+      wavFile: 'audio.wav'
+    };
+    AudioRecord.init(options);
+  }, []);
 
-      // Set audio mode for recording
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
-
-      // Create and start recording
-      const { recording: newRecording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY
-      );
-
-      setRecording(newRecording);
-      setIsRecording(true);
-    } catch (error) {
-      console.error('Failed to start recording:', error);
-      throw error;
-    }
+  const startRecording = () => {
+    setIsRecording(true);
+    setAudioUri(null);
+    AudioRecord.start();
   };
 
   const stopRecording = async (): Promise<string | null> => {
-    if (!recording) return null;
-
-    try {
-      setIsRecording(false);
-      await recording.stopAndUnloadAsync();
-      
-      const uri = recording.getURI();
-      setRecording(null);
-      
-      return uri;
-    } catch (error) {
-      console.error('Failed to stop recording:', error);
-      return null;
-    }
-  };
-
-  const playAudio = async (uri: string) => {
-    try {
-      const { sound } = await Audio.Sound.createAsync({ uri });
-      await sound.playAsync();
-    } catch (error) {
-      console.error('Failed to play audio:', error);
-    }
+    if (!isRecording) return null;
+    setIsRecording(false);
+    const filePath = await AudioRecord.stop();
+    setAudioUri(filePath);
+    return filePath;
   };
 
   return {
     startRecording,
     stopRecording,
-    playAudio,
     isRecording,
+    audioUri
   };
 }

@@ -1,75 +1,35 @@
 import { useState, useEffect } from 'react';
-import { Alert } from 'react-native';
-import {
-  useAudioRecorder,
-  AudioModule,
-  RecordingPresets,
-  setAudioModeAsync,
-  useAudioRecorderState,
-} from 'expo-audio';
+import * as FileSystem from 'expo-file-system';
 import { initWhisper } from 'whisper.rn';
 
-export function useAudioRecording() {
-  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const recorderState = useAudioRecorderState(audioRecorder);
+export function useSpeechToText() {
   const [error, setError] = useState<string | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [whisperContext, setWhisperContext] = useState<any>(null);
   const [whisperInitialized, setWhisperInitialized] = useState(false);
 
   useEffect(() => {
-    const initAudio = async () => {
-      try {
-        // Initialize audio permissions first
-        const status = await AudioModule.requestRecordingPermissionsAsync();
-        if (!status.granted) {
-          throw new Error('Permission to access microphone was denied');
-        }
-
-        await setAudioModeAsync({
-          playsInSilentMode: true,
-          allowsRecording: true,
-        });
-
-        console.log('Audio initialized successfully');
-      } catch (err) {
-        console.error('Failed to initialize audio:', err);
-        setError(err instanceof Error ? err.message : 'Failed to initialize audio');
-      }
-    };
-
     const initWhisperModel = async () => {
       try {
-        // TODO: Download a Whisper GGUF model file and place it in assets/models/
-        // Popular options:
-        // - ggml-tiny.en.bin (~39MB, English only, fastest)
-        // - ggml-base.en.bin (~142MB, English only, better quality)
-        // - ggml-small.en.bin (~244MB, English only, even better quality)
-        // - ggml-tiny.bin (~39MB, multilingual)
-        // - ggml-base.bin (~142MB, multilingual)
-        
-        // For now, we'll skip Whisper initialization to prevent the app from crashing
-        // Uncomment the lines below once you have placed a model file:
-        
-        
-        const context = await initWhisper({
-          filePath: 'file://assets/models/ggml-base.bin', // Update this path to your model file
-        });
+        const modelUrl = 'https://huggingface.co/ggerganov/whisper.cpp/release/main/ggml-base-q5_1.bin';
+        const modelPath = FileSystem.documentDirectory + 'ggml-base-q5_1.bin';
+
+        // Download if not already present
+        const fileInfo = await FileSystem.getInfoAsync(modelPath);
+        if (!fileInfo.exists) {
+          await FileSystem.downloadAsync(modelUrl, modelPath);
+        }
+
+        const context = await initWhisper({ filePath: modelPath });
         setWhisperContext(context);
         setWhisperInitialized(true);
-        console.log('Whisper initialized successfully');
-        
       } catch (err) {
-        console.error('Failed to initialize Whisper:', err);
-        console.log('Whisper model not found or failed to load');
-        console.log('The app will work for audio recording, but transcription will be disabled');
+        setError('Failed to initialize Whisper');
       }
     };
 
-    initAudio();
     initWhisperModel();
 
-    // Cleanup on unmount
     return () => {
       if (whisperContext) {
         whisperContext.release();
@@ -77,81 +37,30 @@ export function useAudioRecording() {
     };
   }, []);
 
-  const startRecording = async () => {
-    try {
-      setError(null);
-      
-      if (!recorderState.isRecording) {
-        await audioRecorder.prepareToRecordAsync();
-        audioRecorder.record();
-        console.log('Recording started');
-      }
-    } catch (err) {
-      console.error('Failed to start recording:', err);
-      setError(err instanceof Error ? err.message : 'Failed to start recording');
+  // Accepts a WAV file path and transcribes it
+  const transcribeWav = async (wavFilePath: string, language: string = 'en'): Promise<string | null> => {
+    if (!whisperContext || !whisperInitialized) {
+      setError('Whisper not initialized');
+      return null;
     }
-  };
-
-  const stopRecording = async (language: string = 'en'): Promise<{ uri: string | null; transcription: string | null }> => {
+    setIsTranscribing(true);
     try {
-      if (recorderState.isRecording) {
-        await audioRecorder.stop();
-        const uri = audioRecorder.uri;
-        console.log('Recording stopped, URI:', uri);
-        
-        if (uri && whisperContext && whisperInitialized) {
-          setIsTranscribing(true);
-          try {
-            console.log('Starting transcription with language:', language);
-            const options = { language };
-            const { stop, promise } = whisperContext.transcribe(uri, options);
-            
-            // Get the transcription result
-            const { result } = await promise;
-            console.log('Transcription result:', result);
-            
-            setIsTranscribing(false);
-            return { uri, transcription: result };
-          } catch (transcriptionError) {
-            console.error('Transcription failed:', transcriptionError);
-            setIsTranscribing(false);
-            return { uri, transcription: null };
-          }
-        } else if (uri && !whisperInitialized) {
-          console.log('Audio recorded but Whisper not initialized - transcription skipped');
-          return { uri, transcription: 'Whisper model not configured. See console for setup instructions.' };
-        }
-        
-        return { uri, transcription: null };
-      }
-      return { uri: null, transcription: null };
-    } catch (err) {
-      console.error('Failed to stop recording:', err);
-      setError(err instanceof Error ? err.message : 'Failed to stop recording');
+      const options = { language };
+      const { stop, promise } = whisperContext.transcribe(wavFilePath, options);
+      const { result } = await promise;
       setIsTranscribing(false);
-      return { uri: null, transcription: null };
-    }
-  };
-
-  const cancelRecording = async () => {
-    try {
-      if (recorderState.isRecording) {
-        await audioRecorder.stop();
-        console.log('Recording cancelled');
-      }
+      return result;
     } catch (err) {
-      console.error('Failed to cancel recording:', err);
+      setError('Transcription failed');
+      setIsTranscribing(false);
+      return null;
     }
   };
 
   return {
-    isRecording: recorderState.isRecording,
     isTranscribing,
-    uri: audioRecorder.uri,
     error,
-    startRecording,
-    stopRecording,
-    cancelRecording,
     whisperReady: whisperInitialized,
+    transcribeWav,
   };
 }
