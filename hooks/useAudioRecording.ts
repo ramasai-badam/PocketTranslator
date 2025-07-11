@@ -1,47 +1,30 @@
 import { useState } from 'react';
-import { AudioRecorder, AudioPlayer } from 'expo-audio';
+import { Audio } from 'expo-av';
 
 export function useAudioRecording() {
-  const [recorder, setRecorder] = useState<AudioRecorder | null>(null);
+  const [recording, setRecording] = useState<Audio.Recording | null>(null);
   const [isRecording, setIsRecording] = useState(false);
 
   const startRecording = async () => {
     try {
       // Request permissions
-      const { granted } = await AudioRecorder.requestPermissionsAsync();
+      const { granted } = await Audio.requestPermissionsAsync();
       if (!granted) {
         throw new Error('Permission to access microphone is required!');
       }
 
-      // Create and start recording
-      const newRecorder = AudioRecorder.createRecorder('recording.m4a', {
-        android: {
-          extension: '.m4a',
-          outputFormat: 'mpeg4',
-          audioEncoder: 'aac',
-          sampleRate: 44100,
-          numberOfChannels: 2,
-          bitRate: 128000,
-        },
-        ios: {
-          extension: '.m4a',
-          outputFormat: 'mpeg4aac',
-          audioQuality: 'high',
-          sampleRate: 44100,
-          numberOfChannels: 2,
-          bitRate: 128000,
-          linearPCMBitDepth: 16,
-          linearPCMIsBigEndian: false,
-          linearPCMIsFloat: false,
-        },
-        web: {
-          mimeType: 'audio/webm',
-          bitsPerSecond: 128000,
-        },
+      // Set audio mode for recording
+      await Audio.setAudioModeAsync({
+        allowsRecordingIOS: true,
+        playsInSilentModeIOS: true,
       });
 
-      await newRecorder.record();
-      setRecorder(newRecorder);
+      // Create and start recording
+      const { recording: newRecording } = await Audio.Recording.createAsync(
+        Audio.RecordingOptionsPresets.HIGH_QUALITY
+      );
+
+      setRecording(newRecording);
       setIsRecording(true);
     } catch (error) {
       console.error('Failed to start recording:', error);
@@ -50,12 +33,14 @@ export function useAudioRecording() {
   };
 
   const stopRecording = async (): Promise<string | null> => {
-    if (!recorder) return null;
+    if (!recording) return null;
 
     try {
       setIsRecording(false);
-      const uri = await recorder.stop();
-      setRecorder(null);
+      await recording.stopAndUnloadAsync();
+      
+      const uri = recording.getURI();
+      setRecording(null);
       
       return uri;
     } catch (error) {
@@ -66,8 +51,8 @@ export function useAudioRecording() {
 
   const playAudio = async (uri: string) => {
     try {
-      const player = AudioPlayer.createPlayer(uri);
-      await player.play();
+      const { sound } = await Audio.Sound.createAsync({ uri });
+      await sound.playAsync();
     } catch (error) {
       console.error('Failed to play audio:', error);
     }
