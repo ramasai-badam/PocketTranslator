@@ -54,6 +54,9 @@ export function useAudioRecording() {
 
   const stopRecording = async () => {
     try {
+      if (!recorderState.isRecording) {
+        return null;
+      }
       await audioRecorder.stop();
       return audioRecorder.uri;
     } catch (err) {
