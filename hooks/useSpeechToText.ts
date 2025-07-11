@@ -7,7 +7,7 @@ import {
   setAudioModeAsync,
   useAudioRecorderState,
 } from 'expo-audio';
-import { initWhisper, transcribeRealtime } from 'whisper.rn';
+import { initWhisper } from 'whisper.rn';
 
 export function useAudioRecording() {
   const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
@@ -30,8 +30,10 @@ export function useAudioRecording() {
         });
 
         // Initialize Whisper for speech-to-text
+        // TODO: Place your GGUF model file (e.g., ggml-tiny.en.bin, ggml-base.en.bin) 
+        // in assets/models/ directory and update the path below
         const context = await initWhisper({
-          filePath: 'ggml-base.en.bin', // You'll need to add this model file to your assets
+          filePath: 'file://assets/models/ggml-tiny.en.bin', // Update this path to your model file
         });
         setWhisperContext(context);
       } catch (err) {
@@ -64,7 +66,7 @@ export function useAudioRecording() {
     }
   };
 
-  const stopRecording = async (): Promise<{ uri: string | null; transcription: string | null }> => {
+  const stopRecording = async (language: string = 'en'): Promise<{ uri: string | null; transcription: string | null }> => {
     try {
       if (recorderState.isRecording) {
         await audioRecorder.stop();
@@ -73,10 +75,12 @@ export function useAudioRecording() {
         if (uri && whisperContext) {
           setIsTranscribing(true);
           try {
-            // Transcribe the recorded audio to text
-            const { result } = await transcribeRealtime(whisperContext, {
-              filePath: uri,
-            });
+            // Use whisper.rn transcribe method following the provided example
+            const options = { language };
+            const { stop, promise } = whisperContext.transcribe(uri, options);
+            
+            // Get the transcription result
+            const { result } = await promise;
             
             setIsTranscribing(false);
             return { uri, transcription: result };

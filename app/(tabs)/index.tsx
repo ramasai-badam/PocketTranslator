@@ -63,16 +63,18 @@ export default function TranslatorScreen() {
         return;
       }
       
-      const { uri: audioUri, transcription } = await stopRecording();
+      // Pass the appropriate language for transcription
+      const language = isTop ? topLanguage : bottomLanguage;
+      const { uri: audioUri, transcription } = await stopRecording(language);
       
       if (transcription) {
-        // Use the transcribed text (translation will be handled by llama.rn later)
+        // Use the transcribed text from whisper.rn
         if (isTop) {
           setTopText(transcription);
-          // TODO: Pass transcription to llama.rn for translation
+          // TODO: Pass transcription to llama.rn for translation to bottomLanguage
         } else {
           setBottomText(transcription);
-          // TODO: Pass transcription to llama.rn for translation
+          // TODO: Pass transcription to llama.rn for translation to topLanguage
         }
       } else if (audioUri) {
         // Fallback if transcription failed
