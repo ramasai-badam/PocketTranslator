@@ -14,6 +14,7 @@ import { Audio } from 'expo-av';
 import LanguageSelector from '@/components/LanguageSelector';
 import RecordingIndicator from '@/components/RecordingIndicator';
 import TranslationDisplay from '@/components/TranslationDisplay';
+import { useSpeechToText } from '@/hooks/useSpeechToText';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
 
@@ -29,7 +30,7 @@ export default function TranslatorScreen() {
 
   const { translateText, isTranslating } = useTranslation();
   const { startRecording, stopRecording, isRecording } = useAudioRecording();
-  const { transcribeWav, whisperReady, error: whisperError } = require('@/hooks/useSpeechToText').useSpeechToText();
+  const { transcribeWav, whisperReady, error: whisperError } = useSpeechToText();
   const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
 
   const handleStartRecording = async (isTop: boolean) => {

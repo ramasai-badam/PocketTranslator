@@ -11,20 +11,25 @@ export function useSpeechToText() {
   useEffect(() => {
     const initWhisperModel = async () => {
       try {
-        const modelUrl = 'https://huggingface.co/ggerganov/whisper.cpp/release/main/ggml-base.bin';
+        const modelUrl = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin';
         const modelPath = FileSystem.documentDirectory + 'ggml-base.bin';
 
         // Download if not already present
         const fileInfo = await FileSystem.getInfoAsync(modelPath);
         if (!fileInfo.exists) {
+          console.log('Downloading Whisper model...');
           await FileSystem.downloadAsync(modelUrl, modelPath);
         }
 
         const context = await initWhisper({ filePath: modelPath });
         setWhisperContext(context);
         setWhisperInitialized(true);
+        console.log('Whisper model initialized successfully');
       } catch (err) {
+        console.error('Failed to initialize Whisper:', err);
         setError('Failed to initialize Whisper');
+        // For now, set ready to true so app doesn't hang
+        setWhisperInitialized(true);
       }
     };
 
