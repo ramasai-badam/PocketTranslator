@@ -3,14 +3,14 @@ import {
   AudioModule,
   RecordingPresets,
   setAudioModeAsync,
-  useAudioRecorder,
-  useAudioRecorderState,
+  AudioRecorder,
 } from 'expo-audio';
 
 export function useAudioRecording() {
   const [error, setError] = useState<string | null>(null);
-  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const recorderState = useAudioRecorderState(audioRecorder);
+  const [audioRecorder, setAudioRecorder] = useState<AudioRecorder | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [uri, setUri] = useState<string | null>(null);
 
   // Initialize audio on mount
   useEffect(() => {
@@ -32,23 +32,19 @@ export function useAudioRecording() {
     };
 
     initAudio();
-    
-    // Cleanup on unmount
-    return () => {
-      if (recorderState.isRecording) {
-        audioRecorder.stop().catch(console.error);
-      }
-    };
-  }, [audioRecorder, recorderState.isRecording]);
+  }, []);
 
   const startRecording = async () => {
     try {
       setError(null);
       
-      // Only prepare if not already prepared
-      if (!recorderState.isRecording) {
-        await audioRecorder.prepareToRecordAsync();
-        await audioRecorder.record();
+      // Create a new recorder instance for each recording session
+      if (!isRecording) {
+        const newRecorder = new AudioRecorder(RecordingPresets.HIGH_QUALITY);
+        await newRecorder.prepareToRecordAsync();
+        await newRecorder.record();
+        setAudioRecorder(newRecorder);
+        setIsRecording(true);
       }
     } catch (err) {
       console.error('Failed to start recording:', err);
@@ -58,14 +54,19 @@ export function useAudioRecording() {
 
   const stopRecording = async () => {
     try {
-      // Only stop if actually recording
-      if (recorderState.isRecording) {
+      if (isRecording && audioRecorder) {
         await audioRecorder.stop();
-        return audioRecorder.uri;
-      } else {
-        console.warn('Attempted to stop recording when not recording');
-        return null;
+        const recordingUri = audioRecorder.uri;
+        setUri(recordingUri);
+        setIsRecording(false);
+        
+        // Release the recorder resources
+        await audioRecorder.release();
+        setAudioRecorder(null);
+        
+        return recordingUri;
       }
+      return null;
     } catch (err) {
       console.error('Failed to stop recording:', err);
       setError(err instanceof Error ? err.message : 'Failed to stop recording');
@@ -75,8 +76,12 @@ export function useAudioRecording() {
 
   const cancelRecording = async () => {
     try {
-      if (recorderState.isRecording) {
+      if (isRecording && audioRecorder) {
         await audioRecorder.stop();
+        await audioRecorder.release();
+        setAudioRecorder(null);
+        setIsRecording(false);
+        setUri(null);
       }
     } catch (err) {
       console.error('Failed to cancel recording:', err);
@@ -84,8 +89,8 @@ export function useAudioRecording() {
   };
 
   return {
-    isRecording: recorderState.isRecording,
-    uri: audioRecorder.uri,
+    isRecording,
+    uri,
     error,
     startRecording,
     stopRecording,
