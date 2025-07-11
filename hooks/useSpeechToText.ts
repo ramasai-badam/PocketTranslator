@@ -51,20 +51,13 @@ export function useAudioRecording() {
         // For now, we'll skip Whisper initialization to prevent the app from crashing
         // Uncomment the lines below once you have placed a model file:
         
-        /*
+        
         const context = await initWhisper({
-          filePath: 'file://assets/models/ggml-tiny.en.bin', // Update this path to your model file
+          filePath: 'file://assets/models/ggml-base.bin', // Update this path to your model file
         });
         setWhisperContext(context);
         setWhisperInitialized(true);
         console.log('Whisper initialized successfully');
-        */
-        
-        console.log('Whisper initialization skipped - model file not configured');
-        console.log('To enable speech-to-text:');
-        console.log('1. Download a GGUF model (e.g., ggml-tiny.en.bin)');
-        console.log('2. Place it in assets/models/ directory');
-        console.log('3. Uncomment the initWhisper code in useSpeechToText.ts');
         
       } catch (err) {
         console.error('Failed to initialize Whisper:', err);
