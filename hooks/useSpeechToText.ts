@@ -1,59 +1,83 @@
-import { useState, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import * as FileSystem from 'expo-file-system';
 import { initWhisper } from 'whisper.rn';
 
 export function useSpeechToText() {
   const [error, setError] = useState<string | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [whisperContext, setWhisperContext] = useState<any>(null);
   const [whisperInitialized, setWhisperInitialized] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const whisperContextRef = useRef<any>(null);
 
-  useEffect(() => {
-    const initWhisperModel = async () => {
-      try {
-        const modelUrl = 'https://huggingface.co/ggerganov/whisper.cpp/release/main/ggml-base.bin';
-        const modelPath = FileSystem.documentDirectory + 'ggml-base.bin';
+  const initializeWhisper = async () => {
+    if (whisperContextRef.current || isInitializing) {
+      return; // Already initialized or initializing
+    }
 
-        // Download if not already present
-        const fileInfo = await FileSystem.getInfoAsync(modelPath);
-        if (!fileInfo.exists) {
-          await FileSystem.downloadAsync(modelUrl, modelPath);
-        }
+    setIsInitializing(true);
+    try {
+      console.log('Initializing Whisper model...');
+      const modelPath = FileSystem.documentDirectory + 'whisper-tiny.bin';
 
-        const context = await initWhisper({ filePath: modelPath });
-        setWhisperContext(context);
-        setWhisperInitialized(true);
-      } catch (err) {
-        setError('Failed to initialize Whisper');
+      // Check if model file exists
+      const fileInfo = await FileSystem.getInfoAsync(modelPath);
+      if (!fileInfo.exists) {
+        throw new Error('Whisper model file not found. Please download models first.');
       }
-    };
 
-    initWhisperModel();
-
-    return () => {
-      if (whisperContext) {
-        whisperContext.release();
-      }
-    };
-  }, []);
+      const context = await initWhisper({ filePath: modelPath });
+      whisperContextRef.current = context;
+      setWhisperInitialized(true);
+      setError(null);
+      console.log('Whisper model initialized successfully');
+    } catch (err) {
+      console.error('Failed to initialize Whisper:', err);
+      setError(`Failed to initialize Whisper: ${err}`);
+    } finally {
+      setIsInitializing(false);
+    }
+  };
 
   // Accepts a WAV file path and transcribes it
   const transcribeWav = async (wavFilePath: string, language: string = 'en'): Promise<string | null> => {
-    if (!whisperContext || !whisperInitialized) {
-      setError('Whisper not initialized');
+    console.log('transcribeWav called:', { wavFilePath, language });
+
+    if (!whisperContextRef.current) {
+      console.log('Whisper not initialized, initializing now...');
+      await initializeWhisper();
+    }
+
+    // Check again after initialization attempt
+    if (!whisperContextRef.current) {
+      const errorMsg = 'Whisper initialization failed';
+      setError(errorMsg);
+      console.error(errorMsg);
       return null;
     }
+
     setIsTranscribing(true);
     try {
+      console.log('Starting transcription...');
       const options = { language };
-      const { stop, promise } = whisperContext.transcribe(wavFilePath, options);
+      const { stop, promise } = whisperContextRef.current.transcribe(wavFilePath, options);
       const { result } = await promise;
+      
+      console.log('Transcription result:', result);
       setIsTranscribing(false);
       return result;
     } catch (err) {
+      console.error('Transcription failed:', err);
       setError('Transcription failed');
       setIsTranscribing(false);
       return null;
+    }
+  };
+
+  const cleanup = () => {
+    if (whisperContextRef.current) {
+      whisperContextRef.current.release();
+      whisperContextRef.current = null;
+      setWhisperInitialized(false);
     }
   };
 
@@ -62,5 +86,8 @@ export function useSpeechToText() {
     error,
     whisperReady: whisperInitialized,
     transcribeWav,
+    isInitializing,
+    initializeWhisper,
+    cleanup,
   };
 }

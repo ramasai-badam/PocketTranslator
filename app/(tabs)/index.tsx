@@ -14,8 +14,7 @@ import { Audio } from 'expo-av';
 import LanguageSelector from '@/components/LanguageSelector';
 import RecordingIndicator from '@/components/RecordingIndicator';
 import TranslationDisplay from '@/components/TranslationDisplay';
-import { useTranslation } from '@/hooks/useTranslation';
-import { useAudioRecording } from '@/hooks/useAudioRecording';
+import { useTranslation, useSpeechToText, useAudioRecording } from '@/hooks';
 
 const { height, width } = Dimensions.get('window');
 
@@ -29,7 +28,7 @@ export default function TranslatorScreen() {
 
   const { translateText, isTranslating } = useTranslation();
   const { startRecording, stopRecording, isRecording } = useAudioRecording();
-  const { transcribeWav, whisperReady, error: whisperError } = require('@/hooks/useSpeechToText').useSpeechToText();
+  const { transcribeWav, whisperReady, error: whisperError } = useSpeechToText();
   const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
 
   const handleStartRecording = async (isTop: boolean) => {
@@ -57,16 +56,20 @@ export default function TranslatorScreen() {
         const toLang = isTop ? bottomLanguage : topLanguage;
         let speechText = '';
         let errorMsg = null;
-        if (whisperReady) {
+        
+        // Always try to transcribe - the transcribeWav function handles initialization
+        try {
           speechText = await transcribeWav(audioUri, fromLang) || '';
           if (!speechText) {
             errorMsg = 'Transcription failed or returned empty.';
             setTranscriptionError(errorMsg);
           }
-        } else {
-          errorMsg = 'Whisper not initialized.';
+        } catch (error) {
+          errorMsg = 'Transcription error occurred.';
           setTranscriptionError(errorMsg);
+          console.error('Transcription error:', error);
         }
+        
         const translatedText = await translateText(speechText, fromLang, toLang);
         if (isTop) {
           setTopText(errorMsg ? errorMsg : speechText);
