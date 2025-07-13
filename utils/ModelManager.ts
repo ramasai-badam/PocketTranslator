@@ -74,14 +74,14 @@ export class ModelManager {
 
       const context = await initLlama({
         model: modelPath,
-        use_mlock: false,
-        n_ctx: 512,
+        n_ctx: 1024,
         n_threads: 6,
         embedding: false,
       });
 
       llamaContext = context;
       console.log('ModelManager: Llama model initialized successfully');
+      
       notifyListeners();
       return context;
     } catch (error) {

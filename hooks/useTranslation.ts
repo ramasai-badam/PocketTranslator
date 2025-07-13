@@ -101,9 +101,9 @@ Task:
       const llamaContext = ModelManager.getLlamaContext();
       const result = await llamaContext.completion({
         prompt,
-        n_predict: 1024,
+        n_predict: 512,
         stop: ['<end_of_turn>', '<start_of_turn>'],
-        temperature: 0.4,
+        temperature: 0.1,
         top_p: 0.9,
         top_k: 40,
         repeat_penalty: 1.0,
