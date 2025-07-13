@@ -1,32 +1,32 @@
-import { useState, useRef } from 'react';
-import { initWhisper, WhisperContext } from 'whisper.rn';
-import { MODEL_CONFIG } from '../utils/ModelConfig';
+import { useState, useRef, useEffect } from 'react';
+import { WhisperContext } from 'whisper.rn';
+import { ModelManager } from '@/utils/ModelManager';
 
 // Safety flag to disable loading if needed
 const ENABLE_WHISPER_LOADING = true;
 
 export function useSpeechToText() {
-  const whisperContextRef = useRef<WhisperContext | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(ModelManager.isWhisperReady());
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Listen to ModelManager state changes
+  useEffect(() => {
+    const unsubscribe = ModelManager.addListener(() => {
+      setIsInitialized(ModelManager.isWhisperReady());
+    });
+    return unsubscribe;
+  }, []);
+
   const initializeModel = async () => {
-    if (whisperContextRef.current) {
+    if (ModelManager.isWhisperReady()) {
       console.log('Whisper already initialized');
       return;
     }
 
     try {
-      console.log('Initializing Whisper with path:', MODEL_CONFIG.whisper.path);
-      const context = await initWhisper({
-        filePath: MODEL_CONFIG.whisper.path,
-        isBundleAsset: false,
-      });
-      
-      whisperContextRef.current = context;
-      setIsInitialized(true);
-      setError(null);
+      console.log('Whisper not initialized, initializing now...');
+      await ModelManager.initializeWhisper();
       console.log('Whisper initialized successfully');
     } catch (err) {
       console.error('Failed to initialize Whisper:', err);
@@ -50,7 +50,7 @@ export function useSpeechToText() {
       return '[Transcription disabled]';
     }
 
-    if (!whisperContextRef.current) {
+    if (!ModelManager.isWhisperReady()) {
       console.log('Whisper not initialized, initializing now...');
       try {
         await initializeModel();
@@ -60,7 +60,7 @@ export function useSpeechToText() {
       }
     }
 
-    if (!whisperContextRef.current) {
+    if (!ModelManager.isWhisperReady()) {
       console.error('Whisper initialization failed');
       return null;
     }
@@ -70,7 +70,8 @@ export function useSpeechToText() {
       console.log('Starting transcription with language:', language);
       const options = { language };
       console.log('Whisper transcription options:', options);
-      const { stop, promise } = whisperContextRef.current.transcribe(wavFilePath, options);
+      const whisperContext = ModelManager.getWhisperContext();
+      const { stop, promise } = whisperContext.transcribe(wavFilePath, options);
       const { result } = await promise;
       
       console.log('Transcription result:', result);
@@ -86,11 +87,7 @@ export function useSpeechToText() {
   };
 
   const cleanup = () => {
-    if (whisperContextRef.current) {
-      whisperContextRef.current.release();
-      whisperContextRef.current = null;
-    }
-    setIsInitialized(false);
+    // No cleanup needed as ModelManager handles the context
     console.log('Speech-to-text hook cleanup called');
   };
 

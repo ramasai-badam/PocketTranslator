@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   Linking,
+  Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Download, Check, X, ArrowLeft } from 'lucide-react-native';
@@ -64,7 +65,7 @@ export default function SettingsScreen() {
       // Show alert explaining the download process
       Alert.alert(
         'Enable TTS Voice',
-        `To enable text-to-speech for ${languageName}, you need to:\n\n1. Go to your device's Settings\n2. Find "Language & Input" or "Text-to-Speech"\n3. Download the voice for ${languageName}\n\nAfter downloading, return here and we'll mark it as available.`,
+        `To enable text-to-speech for ${languageName}, follow these exact steps:\n\n1. We'll open your device Settings\n2. Search for "Text-to-speech" or navigate to:\n   • Settings > System > Languages & input > Text-to-speech output\n   • OR Settings > General management > Language and input > Text-to-speech\n3. Select your TTS engine (Google Text-to-speech recommended)\n4. Tap the settings/gear icon next to the engine\n5. Find and download the voice pack for ${languageName}\n6. Return here and confirm\n\nNote: Path may vary by device manufacturer.`,
         [
           {
             text: 'Cancel',
@@ -83,10 +84,17 @@ export default function SettingsScreen() {
             text: 'Open Settings',
             onPress: async () => {
               try {
-                // Try to open device settings
+                // Open device settings with fallback
+                // Note: Direct TTS settings require native module (android.settings.TTS_SETTINGS)
+                // For now, open general settings with clear navigation instructions
                 await Linking.openSettings();
+                console.log('Opened device settings');
               } catch (error) {
                 console.error('Failed to open settings:', error);
+                Alert.alert(
+                  'Settings Error', 
+                  'Could not open settings automatically. Please:\n\n1. Open Settings manually\n2. Search for "Text-to-speech"\n3. Download the voice pack\n4. Return here to confirm'
+                );
               }
               
               // Show confirmation dialog after user returns

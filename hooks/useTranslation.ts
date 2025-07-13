@@ -1,63 +1,50 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import * as FileSystem from 'expo-file-system';
-import { initLlama } from 'llama.rn';
-import { getModelPath } from '@/utils/ModelConfig';
+import { ModelManager } from '@/utils/ModelManager';
 
 const stopWords = ['</s>', '<|end|>', '<|eot_id|>', '<|end_of_text|>', '<|im_end|>', '<|EOT|>', '<|END_OF_TURN_TOKEN|>', '<|end_of_turn|>', '<|endoftext|>'];
 
-// Safe translation hook with lazy initialization
+// Safe translation hook using ModelManager singleton
 export function useTranslation() {
-  const [llamaReady, setLlamaReady] = useState(false);
+  const [llamaReady, setLlamaReady] = useState(ModelManager.isLlamaReady());
   const [isTranslating, setIsTranslating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isInitializing, setIsInitializing] = useState(false);
-  const llamaContextRef = useRef<any>(null);
+  const [isInitializing, setIsInitializing] = useState(ModelManager.isLlamaInitializing());
 
   // Temporary safety flag - set to true to attempt Llama loading
   const ENABLE_LLAMA_LOADING = true;
 
+  // Listen to ModelManager state changes
+  useEffect(() => {
+    const unsubscribe = ModelManager.addListener(() => {
+      setLlamaReady(ModelManager.isLlamaReady());
+      setIsInitializing(ModelManager.isLlamaInitializing());
+    });
+    return unsubscribe;
+  }, []);
+
   const initializeModel = async () => {
-    if (llamaContextRef.current || isInitializing) {
+    if (ModelManager.isLlamaReady() || ModelManager.isLlamaInitializing()) {
       return; // Already initialized or initializing
     }
 
-    setIsInitializing(true);
     try {
-      console.log('Initializing Llama model...');
-      const modelPath = getModelPath('llama');
-      
-      // Check if model file exists
-      const fileInfo = await FileSystem.getInfoAsync(modelPath);
-      if (!fileInfo.exists) {
-        throw new Error('Model file not found. Please download models first.');
-      }
-
-      console.log('Model file found, size:', Math.round(fileInfo.size / (1024 * 1024)), 'MB');
-
-      const context = await initLlama({
-        model: modelPath,
-        use_mlock: false,
-        n_ctx: 512,
-        n_threads: 2, // Reduced threads for faster startup
-        embedding: false,
-      });
-
-      llamaContextRef.current = context;
-      setLlamaReady(true);
-      setError(null);
+      console.log('Llama not initialized, initializing now...');
+      await ModelManager.initializeLlama();
       console.log('Llama model initialized successfully');
     } catch (err) {
       console.error('Failed to initialize Llama:', err);
       setError(`Failed to initialize Llama: ${err}`);
-      llamaContextRef.current = null;
       setLlamaReady(false);
-    } finally {
-      setIsInitializing(false);
     }
   };
 
   const translateText = async (text: string, fromLanguage: string, toLanguage: string) => {
     console.log('translateText called:', { text, fromLanguage, toLanguage });
+    
+    // Start timing the complete translation process
+    const totalStartTime = Date.now();
+    console.log('⏱️ TRANSLATION PROCESS START:', new Date().toISOString());
     
     if (!text || text.trim() === '') {
       console.log('Empty text, skipping translation');
@@ -69,7 +56,7 @@ export function useTranslation() {
       return `[Translation disabled - Original: ${text}]`;
     }
     
-    if (!llamaContextRef.current) {
+    if (!ModelManager.isLlamaReady()) {
       console.log('Llama not initialized, initializing now...');
       try {
         await initializeModel();
@@ -79,7 +66,7 @@ export function useTranslation() {
       }
     }
 
-    if (!llamaContextRef.current) {
+    if (!ModelManager.isLlamaReady()) {
       const errorMsg = 'Llama initialization failed - model may be too large for this device';
       setError(errorMsg);
       console.error(errorMsg);
@@ -107,7 +94,12 @@ Task:
 
       console.log('Sending prompt to Llama...');
       
-      const result = await llamaContextRef.current.completion({
+      // Start timing the LLM inference
+      const startTime = Date.now();
+      console.log('⏱️ LLM INFERENCE START:', new Date().toISOString());
+      
+      const llamaContext = ModelManager.getLlamaContext();
+      const result = await llamaContext.completion({
         prompt,
         n_predict: 1024,
         stop: ['<end_of_turn>', '<start_of_turn>'],
@@ -117,24 +109,43 @@ Task:
         repeat_penalty: 1.0,
       });
 
+      // End timing and calculate duration
+      const endTime = Date.now();
+      const duration = endTime - startTime;
+      console.log('⏱️ LLM INFERENCE END:', new Date().toISOString());
+      console.log('⏱️ LLM INFERENCE TIME:', duration, 'ms');
+      console.log('⏱️ LLM INFERENCE TIME:', (duration / 1000).toFixed(2), 'seconds');
+
       console.log('Translation result text:', result.text);
       setIsTranslating(false);
       
       const translation = result.text.trim();
+      
+      // End timing for complete translation process
+      const totalEndTime = Date.now();
+      const totalDuration = totalEndTime - totalStartTime;
+      console.log('⏱️ TRANSLATION PROCESS END:', new Date().toISOString());
+      console.log('⏱️ TOTAL TRANSLATION TIME:', totalDuration, 'ms');
+      console.log('⏱️ TOTAL TRANSLATION TIME:', (totalDuration / 1000).toFixed(2), 'seconds');
+      
       return translation || `[No translation generated for: ${text}]`;
     } catch (err) {
       console.error('Translation failed:', err);
       setError('Translation failed');
       setIsTranslating(false);
+      
+      // End timing even on error
+      const totalEndTime = Date.now();
+      const totalDuration = totalEndTime - totalStartTime;
+      console.log('⏱️ TRANSLATION PROCESS END (ERROR):', new Date().toISOString());
+      console.log('⏱️ TOTAL TRANSLATION TIME (ERROR):', totalDuration, 'ms');
+      
       return `[Translation error: ${text}]`;
     }
   };
 
   const cleanup = () => {
-    if (llamaContextRef.current) {
-      llamaContextRef.current.release();
-      llamaContextRef.current = null;
-    }
+    // No cleanup needed as ModelManager handles the context
     console.log('Translation hook cleanup called');
   };
 
