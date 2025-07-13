@@ -18,7 +18,8 @@ import TranslationDisplay from '@/components/TranslationDisplay';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSpeechToText } from '@/hooks/useSpeechToText';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
-import { LanguagePackManager } from '@/utils/LanguagePackManager';
+import { useFrameworkReady } from '@/hooks/useFrameworkReady';
+import { TTSVoiceManager } from '@/utils/LanguagePackManager';
 import { getLanguageDisplayName } from '@/utils/LanguageConfig';
 
 const { height, width } = Dimensions.get('window');
@@ -56,26 +57,6 @@ export default function TranslatorScreen() {
       // Check if models are ready
       if (!modelsReady) {
         Alert.alert('Models Loading', 'AI models are still loading. Please wait a moment.');
-        return;
-      }
-
-      // Check if language pack is available for speech recognition
-      const languageCode = isTop ? topLanguage : bottomLanguage;
-      const isLanguageAvailable = await LanguagePackManager.canRecognizeSpeech(languageCode);
-      
-      if (!isLanguageAvailable) {
-        const languageName = getLanguageDisplayName(languageCode);
-        Alert.alert(
-          'Language Pack Required',
-          `Speech recognition for ${languageName} requires an offline language pack. Would you like to download it?`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Download',
-              onPress: () => router.push('/settings')
-            }
-          ]
-        );
         return;
       }
 
@@ -171,8 +152,37 @@ export default function TranslatorScreen() {
     }
   };
 
-  const handleSpeak = (text: string, language: string) => {
-    if (text) {
+  const handleSpeak = async (text: string, language: string) => {
+    if (!text) return;
+    
+    try {
+      // Check if TTS voice is available for this language
+      const isVoiceAvailable = await TTSVoiceManager.canSpeakLanguage(language);
+      
+      if (!isVoiceAvailable) {
+        const languageName = getLanguageDisplayName(language);
+        Alert.alert(
+          'TTS Voice Not Available',
+          `Text-to-speech voice for ${languageName} is not available. Would you like to enable it?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Enable',
+              onPress: () => router.push('/settings')
+            }
+          ]
+        );
+        return;
+      }
+
+      Speech.speak(text, {
+        language: language,
+        pitch: 1.0,
+        rate: 0.8,
+      });
+    } catch (error) {
+      console.error('Failed to speak text:', error);
+      // Fallback to speaking without language check
       Speech.speak(text, {
         language: language,
         pitch: 1.0,

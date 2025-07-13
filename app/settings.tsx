@@ -12,37 +12,50 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { Download, Check, X, ArrowLeft } from 'lucide-react-native';
 import { router } from 'expo-router';
-import { LanguagePackManager, AVAILABLE_LANGUAGE_PACKS, LanguagePack } from '../utils/LanguagePackManager';
+import { useFocusEffect } from '@react-navigation/native';
+import { TTSVoiceManager, AVAILABLE_TTS_VOICES, TTSVoice } from '../utils/LanguagePackManager';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
 
 export default function SettingsScreen() {
-  const [languagePacks, setLanguagePacks] = useState<LanguagePack[]>([]);
+  const [ttsVoices, setTTSVoices] = useState<TTSVoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    initializeLanguagePacks();
+    initializeTTSVoices();
   }, []);
 
-  const initializeLanguagePacks = async () => {
+  // Refresh TTS voices when screen is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!isLoading) {
+        initializeTTSVoices();
+      }
+    }, [isLoading])
+  );
+
+  const initializeTTSVoices = async () => {
     try {
-      const packs = await LanguagePackManager.getAllLanguagePacks();
-      const packsWithDownloading = packs.map(pack => ({ ...pack, isDownloading: false }));
-      setLanguagePacks(packsWithDownloading);
+      console.log('Loading TTS voices from storage...');
+      const voices = await TTSVoiceManager.getAllTTSVoices();
+      console.log('TTS voices loaded:', voices.map(v => ({ code: v.code, name: v.name, isAvailable: v.isAvailable, isDefault: v.isDefault })));
+      
+      const voicesWithDownloading = voices.map(voice => ({ ...voice, isDownloading: false }));
+      setTTSVoices(voicesWithDownloading);
       setIsLoading(false);
     } catch (error) {
-      console.error('Failed to initialize language packs:', error);
+      console.error('Failed to initialize TTS voices:', error);
       setIsLoading(false);
     }
   };
 
-  const downloadLanguagePack = async (languageCode: string) => {
+  const enableTTSVoice = async (languageCode: string) => {
     try {
-      // Update UI to show downloading state
-      setLanguagePacks(prev => 
-        prev.map(pack => 
-          pack.code === languageCode 
-            ? { ...pack, isDownloading: true }
-            : pack
+      // Update UI to show enabling state
+      setTTSVoices(prev => 
+        prev.map(voice => 
+          voice.code === languageCode 
+            ? { ...voice, isDownloading: true }
+            : voice
         )
       );
 
@@ -50,18 +63,18 @@ export default function SettingsScreen() {
 
       // Show alert explaining the download process
       Alert.alert(
-        'Download Language Pack',
-        `To enable offline speech recognition for ${languageName}, you need to:\n\n1. Go to your device's Settings\n2. Find "Language & Input" or "Voice Recognition"\n3. Download the language pack for ${languageName}\n\n After downloading, return here and we'll mark it as available.`,
+        'Enable TTS Voice',
+        `To enable text-to-speech for ${languageName}, you need to:\n\n1. Go to your device's Settings\n2. Find "Language & Input" or "Text-to-Speech"\n3. Download the voice for ${languageName}\n\nAfter downloading, return here and we'll mark it as available.`,
         [
           {
             text: 'Cancel',
             style: 'cancel',
             onPress: () => {
-              setLanguagePacks(prev => 
-                prev.map(pack => 
-                  pack.code === languageCode 
-                    ? { ...pack, isDownloading: false }
-                    : pack
+              setTTSVoices(prev => 
+                prev.map(voice => 
+                  voice.code === languageCode 
+                    ? { ...voice, isDownloading: false }
+                    : voice
                 )
               );
             }
@@ -79,17 +92,17 @@ export default function SettingsScreen() {
               // Show confirmation dialog after user returns
               setTimeout(() => {
                 Alert.alert(
-                  'Language Pack Downloaded?',
-                  'Did you successfully download the language pack from your device settings?',
+                  'TTS Voice Downloaded?',
+                  'Did you successfully download the TTS voice from your device settings?',
                   [
                     {
                       text: 'No',
                       onPress: () => {
-                        setLanguagePacks(prev => 
-                          prev.map(pack => 
-                            pack.code === languageCode 
-                              ? { ...pack, isDownloading: false }
-                              : pack
+                        setTTSVoices(prev => 
+                          prev.map(voice => 
+                            voice.code === languageCode 
+                              ? { ...voice, isDownloading: false }
+                              : voice
                           )
                         );
                       }
@@ -98,18 +111,18 @@ export default function SettingsScreen() {
                       text: 'Yes',
                       onPress: async () => {
                         try {
-                          await LanguagePackManager.markLanguagePackAsDownloaded(languageCode);
-                          setLanguagePacks(prev => 
-                            prev.map(pack => 
-                              pack.code === languageCode 
-                                ? { ...pack, isDownloading: false, isDownloaded: true }
-                                : pack
+                          await TTSVoiceManager.markTTSVoiceAsAvailable(languageCode);
+                          setTTSVoices(prev => 
+                            prev.map(voice => 
+                              voice.code === languageCode 
+                                ? { ...voice, isDownloading: false, isAvailable: true }
+                                : voice
                             )
                           );
-                          Alert.alert('Success', 'Language pack is now available for offline speech recognition!');
+                          Alert.alert('Success', 'TTS voice is now available!');
                         } catch (error) {
-                          console.error('Failed to mark language pack as downloaded:', error);
-                          Alert.alert('Error', 'Failed to save language pack status.');
+                          console.error('Failed to mark TTS voice as available:', error);
+                          Alert.alert('Error', 'Failed to save TTS voice status.');
                         }
                       }
                     }
@@ -121,44 +134,44 @@ export default function SettingsScreen() {
         ]
       );
     } catch (error) {
-      console.error('Failed to download language pack:', error);
-      Alert.alert('Error', 'Failed to download language pack. Please try again.');
+      console.error('Failed to enable TTS voice:', error);
+      Alert.alert('Error', 'Failed to enable TTS voice. Please try again.');
       
-      setLanguagePacks(prev => 
-        prev.map(pack => 
-          pack.code === languageCode 
-            ? { ...pack, isDownloading: false }
-            : pack
+      setTTSVoices(prev => 
+        prev.map(voice => 
+          voice.code === languageCode 
+            ? { ...voice, isDownloading: false }
+            : voice
         )
       );
     }
   };
 
-  const removeLanguagePack = async (languageCode: string) => {
+  const removeTTSVoice = async (languageCode: string) => {
     const languageName = getLanguageDisplayName(languageCode);
     
     Alert.alert(
-      'Remove Language Pack',
-      `Are you sure you want to remove the ${languageName} language pack? You'll need to download it again to use speech recognition for this language.`,
+      'Disable TTS Voice',
+      `Are you sure you want to disable the ${languageName} TTS voice? You'll need to enable it again to hear translations in this language.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Remove',
+          text: 'Disable',
           style: 'destructive',
           onPress: async () => {
             try {
-              await LanguagePackManager.markLanguagePackAsRemoved(languageCode);
-              setLanguagePacks(prev => 
-                prev.map(pack => 
-                  pack.code === languageCode 
-                    ? { ...pack, isDownloaded: false }
-                    : pack
+              await TTSVoiceManager.markTTSVoiceAsUnavailable(languageCode);
+              setTTSVoices(prev => 
+                prev.map(voice => 
+                  voice.code === languageCode 
+                    ? { ...voice, isAvailable: false }
+                    : voice
                 )
               );
-              Alert.alert('Removed', 'Language pack has been removed.');
+              Alert.alert('Disabled', 'TTS voice has been disabled.');
             } catch (error) {
-              console.error('Failed to remove language pack:', error);
-              Alert.alert('Error', 'Failed to remove language pack. Default languages cannot be removed.');
+              console.error('Failed to disable TTS voice:', error);
+              Alert.alert('Error', 'Failed to disable TTS voice. Default voices cannot be disabled.');
             }
           }
         }
@@ -172,7 +185,7 @@ export default function SettingsScreen() {
         <StatusBar style="light" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Loading language packs...</Text>
+          <Text style={styles.loadingText}>Loading TTS voices...</Text>
         </View>
       </View>
     );
@@ -189,43 +202,43 @@ export default function SettingsScreen() {
         >
           <ArrowLeft size={24} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Language Packs</Text>
+        <Text style={styles.headerTitle}>TTS Voice Settings</Text>
         <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.headerSubtitleContainer}>
         <Text style={styles.headerSubtitle}>
-          Download offline language packs for speech recognition
+          Manage text-to-speech voices for translation output
         </Text>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Available Languages</Text>
+          <Text style={styles.sectionTitle}>Available TTS Voices</Text>
           <Text style={styles.sectionDescription}>
-            Languages marked with a checkmark are available for offline speech recognition.
+            Voices marked with a checkmark are available for text-to-speech output.
           </Text>
         </View>
 
-        {languagePacks.map((pack) => (
-          <View key={pack.code} style={styles.languageItem}>
+        {ttsVoices.map((voice) => (
+          <View key={voice.code} style={styles.languageItem}>
             <View style={styles.languageInfo}>
-              <Text style={styles.languageName}>{pack.name}</Text>
-              {pack.isDefault && (
+              <Text style={styles.languageName}>{voice.name}</Text>
+              {voice.isDefault && (
                 <Text style={styles.defaultLabel}>Default</Text>
               )}
             </View>
             
             <View style={styles.languageActions}>
-              {pack.isDownloading ? (
+              {voice.isDownloading ? (
                 <ActivityIndicator size="small" color="#007AFF" />
-              ) : pack.isDownloaded ? (
+              ) : voice.isAvailable ? (
                 <View style={styles.actionButtons}>
                   <Check size={24} color="#34C759" />
-                  {!pack.isDefault && (
+                  {!voice.isDefault && (
                     <TouchableOpacity
                       style={styles.removeButton}
-                      onPress={() => removeLanguagePack(pack.code)}
+                      onPress={() => removeTTSVoice(voice.code)}
                     >
                       <X size={20} color="#FF3B30" />
                     </TouchableOpacity>
@@ -234,10 +247,10 @@ export default function SettingsScreen() {
               ) : (
                 <TouchableOpacity
                   style={styles.downloadButton}
-                  onPress={() => downloadLanguagePack(pack.code)}
+                  onPress={() => enableTTSVoice(voice.code)}
                 >
                   <Download size={20} color="#007AFF" />
-                  <Text style={styles.downloadButtonText}>Download</Text>
+                  <Text style={styles.downloadButtonText}>Enable</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -247,7 +260,7 @@ export default function SettingsScreen() {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          💡 Tip: Downloaded language packs work offline and provide better accuracy for speech recognition.
+          💡 Tip: Download TTS voices from your device settings to hear translations in different languages.
         </Text>
       </View>
     </View>

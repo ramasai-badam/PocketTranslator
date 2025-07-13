@@ -38,7 +38,7 @@ export function useTranslation() {
         model: modelPath,
         use_mlock: false,
         n_ctx: 512,
-        n_threads: 4, // Reduced threads for faster startup
+        n_threads: 2, // Reduced threads for faster startup
         embedding: false,
       });
 
