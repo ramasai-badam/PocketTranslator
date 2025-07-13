@@ -1,27 +1,13 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
+import { SUPPORTED_LANGUAGES, getLanguageByCode } from '../utils/LanguageConfig';
 
 interface LanguageSelectorProps {
   selectedLanguage: string;
   onLanguageChange: (language: string) => void;
   isRotated?: boolean;
 }
-
-const LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'es', name: 'Español' },
-  { code: 'fr', name: 'Français' },
-  { code: 'de', name: 'Deutsch' },
-  { code: 'it', name: 'Italiano' },
-  { code: 'pt', name: 'Português' },
-  { code: 'ru', name: 'Русский' },
-  { code: 'ja', name: '日本語' },
-  { code: 'ko', name: '한국어' },
-  { code: 'zh', name: '中文' },
-  { code: 'ar', name: 'العربية' },
-  { code: 'hi', name: 'हिन्दी' },
-];
 
 export default function LanguageSelector({
   selectedLanguage,
@@ -30,7 +16,7 @@ export default function LanguageSelector({
 }: LanguageSelectorProps) {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
-  const selectedLang = LANGUAGES.find(lang => lang.code === selectedLanguage);
+  const selectedLang = getLanguageByCode(selectedLanguage);
 
   return (
     <View style={styles.container}>
@@ -39,7 +25,7 @@ export default function LanguageSelector({
         onPress={() => setIsExpanded(!isExpanded)}
       >
         <Text style={styles.selectedText}>
-          {selectedLang?.name || 'Select Language'}
+          {selectedLang?.nativeName || 'Select Language'}
         </Text>
         <ChevronDown 
           size={12} 
@@ -55,7 +41,7 @@ export default function LanguageSelector({
       {isExpanded && (
         <View style={styles.dropdown}>
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={true}>
-            {LANGUAGES.map((language) => (
+            {SUPPORTED_LANGUAGES.map((language) => (
               <TouchableOpacity
                 key={language.code}
                 style={[
@@ -73,7 +59,7 @@ export default function LanguageSelector({
                     selectedLanguage === language.code && styles.selectedOptionText,
                   ]}
                 >
-                  {language.name}
+                  {language.nativeName}
                 </Text>
               </TouchableOpacity>
             ))}

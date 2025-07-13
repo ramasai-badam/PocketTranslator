@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,18 @@ import {
   Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Mic, Volume2, RotateCcw } from 'lucide-react-native';
+import { Mic, Volume2, RotateCcw, Settings } from 'lucide-react-native';
 import * as Speech from 'expo-speech';
 import { Audio } from 'expo-av';
+import { router } from 'expo-router';
 import LanguageSelector from '@/components/LanguageSelector';
 import RecordingIndicator from '@/components/RecordingIndicator';
 import TranslationDisplay from '@/components/TranslationDisplay';
-import { useTranslation, useSpeechToText, useAudioRecording } from '@/hooks';
+import { useTranslation } from '@/hooks/useTranslation';
+import { useSpeechToText } from '@/hooks/useSpeechToText';
+import { useAudioRecording } from '@/hooks/useAudioRecording';
+import { LanguagePackManager } from '@/utils/LanguagePackManager';
+import { getLanguageDisplayName } from '@/utils/LanguageConfig';
 
 const { height, width } = Dimensions.get('window');
 
@@ -27,12 +32,58 @@ export default function TranslatorScreen() {
   const [isBottomRecording, setIsBottomRecording] = useState(false);
 
   const { translateText, isTranslating } = useTranslation();
-  const { startRecording, stopRecording, isRecording } = useAudioRecording();
-  const { transcribeWav, whisperReady, error: whisperError } = useSpeechToText();
+  const { startRecording, stopRecording, isRecording, isInitialized, error: audioError, cleanup } = useAudioRecording();
+  const { transcribeWav, isTranscribing, error: whisperError } = useSpeechToText();
   const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
+
+  // Models are ready when hooks are loaded (lazy loading)
+  const modelsReady = true;
 
   const handleStartRecording = async (isTop: boolean) => {
     try {
+      // Check if audio recording is initialized
+      if (!isInitialized) {
+        Alert.alert('Audio Error', 'Audio recording is not ready. Please try again.');
+        return;
+      }
+
+      // Check if already recording
+      if (isRecording) {
+        Alert.alert('Recording Error', 'Already recording. Please stop the current recording first.');
+        return;
+      }
+
+      // Check if models are ready
+      if (!modelsReady) {
+        Alert.alert('Models Loading', 'AI models are still loading. Please wait a moment.');
+        return;
+      }
+
+      // Check if language pack is available for speech recognition
+      const languageCode = isTop ? topLanguage : bottomLanguage;
+      const isLanguageAvailable = await LanguagePackManager.canRecognizeSpeech(languageCode);
+      
+      if (!isLanguageAvailable) {
+        const languageName = getLanguageDisplayName(languageCode);
+        Alert.alert(
+          'Language Pack Required',
+          `Speech recognition for ${languageName} requires an offline language pack. Would you like to download it?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Download',
+              onPress: () => router.push('/settings')
+            }
+          ]
+        );
+        return;
+      }
+
+      if (audioError) {
+        Alert.alert('Audio Error', audioError);
+        return;
+      }
+
       if (isTop) {
         setIsTopRecording(true);
       } else {
@@ -54,11 +105,18 @@ export default function TranslatorScreen() {
       if (audioUri) {
         const fromLang = isTop ? topLanguage : bottomLanguage;
         const toLang = isTop ? bottomLanguage : topLanguage;
+        
+        console.log('🎯 RECORDING COMPLETE:');
+        console.log('  - Side pressed:', isTop ? 'TOP' : 'BOTTOM');
+        console.log('  - From language (speech input):', fromLang);
+        console.log('  - To language (translation target):', toLang);
+        
         let speechText = '';
         let errorMsg = null;
         
         // Always try to transcribe - the transcribeWav function handles initialization
         try {
+          console.log('🎯 CALLING TRANSCRIPTION with language:', fromLang);
           speechText = await transcribeWav(audioUri, fromLang) || '';
           if (!speechText) {
             errorMsg = 'Transcription failed or returned empty.';
@@ -70,7 +128,14 @@ export default function TranslatorScreen() {
           console.error('Transcription error:', error);
         }
         
+        console.log('🎯 CALLING TRANSLATION:');
+        console.log('  - Speech text:', speechText);
+        console.log('  - From language:', fromLang);
+        console.log('  - To language:', toLang);
+        
         const translatedText = await translateText(speechText, fromLang, toLang);
+        console.log('🎯 TRANSLATION RESULT:', translatedText);
+        
         if (isTop) {
           setTopText(errorMsg ? errorMsg : speechText);
           setBottomText(errorMsg ? '' : translatedText);
@@ -126,6 +191,26 @@ export default function TranslatorScreen() {
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
+      
+      {/* Header with Settings Button */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => router.push('/settings')}
+        >
+          <Settings size={24} color="#FFF" />
+        </TouchableOpacity>
+      </View>
+      
+      {/* Model Status Indicator */}
+      {!modelsReady && (
+        <View style={styles.modelStatusContainer}>
+          <Text style={styles.modelStatusText}>
+            {isTranslating || isTranscribing ? 'Loading AI models...' : 'AI models not ready'}
+          </Text>
+        </View>
+      )}
+      
       {/* Top Section (Rotated 180 degrees) */}
       <View style={[styles.section, styles.topSection]}>
         <View style={styles.rotatedContent}>
@@ -140,12 +225,16 @@ export default function TranslatorScreen() {
           />
           <View style={styles.controls}>
             <TouchableOpacity
-              style={[styles.micButton, isTopRecording && styles.recordingButton]}
+              style={[
+                styles.micButton, 
+                isTopRecording && styles.recordingButton,
+                !modelsReady && styles.disabledButton
+              ]}
               onPressIn={() => handleStartRecording(true)}
               onPressOut={() => handleStopRecording(true)}
-              disabled={isBottomRecording}
+              disabled={isBottomRecording || !modelsReady}
             >
-              <Mic size={32} color="white" />
+              <Mic size={32} color={modelsReady ? "white" : "#666"} />
               {isTopRecording && <RecordingIndicator />}
             </TouchableOpacity>
             <TouchableOpacity
@@ -177,12 +266,16 @@ export default function TranslatorScreen() {
         />
         <View style={styles.controls}>
           <TouchableOpacity
-            style={[styles.micButton, isBottomRecording && styles.recordingButton]}
+            style={[
+              styles.micButton, 
+              isBottomRecording && styles.recordingButton,
+              !modelsReady && styles.disabledButton
+            ]}
             onPressIn={() => handleStartRecording(false)}
             onPressOut={() => handleStopRecording(false)}
-            disabled={isTopRecording}
+            disabled={isTopRecording || !modelsReady}
           >
-            <Mic size={32} color="white" />
+            <Mic size={32} color={modelsReady ? "white" : "#666"} />
             {isBottomRecording && <RecordingIndicator />}
           </TouchableOpacity>
           <TouchableOpacity
@@ -202,6 +295,38 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a1a',
+  },
+  header: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 1000,
+  },
+  settingsButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  modelStatusContainer: {
+    position: 'absolute',
+    top: 40,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+  },
+  modelStatusText: {
+    color: '#fbbf24',
+    fontSize: 12,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   section: {
     flex: 1,
@@ -244,6 +369,10 @@ const styles = StyleSheet.create({
   recordingButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.4)',
     borderColor: 'white',
+  },
+  disabledButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   speakerButton: {
     width: 60,

@@ -1,68 +1,80 @@
 import { useState, useRef } from 'react';
-import * as FileSystem from 'expo-file-system';
-import { initWhisper } from 'whisper.rn';
+import { initWhisper, WhisperContext } from 'whisper.rn';
+import { MODEL_CONFIG } from '../utils/ModelConfig';
+
+// Safety flag to disable loading if needed
+const ENABLE_WHISPER_LOADING = true;
 
 export function useSpeechToText() {
-  const [error, setError] = useState<string | null>(null);
+  const whisperContextRef = useRef<WhisperContext | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
-  const [whisperInitialized, setWhisperInitialized] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
-  const whisperContextRef = useRef<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const initializeWhisper = async () => {
-    if (whisperContextRef.current || isInitializing) {
-      return; // Already initialized or initializing
+  const initializeModel = async () => {
+    if (whisperContextRef.current) {
+      console.log('Whisper already initialized');
+      return;
     }
 
-    setIsInitializing(true);
     try {
-      console.log('Initializing Whisper model...');
-      const modelPath = FileSystem.documentDirectory + 'whisper-tiny.bin';
-
-      // Check if model file exists
-      const fileInfo = await FileSystem.getInfoAsync(modelPath);
-      if (!fileInfo.exists) {
-        throw new Error('Whisper model file not found. Please download models first.');
-      }
-
-      const context = await initWhisper({ filePath: modelPath });
+      console.log('Initializing Whisper with path:', MODEL_CONFIG.whisper.path);
+      const context = await initWhisper({
+        filePath: MODEL_CONFIG.whisper.path,
+        isBundleAsset: false,
+      });
+      
       whisperContextRef.current = context;
-      setWhisperInitialized(true);
+      setIsInitialized(true);
       setError(null);
-      console.log('Whisper model initialized successfully');
+      console.log('Whisper initialized successfully');
     } catch (err) {
       console.error('Failed to initialize Whisper:', err);
-      setError(`Failed to initialize Whisper: ${err}`);
-    } finally {
-      setIsInitializing(false);
+      setError('Failed to initialize speech recognition');
+      throw err;
     }
   };
 
   // Accepts a WAV file path and transcribes it
   const transcribeWav = async (wavFilePath: string, language: string = 'en'): Promise<string | null> => {
     console.log('transcribeWav called:', { wavFilePath, language });
+    console.log('🎯 SPEECH-TO-TEXT: Using language code:', language);
+
+    if (!wavFilePath) {
+      console.error('No audio path provided');
+      return null;
+    }
+
+    if (!ENABLE_WHISPER_LOADING) {
+      console.log('Whisper loading disabled for safety');
+      return '[Transcription disabled]';
+    }
 
     if (!whisperContextRef.current) {
       console.log('Whisper not initialized, initializing now...');
-      await initializeWhisper();
+      try {
+        await initializeModel();
+      } catch (initError) {
+        console.error('Initialization failed in transcribeWav:', initError);
+        return null;
+      }
     }
 
-    // Check again after initialization attempt
     if (!whisperContextRef.current) {
-      const errorMsg = 'Whisper initialization failed';
-      setError(errorMsg);
-      console.error(errorMsg);
+      console.error('Whisper initialization failed');
       return null;
     }
 
     setIsTranscribing(true);
     try {
-      console.log('Starting transcription...');
+      console.log('Starting transcription with language:', language);
       const options = { language };
+      console.log('Whisper transcription options:', options);
       const { stop, promise } = whisperContextRef.current.transcribe(wavFilePath, options);
       const { result } = await promise;
       
       console.log('Transcription result:', result);
+      console.log('🎯 TRANSCRIPTION SUCCESS for language:', language, '→', result);
       setIsTranscribing(false);
       return result;
     } catch (err) {
@@ -77,17 +89,16 @@ export function useSpeechToText() {
     if (whisperContextRef.current) {
       whisperContextRef.current.release();
       whisperContextRef.current = null;
-      setWhisperInitialized(false);
     }
+    setIsInitialized(false);
+    console.log('Speech-to-text hook cleanup called');
   };
 
   return {
     isTranscribing,
+    isInitialized,
     error,
-    whisperReady: whisperInitialized,
     transcribeWav,
-    isInitializing,
-    initializeWhisper,
     cleanup,
   };
 }

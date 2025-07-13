@@ -1,10 +1,144 @@
 import * as FileSystem from 'expo-file-system';
+import { initLlama } from 'llama.rn';
+import { initWhisper } from 'whisper.rn';
+import { getModelPath } from './ModelConfig';
+
+// Global model contexts to persist across component unmounts
+let llamaContext: any = null;
+let whisperContext: any = null;
+let isLlamaInitializing = false;
+let isWhisperInitializing = false;
+
+// Event listeners for model state changes
+const listeners = new Set<() => void>();
+
+const notifyListeners = () => {
+  listeners.forEach(listener => listener());
+};
 
 export class ModelManager {
   private static readonly MODEL_PATHS = {
-    whisper: `${FileSystem.documentDirectory}whisper-tiny.bin`,
-    llama: `${FileSystem.documentDirectory}llama-model.bin`
+    whisper: getModelPath('whisper'),
+    llama: getModelPath('llama')
   };
+
+  // Global model management methods
+  static addListener(listener: () => void): () => void {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
+  }
+
+  static isLlamaReady(): boolean {
+    return llamaContext !== null;
+  }
+
+  static isWhisperReady(): boolean {
+    return whisperContext !== null;
+  }
+
+  static isLlamaInitializing(): boolean {
+    return isLlamaInitializing;
+  }
+
+  static isWhisperInitializing(): boolean {
+    return isWhisperInitializing;
+  }
+
+  static getLlamaContext(): any {
+    return llamaContext;
+  }
+
+  static getWhisperContext(): any {
+    return whisperContext;
+  }
+
+  // Initialize Llama model
+  static async initializeLlama(): Promise<any> {
+    if (llamaContext || isLlamaInitializing) {
+      return llamaContext;
+    }
+
+    isLlamaInitializing = true;
+    notifyListeners();
+
+    try {
+      console.log('ModelManager: Initializing Llama model...');
+      const modelPath = getModelPath('llama');
+      
+      const fileInfo = await FileSystem.getInfoAsync(modelPath);
+      if (!fileInfo.exists) {
+        throw new Error('Model file not found. Please download models first.');
+      }
+
+      console.log('ModelManager: Model file found, size:', Math.round(fileInfo.size / (1024 * 1024)), 'MB');
+
+      const context = await initLlama({
+        model: modelPath,
+        use_mlock: false,
+        n_ctx: 512,
+        n_threads: 6,
+        embedding: false,
+      });
+
+      llamaContext = context;
+      console.log('ModelManager: Llama model initialized successfully');
+      notifyListeners();
+      return context;
+    } catch (error) {
+      console.error('ModelManager: Failed to initialize Llama:', error);
+      throw error;
+    } finally {
+      isLlamaInitializing = false;
+      notifyListeners();
+    }
+  }
+
+  // Initialize Whisper model
+  static async initializeWhisper(): Promise<any> {
+    if (whisperContext || isWhisperInitializing) {
+      return whisperContext;
+    }
+
+    isWhisperInitializing = true;
+    notifyListeners();
+
+    try {
+      console.log('ModelManager: Initializing Whisper model...');
+      const modelPath = getModelPath('whisper');
+
+      const fileInfo = await FileSystem.getInfoAsync(modelPath);
+      if (!fileInfo.exists) {
+        throw new Error('Whisper model file not found. Please download models first.');
+      }
+
+      const context = await initWhisper({ filePath: modelPath });
+      whisperContext = context;
+      console.log('ModelManager: Whisper model initialized successfully');
+      notifyListeners();
+      return context;
+    } catch (error) {
+      console.error('ModelManager: Failed to initialize Whisper:', error);
+      throw error;
+    } finally {
+      isWhisperInitializing = false;
+      notifyListeners();
+    }
+  }
+
+  // Initialize both models
+  static async initializeAll(): Promise<void> {
+    console.log('ModelManager: Initializing all models...');
+    try {
+      await Promise.all([
+        ModelManager.initializeLlama(),
+        ModelManager.initializeWhisper()
+      ]);
+      console.log('ModelManager: All models initialized successfully');
+    } catch (error) {
+      console.error('ModelManager: Failed to initialize models:', error);
+      throw error;
+    }
+  }
 
   // Check available storage space
   static async checkStorageSpace(): Promise<{ available: number; total: number }> {

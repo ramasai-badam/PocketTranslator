@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react'; 
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native'; 
 import * as FileSystem from 'expo-file-system';
+import { MODEL_CONFIG, getModelPath, getModelUrl, getModelSize, getModelDisplayName } from '@/utils/ModelConfig';
+import { ModelManager } from '@/utils/ModelManager';
 
 interface ModelDownloadProgress {
   whisper: { progress: number; downloaded: boolean; error?: string };
@@ -9,28 +11,12 @@ interface ModelDownloadProgress {
 
 export default function WelcomeScreen({ onReady }: { onReady: () => void }) { 
   const [isDownloading, setIsDownloading] = useState(false);
+  const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [progress, setProgress] = useState<ModelDownloadProgress>({
     whisper: { progress: 0, downloaded: false },
     llama: { progress: 0, downloaded: false }
   });
   const [showSkip, setShowSkip] = useState(false);
-
-  // Production-ready model URLs
-  const MODEL_URLS = {
-    whisper: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin',
-    llama: 'https://huggingface.co/bartowski/google_gemma-3n-E2B-it-GGUF/blob/main/google_gemma-3n-E2B-it-Q2_K.gguf'
-  };
-
-  const MODEL_PATHS = {
-    whisper: `${FileSystem.documentDirectory}whisper-tiny.bin`,
-    llama: `${FileSystem.documentDirectory}gemma-3n-E2B-Q2_K.bin`
-  };
-
-  // Model sizes for progress calculation (approximate)
-  const MODEL_SIZES = {
-    whisper: 39 * 1024 * 1024, // ~39MB
-    llama: 823 * 1024 * 1024, // ~1024MB (gemma-3n-E2B-Q2)
-  };
 
   useEffect(() => {
     checkExistingModels();
@@ -41,15 +27,18 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
 
   const checkExistingModels = async () => {
     try {
-      const whisperExists = await FileSystem.getInfoAsync(MODEL_PATHS.whisper);
-      const llamaExists = await FileSystem.getInfoAsync(MODEL_PATHS.llama);
+      const whisperExists = await FileSystem.getInfoAsync(getModelPath('whisper'));
+      const llamaExists = await FileSystem.getInfoAsync(getModelPath('llama'));
 
       setProgress(prev => ({
         whisper: { ...prev.whisper, downloaded: whisperExists.exists, progress: whisperExists.exists ? 100 : 0 },
         llama: { ...prev.llama, downloaded: llamaExists.exists, progress: llamaExists.exists ? 100 : 0 }
       }));
 
+      // If both models exist, load them into memory
       if (whisperExists.exists && llamaExists.exists) {
+        console.log('Both models exist, loading into memory...');
+        await loadModelsIntoMemory();
         setTimeout(() => onReady(), 1000);
       }
     } catch (error) {
@@ -57,12 +46,27 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
     }
   };
 
+  const loadModelsIntoMemory = async () => {
+    setIsLoadingModels(true);
+    try {
+      console.log('Loading models into memory...');
+      
+      // Load both models using ModelManager
+      await ModelManager.initializeAll();
+      console.log('Models loaded into memory successfully');
+    } catch (error) {
+      console.error('Error loading models into memory:', error);
+    } finally {
+      setIsLoadingModels(false);
+    }
+  };
+
   const downloadModel = async (modelName: 'whisper' | 'llama', retryCount = 0) => {
     const maxRetries = 3;
     
     try {
-      const url = MODEL_URLS[modelName];
-      const path = MODEL_PATHS[modelName];
+      const url = getModelUrl(modelName);
+      const path = getModelPath(modelName);
 
       console.log(`Starting download of ${modelName} model... (attempt ${retryCount + 1})`);
       console.log(`URL: ${url}`);
@@ -133,6 +137,10 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
         !progress.llama.downloaded ? downloadModel('llama') : Promise.resolve()
       ]);
 
+      // Load models into memory after download completion
+      console.log('Downloads complete, loading models into memory...');
+      await loadModelsIntoMemory();
+
       // Wait a moment then proceed
       setTimeout(() => {
         setIsDownloading(false);
@@ -146,6 +154,7 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
 
   const totalProgress = (progress.whisper.progress + progress.llama.progress) / 2;
   const allDownloaded = progress.whisper.downloaded && progress.llama.downloaded;
+  const isProcessing = isDownloading || isLoadingModels;
 
   return (
     <View style={styles.container}>
@@ -153,11 +162,13 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
       <Text style={styles.subtitle}>AI-Powered Translation</Text>
       
       <View style={styles.progressContainer}>
-        <Text style={styles.progressTitle}>Preparing AI Models</Text>
+        <Text style={styles.progressTitle}>
+          {isLoadingModels ? 'Loading Models into Memory...' : 'Preparing AI Models'}
+        </Text>
         
         {/* Whisper Progress */}
         <View style={styles.modelProgress}>
-          <Text style={styles.modelName}>Speech Recognition (Whisper)</Text>
+          <Text style={styles.modelName}>{getModelDisplayName('whisper')}</Text>
           <View style={styles.progressBar}>
             <View 
               style={[styles.progressFill, { width: `${progress.whisper.progress}%` }]} 
@@ -170,7 +181,7 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
 
         {/* Translation Model Progress */}
         <View style={styles.modelProgress}>
-          <Text style={styles.modelName}>Translation (Gemma 3n)</Text>
+          <Text style={styles.modelName}>{getModelDisplayName('llama')}</Text>
           <View style={styles.progressBar}>
             <View 
               style={[styles.progressFill, { width: `${progress.llama.progress}%` }]} 
@@ -190,7 +201,7 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
       </View>
 
       <View style={styles.buttonContainer}>
-        {!allDownloaded && !isDownloading && (
+        {!allDownloaded && !isProcessing && (
           <TouchableOpacity style={styles.downloadButton} onPress={startDownload}>
             <Text style={styles.downloadButtonText}>Download Models</Text>
           </TouchableOpacity>
@@ -200,13 +211,17 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
           <Text style={styles.downloadingText}>Downloading models...</Text>
         )}
 
-        {allDownloaded && (
+        {isLoadingModels && (
+          <Text style={styles.downloadingText}>Loading models into memory...</Text>
+        )}
+
+        {allDownloaded && !isProcessing && (
           <TouchableOpacity style={styles.continueButton} onPress={onReady}>
             <Text style={styles.continueButtonText}>Continue to Translator</Text>
           </TouchableOpacity>
         )}
 
-        {showSkip && (
+        {showSkip && !isProcessing && (
           <TouchableOpacity style={styles.skipButton} onPress={onReady}>
             <Text style={styles.skipText}>Skip (For Testing)</Text>
           </TouchableOpacity>
