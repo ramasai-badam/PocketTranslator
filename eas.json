@@ -7,30 +7,18 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
-      "ios": {
-        "resourceClass": "m-medium"
-      },
       "android": {
-        "resourceClass": "medium"
+        "buildType": "apk"
       }
     },
     "preview": {
-      "distribution": "internal",
-      "ios": {
-        "resourceClass": "m-medium"
-      },
-      "android": {
-        "resourceClass": "medium"
-      }
+      "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true,
-      "ios": {
-        "resourceClass": "m-large"
-      },
       "android": {
-        "resourceClass": "large"
-      }
+        "buildType": "apk"
+      },
+      "autoIncrement": true
     }
   },
   "submit": {
