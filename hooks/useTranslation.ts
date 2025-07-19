@@ -75,24 +75,15 @@ export function useTranslation() {
 
     setIsTranslating(true);
     try {
+      // 🚀 METHOD 1: OPTIMIZED PROMPT - More explicit to prevent echoing
       const prompt = `<start_of_turn>user
-[INST]
-You are a direct, machine-like translation engine. Your sole function is to translate the provided text from the source language to the target language.
-
-Rules:
-- Do not add any commentary, explanations, or introductory phrases.
-- Do not greet the user or sign off.
-- Output ONLY the raw, translated text.
-
-Task:
-- Source Language: ${fromLanguage}
-- Target Language: ${toLanguage}
-- Text to Translate: ${text}
-[/INST]<end_of_turn>
+Translate this ${fromLanguage} text to ${toLanguage}: "${text}"
+Give only the ${toLanguage} translation.<end_of_turn>
 <start_of_turn>model
 `;
 
-      console.log('Sending prompt to Llama...');
+      console.log('🚀 METHOD 1: Sending optimized prompt to Llama...');
+      console.log('Prompt tokens reduced from ~80 to ~20 tokens (proper Gemma 3n format)');
       
       // Start timing the LLM inference
       const startTime = Date.now();
@@ -101,12 +92,13 @@ Task:
       const llamaContext = ModelManager.getLlamaContext();
       const result = await llamaContext.completion({
         prompt,
-        n_predict: 512,
-        stop: ['<end_of_turn>', '<start_of_turn>'],
-        temperature: 0.1,
-        top_p: 0.9,
-        top_k: 40,
+        n_predict: 64,        // 🚀 Reduced from 512 to 64 tokens
+        stop: ['<end_of_turn>', '<start_of_turn>'],  // 🚀 Proper Gemma 3n stop sequences
+        temperature: 0.1,     // Keep low for consistent translation
+        top_p: 0.5,          // 🚀 Reduced from 0.9 for faster processing
+        top_k: 5,            // 🚀 Reduced from 40 for speed
         repeat_penalty: 1.0,
+        seed: 42,            // 🚀 Fixed seed for consistency
       });
 
       // End timing and calculate duration
