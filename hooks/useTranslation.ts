@@ -75,52 +75,33 @@ export function useTranslation() {
 
     setIsTranslating(true);
     try {
-      // 🚀 METHOD 1: OPTIMIZED PROMPT - More explicit to prevent echoing
-      const prompt = `<start_of_turn>user
-Translate this ${fromLanguage} text to ${toLanguage}: "${text}"
-Give only the ${toLanguage} translation.<end_of_turn>
-<start_of_turn>model
-`;
-
-      console.log('🚀 METHOD 1: Sending optimized prompt to Llama...');
-      console.log('Prompt tokens reduced from ~80 to ~20 tokens (proper Gemma 3n format)');
+      // Use the ModelManager's optimized translation method
+      console.log('🚀 Using ModelManager.translateText with optimized prompts...');
       
       // Start timing the LLM inference
       const startTime = Date.now();
       console.log('⏱️ LLM INFERENCE START:', new Date().toISOString());
       
-      const llamaContext = ModelManager.getLlamaContext();
-      const result = await llamaContext.completion({
-        prompt,
-        n_predict: 64,        // 🚀 Reduced from 512 to 64 tokens
-        stop: ['<end_of_turn>', '<start_of_turn>'],  // 🚀 Proper Gemma 3n stop sequences
-        temperature: 0.1,     // Keep low for consistent translation
-        top_p: 0.5,          // 🚀 Reduced from 0.9 for faster processing
-        top_k: 5,            // 🚀 Reduced from 40 for speed
-        repeat_penalty: 1.0,
-        seed: 42,            // 🚀 Fixed seed for consistency
-      });
-
-      // End timing and calculate duration
-      const endTime = Date.now();
-      const duration = endTime - startTime;
+      const result = await ModelManager.translateText(text, fromLanguage, toLanguage);
+      
+      const translationTime = Date.now() - startTime;
       console.log('⏱️ LLM INFERENCE END:', new Date().toISOString());
-      console.log('⏱️ LLM INFERENCE TIME:', duration, 'ms');
-      console.log('⏱️ LLM INFERENCE TIME:', (duration / 1000).toFixed(2), 'seconds');
+      console.log('⏱️ LLM INFERENCE TIME:', translationTime, 'ms');
+      console.log('⏱️ LLM INFERENCE TIME:', (translationTime / 1000).toFixed(2), 'seconds');
 
-      console.log('Translation result text:', result.text);
-      setIsTranslating(false);
+      // Clean the result to ensure only translation is returned
+      const cleanedResult = result.trim();
       
-      const translation = result.text.trim();
+      console.log('Translation result text:', cleanedResult);
       
-      // End timing for complete translation process
-      const totalEndTime = Date.now();
-      const totalDuration = totalEndTime - totalStartTime;
+      const totalTime = Date.now() - totalStartTime;
       console.log('⏱️ TRANSLATION PROCESS END:', new Date().toISOString());
-      console.log('⏱️ TOTAL TRANSLATION TIME:', totalDuration, 'ms');
-      console.log('⏱️ TOTAL TRANSLATION TIME:', (totalDuration / 1000).toFixed(2), 'seconds');
+      console.log('⏱️ TOTAL TRANSLATION TIME:', totalTime, 'ms');
+      console.log('⏱️ TOTAL TRANSLATION TIME:', (totalTime / 1000).toFixed(2), 'seconds');
+      console.log('🎯 TRANSLATION RESULT:', cleanedResult);
       
-      return translation || `[No translation generated for: ${text}]`;
+      setIsTranslating(false);
+      return cleanedResult;
     } catch (err) {
       console.error('Translation failed:', err);
       setError('Translation failed');

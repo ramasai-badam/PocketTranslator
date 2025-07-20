@@ -8,6 +8,7 @@ let llamaContext: any = null;
 let whisperContext: any = null;
 let isLlamaInitializing = false;
 let isWhisperInitializing = false;
+let isSystemPromptLoaded = false; // Track if system prompt is loaded
 
 // Event listeners for model state changes
 const listeners = new Set<() => void>();
@@ -50,6 +51,112 @@ export class ModelManager {
 
   static getWhisperContext(): any {
     return whisperContext;
+  }
+
+  static isSystemPromptLoaded(): boolean {
+    return isSystemPromptLoaded;
+  }
+
+  // 🚀 Pre-load system prompt at startup
+  static async loadSystemPrompt(): Promise<boolean> {
+    if (!llamaContext) {
+      console.log('❌ Cannot load system prompt: Llama context not initialized');
+      return false;
+    }
+
+    if (isSystemPromptLoaded) {
+      console.log('✅ System prompt already loaded, skipping...');
+      return true;
+    }
+
+    try {
+      console.log('🚀 Loading system prompt...');
+      const startTime = Date.now();
+      
+      // Simple, direct system prompt - very explicit about single translation
+      const systemPrompt = `<start_of_turn>user
+Translate text to the target language. Respond with only the direct translation. Do not provide alternatives, explanations, or multiple options.<end_of_turn>
+<start_of_turn>model
+I will provide only one direct translation.<end_of_turn>
+<start_of_turn>user`;
+
+      console.log(`🚀 System prompt length: ${systemPrompt.length} characters`);
+
+      // Process the system prompt to establish context
+      const result = await llamaContext.completion({
+        prompt: systemPrompt,
+        n_predict: 1, // Minimal prediction to just establish context
+        temperature: 0.1,
+        stop: ['<end_of_turn>'],
+      });
+
+      const loadTime = Date.now() - startTime;
+      console.log(`✅ System prompt loaded successfully in ${loadTime}ms`);
+      console.log(`� System prompt result:`, result.text || 'No result text');
+      
+      isSystemPromptLoaded = true;
+      notifyListeners();
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Failed to load system prompt:', error);
+      isSystemPromptLoaded = false;
+      return false;
+    }
+  }
+
+  // Main translation method using system prompt
+  static async translateText(text: string, fromLang: string, toLang: string): Promise<string> {
+    console.log('🚀 USING SYSTEM PROMPT METHOD');
+    console.log(`🚀 System prompt loaded: ${isSystemPromptLoaded}`);
+    
+    if (!llamaContext) {
+      throw new Error('Llama context not initialized');
+    }
+
+    // Ensure system prompt is loaded
+    if (!isSystemPromptLoaded) {
+      console.log('⚠️ System prompt not loaded, loading now...');
+      const loaded = await this.loadSystemPrompt();
+      if (!loaded) {
+        throw new Error('Failed to load system prompt');
+      }
+    }
+
+    const startTime = Date.now();
+
+    try {
+      // Simple, direct prompt using the specified format
+      const prompt = `<start_of_turn>user
+Translate this ${fromLang} text to ${toLang}: "${text}"
+Give only the ${toLang} translation.<end_of_turn>
+<start_of_turn>model
+`;
+
+      console.log(`🚀 System prompt - sending prompt: ${prompt.length} characters`);
+      console.log(`🚀 Prompt content: "${prompt}"`);
+
+      const result = await llamaContext.completion({
+        prompt,
+        n_predict: 64, // Reduced to prevent long responses
+        temperature: 0.0, // Zero temperature for deterministic output
+        top_p: 0.1, // Very restrictive sampling
+        top_k: 1, // Only the most likely token
+        stop: ['<end_of_turn>', '<start_of_turn>'], // Essential Gemma stop tokens
+        seed: 42, // Fixed seed for consistent comparison
+      });
+
+      const translationTime = Date.now() - startTime;
+      const translatedText = result.text?.trim() || '';
+      
+      console.log(`🚀 Translation completed in ${translationTime}ms`);
+      console.log(`🚀 Result: "${translatedText}"`);
+      return translatedText;
+      
+    } catch (error) {
+      console.error(`🚀 Translation failed for ${fromLang} → ${toLang}:`, error);
+      throw error;
+    }
   }
 
   // Initialize Llama model
@@ -133,6 +240,10 @@ export class ModelManager {
         ModelManager.initializeLlama(),
         ModelManager.initializeWhisper()
       ]);
+      
+      // 🚀 Pre-load system prompt for fast translation
+      await ModelManager.loadSystemPrompt();
+      
       console.log('ModelManager: All models initialized successfully');
     } catch (error) {
       console.error('ModelManager: Failed to initialize models:', error);

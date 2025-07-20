@@ -210,13 +210,13 @@ export default function SettingsScreen() {
         >
           <ArrowLeft size={24} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>TTS Voice Settings</Text>
+        <Text style={styles.headerTitle}>Settings</Text>
         <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.headerSubtitleContainer}>
         <Text style={styles.headerSubtitle}>
-          Manage text-to-speech voices for translation output
+          Manage text-to-speech voices settings
         </Text>
       </View>
 
