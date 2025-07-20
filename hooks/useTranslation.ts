@@ -10,6 +10,7 @@ export function useTranslation() {
   const [isTranslating, setIsTranslating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isInitializing, setIsInitializing] = useState(ModelManager.isLlamaInitializing());
+  const [streamingText, setStreamingText] = useState('');
 
   // Temporary safety flag - set to true to attempt Llama loading
   const ENABLE_LLAMA_LOADING = true;
@@ -21,6 +22,24 @@ export function useTranslation() {
       setIsInitializing(ModelManager.isLlamaInitializing());
     });
     return unsubscribe;
+  }, []);
+
+  // Set up streaming listener
+  useEffect(() => {
+    const removeStreamingListener = ModelManager.addStreamingListener((chunk: string, isComplete: boolean) => {
+      if (isComplete) {
+        console.log('🌊 Streaming completed');
+        setStreamingText(''); // Clear streaming text when done
+      } else {
+        setStreamingText(prev => {
+          const newText = prev + chunk;
+          console.log(`🌊 Streaming update: "${newText}"`);
+          return newText;
+        });
+      }
+    });
+
+    return removeStreamingListener;
   }, []);
 
   const initializeModel = async () => {
@@ -74,44 +93,14 @@ export function useTranslation() {
     }
 
     setIsTranslating(true);
+    setStreamingText(''); // Reset streaming text
+    setError(null);
+    
     try {
-      // 🚀 METHOD 1: OPTIMIZED PROMPT - More explicit to prevent echoing
-      const prompt = `<start_of_turn>user
-Translate this ${fromLanguage} text to ${toLanguage}: "${text}"
-Give only the ${toLanguage} translation.<end_of_turn>
-<start_of_turn>model
-`;
-
-      console.log('🚀 METHOD 1: Sending optimized prompt to Llama...');
-      console.log('Prompt tokens reduced from ~80 to ~20 tokens (proper Gemma 3n format)');
+      console.log('🚀 Starting translation with streaming...');
       
-      // Start timing the LLM inference
-      const startTime = Date.now();
-      console.log('⏱️ LLM INFERENCE START:', new Date().toISOString());
-      
-      const llamaContext = ModelManager.getLlamaContext();
-      const result = await llamaContext.completion({
-        prompt,
-        n_predict: 64,        // 🚀 Reduced from 512 to 64 tokens
-        stop: ['<end_of_turn>', '<start_of_turn>'],  // 🚀 Proper Gemma 3n stop sequences
-        temperature: 0.1,     // Keep low for consistent translation
-        top_p: 0.5,          // 🚀 Reduced from 0.9 for faster processing
-        top_k: 5,            // 🚀 Reduced from 40 for speed
-        repeat_penalty: 1.0,
-        seed: 42,            // 🚀 Fixed seed for consistency
-      });
-
-      // End timing and calculate duration
-      const endTime = Date.now();
-      const duration = endTime - startTime;
-      console.log('⏱️ LLM INFERENCE END:', new Date().toISOString());
-      console.log('⏱️ LLM INFERENCE TIME:', duration, 'ms');
-      console.log('⏱️ LLM INFERENCE TIME:', (duration / 1000).toFixed(2), 'seconds');
-
-      console.log('Translation result text:', result.text);
-      setIsTranslating(false);
-      
-      const translation = result.text.trim();
+      // Use the new ModelManager translateText method with streaming
+      const result = await ModelManager.translateText(text, fromLanguage, toLanguage);
       
       // End timing for complete translation process
       const totalEndTime = Date.now();
@@ -120,11 +109,10 @@ Give only the ${toLanguage} translation.<end_of_turn>
       console.log('⏱️ TOTAL TRANSLATION TIME:', totalDuration, 'ms');
       console.log('⏱️ TOTAL TRANSLATION TIME:', (totalDuration / 1000).toFixed(2), 'seconds');
       
-      return translation || `[No translation generated for: ${text}]`;
+      return result || `[No translation generated for: ${text}]`;
     } catch (err) {
       console.error('Translation failed:', err);
       setError('Translation failed');
-      setIsTranslating(false);
       
       // End timing even on error
       const totalEndTime = Date.now();
@@ -132,7 +120,10 @@ Give only the ${toLanguage} translation.<end_of_turn>
       console.log('⏱️ TRANSLATION PROCESS END (ERROR):', new Date().toISOString());
       console.log('⏱️ TOTAL TRANSLATION TIME (ERROR):', totalDuration, 'ms');
       
-      return `[Translation error: ${text}]`;
+      return `[Translation failed: ${text}]`;
+    } finally {
+      setIsTranslating(false);
+      setStreamingText(''); // Clear streaming text on completion
     }
   };
 
@@ -144,6 +135,7 @@ Give only the ${toLanguage} translation.<end_of_turn>
   return {
     translateText,
     isTranslating,
+    streamingText, // New: streaming text state
     error,
     cleanup,
   };

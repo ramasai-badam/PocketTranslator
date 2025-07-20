@@ -32,10 +32,19 @@ export default function TranslatorScreen() {
   const [isTopRecording, setIsTopRecording] = useState(false);
   const [isBottomRecording, setIsBottomRecording] = useState(false);
 
-  const { translateText, isTranslating } = useTranslation();
+  const { translateText, isTranslating, streamingText } = useTranslation();
   const { startRecording, stopRecording, isRecording, isInitialized, error: audioError, cleanup } = useAudioRecording();
   const { transcribeWav, isTranscribing, error: whisperError } = useSpeechToText();
   const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
+  const [isStreamingToTop, setIsStreamingToTop] = useState(false);
+
+  // Helper function to get display text with streaming support
+  const getDisplayText = (baseText: string, isStreamingTarget: boolean) => {
+    if (isTranslating && isStreamingTarget && streamingText) {
+      return streamingText;
+    }
+    return baseText;
+  };
 
   // Models are ready when hooks are loaded (lazy loading)
   const modelsReady = true;
@@ -108,36 +117,44 @@ export default function TranslatorScreen() {
           setTranscriptionError(errorMsg);
           console.error('Transcription error:', error);
         }
-        
-        console.log('🎯 CALLING TRANSLATION:');
-        console.log('  - Speech text:', speechText);
-        console.log('  - From language:', fromLang);
-        console.log('  - To language:', toLang);
-        
-        const translatedText = await translateText(speechText, fromLang, toLang);
-        console.log('🎯 TRANSLATION RESULT:', translatedText);
-        
+
+        // 🚀 IMMEDIATELY show transcribed text on the speaking side
+        console.log('🎯 SHOWING TRANSCRIBED TEXT IMMEDIATELY');
         if (isTop) {
           setTopText(errorMsg ? errorMsg : speechText);
-          setBottomText(errorMsg ? '' : translatedText);
+          setBottomText(''); // Clear opposite side before translation
         } else {
           setBottomText(errorMsg ? errorMsg : speechText);
-          setTopText(errorMsg ? '' : translatedText);
+          setTopText(''); // Clear opposite side before translation
         }
-        // Ensure only the transcribed text or error is shown on the side that pressed record,
-        // and only the translation (never the transcription) is shown on the other side.
-        if (!errorMsg) {
+
+        // Only proceed with translation if transcription was successful
+        if (!errorMsg && speechText) {
+          console.log('🎯 CALLING TRANSLATION:');
+          console.log('  - Speech text:', speechText);
+          console.log('  - From language:', fromLang);
+          console.log('  - To language:', toLang);
+          
+          // Set streaming target (opposite side from speaking)
+          setIsStreamingToTop(!isTop); // Translation goes to opposite side
+          
+          const translatedText = await translateText(speechText, fromLang, toLang);
+          console.log('🎯 TRANSLATION RESULT:', translatedText);
+          
+          // Clear streaming state and show final translation
+          setIsStreamingToTop(false);
+          
+          // Update the translation side with final result
           if (isTop) {
-            setTopText(speechText);
             setBottomText(translatedText);
           } else {
-            setBottomText(speechText);
             setTopText(translatedText);
           }
         }
       }
     } catch (error) {
       setTranscriptionError('Failed to translate speech.');
+      setIsStreamingToTop(false); // Clear streaming state on error
       if (isTop) {
         setTopText('Failed to translate speech.');
         setBottomText('');
@@ -230,7 +247,7 @@ export default function TranslatorScreen() {
             isRotated={true}
           />
           <TranslationDisplay
-            text={topText}
+            text={getDisplayText(topText, isStreamingToTop)}
             isRotated={true}
           />
           <View style={styles.controls}>
@@ -271,7 +288,7 @@ export default function TranslatorScreen() {
           isRotated={false}
         />
         <TranslationDisplay
-          text={bottomText}
+          text={getDisplayText(bottomText, !isStreamingToTop)}
           isRotated={false}
         />
         <View style={styles.controls}>

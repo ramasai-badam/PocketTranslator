@@ -9,6 +9,10 @@ let whisperContext: any = null;
 let isLlamaInitializing = false;
 let isWhisperInitializing = false;
 
+// Streaming functionality
+let isStreamingEnabled = true; // Re-enable streaming now that basic translation works
+const streamingListeners = new Set<(chunk: string, isComplete: boolean) => void>();
+
 // Event listeners for model state changes
 const listeners = new Set<() => void>();
 
@@ -50,6 +54,148 @@ export class ModelManager {
 
   static getWhisperContext(): any {
     return whisperContext;
+  }
+
+  // Streaming functionality methods
+  static enableStreaming(enabled: boolean = true): void {
+    isStreamingEnabled = enabled;
+    console.log(`🌊 Streaming ${enabled ? 'ENABLED' : 'DISABLED'}`);
+  }
+
+  static isStreamingEnabled(): boolean {
+    return isStreamingEnabled;
+  }
+
+  static addStreamingListener(listener: (chunk: string, isComplete: boolean) => void): () => void {
+    streamingListeners.add(listener);
+    return () => streamingListeners.delete(listener);
+  }
+
+  static notifyStreamingListeners(chunk: string, isComplete: boolean = false): void {
+    streamingListeners.forEach(listener => listener(chunk, isComplete));
+  }
+
+  // Main translation method with streaming support
+  static async translateText(text: string, fromLang: string, toLang: string): Promise<string> {
+    if (!llamaContext) {
+      throw new Error('Llama context not initialized');
+    }
+
+    console.log(`🚀 TRANSLATION REQUEST: "${text}" (${fromLang} → ${toLang})`);
+    const startTime = Date.now();
+
+    try {
+      // Simple, direct prompt using the specified format
+      const prompt = `<start_of_turn>user
+Translate this ${fromLang} text to ${toLang}: "${text}"
+Give only the ${toLang} translation.<end_of_turn>
+<start_of_turn>model
+`;
+
+      console.log(`🚀 Sending prompt: ${prompt.length} characters`);
+
+      let fullTranslation = '';
+
+      if (isStreamingEnabled) {
+        console.log('🌊 Starting REAL streaming translation...');
+        
+        let hasRealStreaming = false;
+        let streamingBuffer = '';
+        
+        // Use the correct streaming callback as per documentation
+        // completion(params, callback?) - callback is the second parameter
+        const result = await llamaContext.completion({
+          prompt,
+          n_predict: 64,
+          temperature: 0.0,
+          top_p: 0.1,
+          top_k: 1,
+          stop: ['<end_of_turn>', '<start_of_turn>'],
+          seed: 42,
+        }, (data: any) => {
+          // This is the real streaming callback!
+          hasRealStreaming = true;
+          console.log('🌊 Real streaming data received:', data);
+          
+          // Handle different possible data structures from TokenData
+          let token = '';
+          if (typeof data === 'string') {
+            token = data;
+          } else if (data && data.token) {
+            token = data.token;
+          } else if (data && data.text) {
+            token = data.text;
+          } else if (data && data.content) {
+            token = data.content;
+          }
+          
+          if (token) {
+            streamingBuffer += token;
+            console.log(`🌊 Real token: "${token}" | Buffer: "${streamingBuffer}"`);
+            this.notifyStreamingListeners(token, false);
+          }
+        });
+
+        // If real streaming worked, use the buffer, otherwise use result
+        if (hasRealStreaming && streamingBuffer) {
+          fullTranslation = streamingBuffer.trim();
+          console.log('🌊 Using real streaming buffer:', fullTranslation);
+        } else {
+          fullTranslation = result.text?.trim() || '';
+          console.log('🌊 Real streaming failed, using completion result:', fullTranslation);
+          
+          // If we have a result but no streaming, simulate it for UX
+          if (fullTranslation && !hasRealStreaming) {
+            console.log('🌊 Simulating streaming with real result...');
+            for (let i = 0; i < fullTranslation.length; i++) {
+              const char = fullTranslation[i];
+              console.log(`🌊 Simulated char: "${char}"`);
+              this.notifyStreamingListeners(char, false);
+              // Faster simulation since it's fallback
+              await new Promise(resolve => setTimeout(resolve, 30));
+            }
+          }
+        }
+        
+        // Signal completion
+        this.notifyStreamingListeners('', true);
+        
+      } else {
+        console.log('📝 Non-streaming translation...');
+        
+        // Non-streaming fallback
+        const result = await llamaContext.completion({
+          prompt,
+          n_predict: 64,
+          temperature: 0.0,
+          top_p: 0.1,
+          top_k: 1,
+          stop: ['<end_of_turn>', '<start_of_turn>'],
+          seed: 42,
+        });
+        
+        fullTranslation = result.text?.trim() || '';
+        console.log('📝 Non-streaming result:', result);
+        console.log('📝 Non-streaming text:', fullTranslation);
+      }
+
+      // Ensure we have some result
+      if (!fullTranslation) {
+        console.error('❌ No translation result obtained');
+        fullTranslation = `[Translation failed - no result]`;
+      }
+
+      const translationTime = Date.now() - startTime;
+      console.log(`🚀 Translation completed in ${translationTime}ms: "${fullTranslation}"`);
+      
+      return fullTranslation;
+      
+    } catch (error) {
+      console.error(`🚀 Translation failed for ${fromLang} → ${toLang}:`, error);
+      // Signal completion even on error
+      this.notifyStreamingListeners('', true);
+      throw error;
+    }
   }
 
   // Initialize Llama model
