@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, MessageCircle, Trash2, BarChart3 } from 'lucide-react-native';
+import { ArrowLeft, MessageCircle, Trash2, ChartBar as BarChart3 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { TranslationHistoryManager, LanguagePairConversation } from '../utils/TranslationHistory';
 
