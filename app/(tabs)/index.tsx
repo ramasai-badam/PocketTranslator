@@ -21,6 +21,7 @@ import { useAudioRecording } from '@/hooks/useAudioRecording';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { TTSVoiceManager } from '@/utils/LanguagePackManager';
 import { getLanguageDisplayName } from '@/utils/LanguageConfig';
+import { TranslationHistoryManager } from '@/utils/TranslationHistory';
 
 const { height, width } = Dimensions.get('window');
 
@@ -37,6 +38,28 @@ export default function TranslatorScreen() {
   const { transcribeWav, isTranscribing, error: whisperError } = useSpeechToText();
   const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
   const [isStreamingToTop, setIsStreamingToTop] = useState(false);
+
+  // Save translation to history
+  const saveToHistory = async (
+    originalText: string,
+    translatedText: string,
+    fromLang: string,
+    toLang: string,
+    speaker: 'user1' | 'user2'
+  ) => {
+    try {
+      await TranslationHistoryManager.saveTranslation(
+        originalText,
+        translatedText,
+        fromLang,
+        toLang,
+        speaker
+      );
+      console.log('Translation saved to history successfully');
+    } catch (error) {
+      console.error('Failed to save translation to history:', error);
+    }
+  };
 
   // Helper function to get display text with streaming support
   const getDisplayText = (baseText: string, isStreamingTarget: boolean) => {
@@ -147,8 +170,12 @@ export default function TranslatorScreen() {
           // Update the translation side with final result
           if (isTop) {
             setBottomText(translatedText);
+            // Save to history: top side spoke (user1), translation goes to bottom
+            await saveToHistory(speechText, translatedText, fromLang, toLang, 'user1');
           } else {
             setTopText(translatedText);
+            // Save to history: bottom side spoke (user2), translation goes to top
+            await saveToHistory(speechText, translatedText, fromLang, toLang, 'user2');
           }
         }
       }
@@ -221,6 +248,12 @@ export default function TranslatorScreen() {
       
       {/* Header with Settings Button */}
       <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.historyButton}
+          onPress={() => router.push('/history')}
+        >
+          <Text style={styles.historyButtonText}>📚</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.settingsButton}
           onPress={() => router.push('/settings')}
@@ -326,8 +359,25 @@ const styles = StyleSheet.create({
   header: {
     position: 'absolute',
     top: 50,
+    left: 20,
     right: 20,
     zIndex: 1000,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  historyButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  historyButtonText: {
+    fontSize: 20,
   },
   settingsButton: {
     width: 44,
