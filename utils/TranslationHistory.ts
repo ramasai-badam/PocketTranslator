@@ -100,6 +100,89 @@ export class TranslationHistoryManager {
   }
 
   /**
+   * Get all translations organized by day and language pair
+   */
+  static async getTranslationsByDay(): Promise<{ [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } }> {
+    const history = await this.loadHistory();
+    const result: { [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } } = {};
+
+    // Process each conversation
+    Object.values(history).forEach(conversation => {
+      conversation.entries.forEach(entry => {
+        const date = new Date(entry.timestamp);
+        const dateKey = date.toDateString(); // e.g., "Mon Dec 25 2023"
+        
+        if (!result[dateKey]) {
+          result[dateKey] = {};
+        }
+        
+        if (!result[dateKey][conversation.languagePair]) {
+          result[dateKey][conversation.languagePair] = {
+            conversation,
+            entries: []
+          };
+        }
+        
+        result[dateKey][conversation.languagePair].entries.push(entry);
+      });
+    });
+
+    // Sort entries within each day/language pair by timestamp (newest first)
+    Object.keys(result).forEach(dateKey => {
+      Object.keys(result[dateKey]).forEach(languagePair => {
+        result[dateKey][languagePair].entries.sort((a, b) => b.timestamp - a.timestamp);
+      });
+    });
+
+    return result;
+  }
+
+  /**
+   * Delete a specific translation entry
+   */
+  static async deleteTranslation(translationId: string): Promise<void> {
+    try {
+      const history = await this.loadHistory();
+      let found = false;
+
+      // Find and remove the translation from the appropriate conversation
+      Object.keys(history).forEach(languagePair => {
+        const conversation = history[languagePair];
+        const entryIndex = conversation.entries.findIndex(entry => entry.id === translationId);
+        
+        if (entryIndex !== -1) {
+          conversation.entries.splice(entryIndex, 1);
+          conversation.totalEntries = conversation.entries.length;
+          
+          // Update last updated time if there are remaining entries
+          if (conversation.entries.length > 0) {
+            conversation.lastUpdated = Math.max(...conversation.entries.map(e => e.timestamp));
+          }
+          
+          found = true;
+        }
+      });
+
+      // Remove empty conversations
+      Object.keys(history).forEach(languagePair => {
+        if (history[languagePair].entries.length === 0) {
+          delete history[languagePair];
+        }
+      });
+
+      if (found) {
+        await this.saveHistory(history);
+        console.log(`Translation ${translationId} deleted successfully`);
+      } else {
+        throw new Error('Translation not found');
+      }
+    } catch (error) {
+      console.error('Failed to delete translation:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get conversation for a specific language pair
    */
   static async getConversation(fromLanguage: string, toLanguage: string): Promise<LanguagePairConversation | null> {
