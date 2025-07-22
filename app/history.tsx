@@ -10,7 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, MessageCircle, Trash2, Search, X } from 'lucide-react-native';
+import { ArrowLeft, MessageCircle, Trash2, Search, X, Calendar } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
 
@@ -20,24 +20,41 @@ export default function HistoryScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
 
   useEffect(() => {
     loadTranslations();
   }, []);
 
-  // Filter translations when search query changes
+  // Update available dates when translations change
   useEffect(() => {
+    const dates = Object.keys(translationsByDay).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
+    setAvailableDates(dates);
+  }, [translationsByDay]);
+
+  // Filter translations when search query or selected date changes
+  useEffect(() => {
+    let filtered = translationsByDay;
+    
+    // First filter by date if selected
+    if (selectedDate) {
+      filtered = selectedDate in translationsByDay ? { [selectedDate]: translationsByDay[selectedDate] } : {};
+    }
+    
+    // Then filter by search query
     if (!searchQuery.trim()) {
-      setFilteredTranslationsByDay(translationsByDay);
+      setFilteredTranslationsByDay(filtered);
       return;
     }
 
-    const filtered: typeof translationsByDay = {};
+    const searchFiltered: typeof translationsByDay = {};
     const query = searchQuery.toLowerCase();
 
-    Object.keys(translationsByDay).forEach(dateKey => {
-      Object.keys(translationsByDay[dateKey]).forEach(languagePair => {
-        const { conversation, entries } = translationsByDay[dateKey][languagePair];
+    Object.keys(filtered).forEach(dateKey => {
+      Object.keys(filtered[dateKey]).forEach(languagePair => {
+        const { conversation, entries } = filtered[dateKey][languagePair];
         
         // Filter entries that match search query
         const matchingEntries = entries.filter(entry => 
@@ -47,10 +64,10 @@ export default function HistoryScreen() {
         );
 
         if (matchingEntries.length > 0) {
-          if (!filtered[dateKey]) {
-            filtered[dateKey] = {};
+          if (!searchFiltered[dateKey]) {
+            searchFiltered[dateKey] = {};
           }
-          filtered[dateKey][languagePair] = {
+          searchFiltered[dateKey][languagePair] = {
             conversation,
             entries: matchingEntries
           };
@@ -58,8 +75,8 @@ export default function HistoryScreen() {
       });
     });
 
-    setFilteredTranslationsByDay(filtered);
-  }, [searchQuery, translationsByDay]);
+    setFilteredTranslationsByDay(searchFiltered);
+  }, [searchQuery, selectedDate, translationsByDay]);
 
   const loadTranslations = async () => {
     try {
@@ -162,6 +179,12 @@ export default function HistoryScreen() {
     });
   };
 
+  const clearFilters = () => {
+    setSearchQuery('');
+    setSelectedDate(null);
+    setShowDatePicker(false);
+  };
+
   const getTotalTranslations = () => {
     return Object.values(filteredTranslationsByDay).reduce((total, dayData) => {
       return total + Object.values(dayData).reduce((dayTotal, { entries }) => dayTotal + entries.length, 0);
@@ -212,15 +235,56 @@ export default function HistoryScreen() {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-          {searchQuery.length > 0 && (
+          {(searchQuery.length > 0 || selectedDate) && (
             <TouchableOpacity
               style={styles.clearSearchButton}
-              onPress={() => setSearchQuery('')}
+              onPress={clearFilters}
             >
               <X size={16} color="#999" />
             </TouchableOpacity>
           )}
         </View>
+        
+        {/* Date Filter */}
+        <View style={styles.filterContainer}>
+          <TouchableOpacity
+            style={[styles.dateFilterButton, selectedDate && styles.dateFilterButtonActive]}
+            onPress={() => setShowDatePicker(!showDatePicker)}
+          >
+            <Calendar size={16} color={selectedDate ? "#007AFF" : "#999"} />
+            <Text style={[styles.dateFilterText, selectedDate && styles.dateFilterTextActive]}>
+              {selectedDate ? formatDateHeader(selectedDate) : 'Filter by date'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+        
+        {/* Date Picker Dropdown */}
+        {showDatePicker && (
+          <View style={styles.datePickerContainer}>
+            <ScrollView style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
+              {availableDates.map((date) => (
+                <TouchableOpacity
+                  key={date}
+                  style={[
+                    styles.dateOption,
+                    selectedDate === date && styles.selectedDateOption
+                  ]}
+                  onPress={() => {
+                    setSelectedDate(date);
+                    setShowDatePicker(false);
+                  }}
+                >
+                  <Text style={[
+                    styles.dateOptionText,
+                    selectedDate === date && styles.selectedDateOptionText
+                  ]}>
+                    {formatDateHeader(date)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </View>
 
       {/* Translations by Day */}
@@ -235,10 +299,10 @@ export default function HistoryScreen() {
           <View style={styles.emptyContainer}>
             <MessageCircle size={48} color="#666" />
             <Text style={styles.emptyTitle}>
-              {searchQuery ? 'No matching translations' : 'No Translation History'}
+              {selectedDate ? 'No conversations on this day' : searchQuery ? 'No matching translations' : 'No Translation History'}
             </Text>
             <Text style={styles.emptySubtitle}>
-              {searchQuery ? 'Try a different search term' : 'Start translating to build your learning history'}
+              {selectedDate ? 'Try selecting a different date or clear the filter' : searchQuery ? 'Try a different search term' : 'Start translating to build your learning history'}
             </Text>
           </View>
         ) : (
@@ -384,6 +448,63 @@ const styles = StyleSheet.create({
   clearSearchButton: {
     padding: 4,
     marginLeft: 8,
+  },
+  filterContainer: {
+    marginTop: 12,
+  },
+  dateFilterButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A1A1A',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: '#333',
+    gap: 8,
+  },
+  dateFilterButtonActive: {
+    borderColor: '#007AFF',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+  },
+  dateFilterText: {
+    color: '#999',
+    fontSize: 14,
+  },
+  dateFilterTextActive: {
+    color: '#007AFF',
+  },
+  datePickerContainer: {
+    position: 'absolute',
+    top: 80,
+    left: 0,
+    right: 0,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 8,
+    maxHeight: 200,
+    borderWidth: 1,
+    borderColor: '#333',
+    zIndex: 1000,
+  },
+  datePickerScroll: {
+    maxHeight: 180,
+  },
+  dateOption: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  selectedDateOption: {
+    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+  },
+  dateOptionText: {
+    color: '#FFF',
+    fontSize: 14,
+  },
+  selectedDateOptionText: {
+    color: '#007AFF',
+    fontWeight: '500',
   },
   statsContainer: {
     flexDirection: 'row',
