@@ -11,7 +11,7 @@ import {
   Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, Languages, BarChart3 } from 'lucide-react-native';
+import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, Languages } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
 import { SUPPORTED_LANGUAGES, getLanguageDisplayName } from '../utils/LanguageConfig';
@@ -26,11 +26,6 @@ export default function HistoryScreen() {
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [languagePairFilter, setLanguagePairFilter] = useState<string>('all');
   const [availableLanguagePairs, setAvailableLanguagePairs] = useState<string[]>([]);
-  const [statistics, setStatistics] = useState({
-    totalConversations: 0,
-    totalTranslations: 0,
-    mostUsedLanguagePair: null,
-  });
 
   useEffect(() => {
     loadTranslations();
@@ -126,12 +121,8 @@ export default function HistoryScreen() {
 
   const loadTranslations = async () => {
     try {
-      const [convs, stats] = await Promise.all([
-        TranslationHistoryManager.getTranslationsByDay(),
-        TranslationHistoryManager.getStatistics(),
-      ]);
+      const convs = await TranslationHistoryManager.getTranslationsByDay();
       setTranslationsByDay(convs);
-      setStatistics(stats);
       
       // Extract available language pairs for filter
       const pairs = getAvailableLanguagePairs(convs);
@@ -198,11 +189,6 @@ export default function HistoryScreen() {
               await TranslationHistoryManager.clearAllHistory();
               setTranslationsByDay({});
               setAvailableLanguagePairs([]);
-              setStatistics({
-                totalConversations: 0,
-                totalTranslations: 0,
-                mostUsedLanguagePair: null,
-              });
               Alert.alert('Success', 'All translation history has been cleared');
             } catch (error) {
               Alert.alert('Error', 'Failed to clear history');
@@ -239,12 +225,6 @@ export default function HistoryScreen() {
     });
   };
 
-  const getTotalTranslations = () => {
-    return Object.values(filteredTranslationsByDay).reduce((total, dayData) => {
-      return total + Object.values(dayData).reduce((dayTotal, { entries }) => dayTotal + entries.length, 0);
-    }, 0);
-  };
-
   if (isLoading) {
     return (
       <View style={styles.container}>
@@ -277,28 +257,6 @@ export default function HistoryScreen() {
           <Trash2 size={20} color={Object.keys(translationsByDay).length > 0 ? "#FF3B30" : "#666"} />
         </TouchableOpacity>
       </View>
-
-      {/* Statistics */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <BarChart3 size={20} color="#007AFF" />
-          <Text style={styles.statNumber}>{statistics.totalTranslations}</Text>
-          <Text style={styles.statLabel}>Translations</Text>
-        </View>
-        <View style={styles.statItem}>
-          <MessageCircle size={20} color="#34C759" />
-          <Text style={styles.statNumber}>{statistics.totalConversations}</Text>
-          <Text style={styles.statLabel}>Conversations</Text>
-        </View>
-      </View>
-
-      {statistics.mostUsedLanguagePair && (
-        <View style={styles.mostUsedContainer}>
-          <Text style={styles.mostUsedText}>
-            Most practiced: {statistics.mostUsedLanguagePair}
-          </Text>
-        </View>
-      )}
 
       {/* Search and Filter */}
       <View style={styles.searchContainer}>
@@ -885,44 +843,5 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     lineHeight: 20,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    gap: 20,
-  },
-  statItem: {
-    flex: 1,
-    backgroundColor: '#1A1A1A',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    gap: 8,
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFF',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'center',
-  },
-  mostUsedContainer: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 12,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
-  },
-  mostUsedText: {
-    color: '#007AFF',
-    fontSize: 14,
-    textAlign: 'center',
-    fontWeight: '500',
   },
 });
