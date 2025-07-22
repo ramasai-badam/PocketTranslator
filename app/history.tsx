@@ -1009,6 +1009,20 @@ export default function HistoryScreen() {
             <Trash2 size={20} color={Object.keys(translationsByDay).length > 0 ? "#FF3B30" : "#666"} />
           </TouchableOpacity>
         )}
+        
+        {/* Vocabulary Button */}
+        <TouchableOpacity
+          style={styles.vocabularyButton}
+          onPress={() => router.push('/vocabulary-list')}
+        >
+          <View style={styles.vocabularyButtonContent}>
+            <Text style={styles.vocabularyButtonIcon}>📚</Text>
+            <View style={styles.vocabularyButtonText}>
+              <Text style={styles.vocabularyButtonTitle}>My Vocabulary</Text>
+              <Text style={styles.vocabularyButtonSubtitle}>Practice saved words</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
         {currentView !== 'history' && <View style={styles.headerSpacer} />}
       </View>
 
@@ -1609,5 +1623,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 4,
+  },
+  vocabularyButton: {
+    backgroundColor: '#1A1A1A',
+    marginHorizontal: 20,
+    marginBottom: 16,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#34C759',
+  },
+  vocabularyButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  vocabularyButtonIcon: {
+    fontSize: 24,
+    marginRight: 16,
+  },
+  vocabularyButtonText: {
+    flex: 1,
+  },
+  vocabularyButtonTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#34C759',
+  },
+  vocabularyButtonSubtitle: {
+    fontSize: 14,
+    color: '#999',
+    marginTop: 2,
   },
 });
