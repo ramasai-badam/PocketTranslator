@@ -9,12 +9,13 @@ import {
   RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, Volume2, Trash2, User } from 'lucide-react-native';
+import { ArrowLeft, Volume2, Trash2, User, BookmarkPlus } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { TranslationHistoryManager, TranslationEntry } from '../utils/TranslationHistory';
 import { TTSVoiceManager } from '../utils/LanguagePackManager';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
+import { VocabularyManager } from '../utils/VocabularyManager';
 
 export default function ConversationDetailScreen() {
   const params = useLocalSearchParams();
@@ -92,6 +93,29 @@ export default function ConversationDetailScreen() {
         pitch: 1.0,
         rate: 0.8,
       });
+    }
+  };
+
+  const handleAddToVocabulary = async (entry: TranslationEntry) => {
+    try {
+      const result = await VocabularyManager.saveVocabularyWord(
+        entry.originalText,
+        entry.translatedText,
+        entry.fromLanguage,
+        entry.toLanguage
+      );
+
+      if (result.success) {
+        Alert.alert('Success', result.message);
+      } else {
+        Alert.alert(
+          result.isDuplicate ? 'Already Added' : 'Error',
+          result.message
+        );
+      }
+    } catch (error) {
+      console.error('Failed to add word to vocabulary:', error);
+      Alert.alert('Error', 'Failed to add word to vocabulary');
     }
   };
 
@@ -210,12 +234,20 @@ export default function ConversationDetailScreen() {
                   <Text style={styles.languageLabel}>
                     {getLanguageDisplayName(entry.fromLanguage)}
                   </Text>
-                  <TouchableOpacity
-                    style={styles.speakButton}
-                    onPress={() => handleSpeak(entry.originalText, entry.fromLanguage)}
-                  >
-                    <Volume2 size={16} color="#007AFF" />
-                  </TouchableOpacity>
+                  <View style={styles.textActions}>
+                    <TouchableOpacity
+                      style={styles.speakButton}
+                      onPress={() => handleSpeak(entry.originalText, entry.fromLanguage)}
+                    >
+                      <Volume2 size={16} color="#007AFF" />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.addToVocabButton}
+                      onPress={() => handleAddToVocabulary(entry)}
+                    >
+                      <BookmarkPlus size={16} color="#34C759" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 <Text style={styles.originalText}>{entry.originalText}</Text>
               </View>
@@ -362,12 +394,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 8,
   },
+  textActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   languageLabel: {
     fontSize: 12,
     color: '#999',
     fontWeight: '500',
   },
   speakButton: {
+    padding: 4,
+  },
+  addToVocabButton: {
     padding: 4,
   },
   originalText: {
