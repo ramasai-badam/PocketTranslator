@@ -9,12 +9,15 @@ import {
   RefreshControl,
   TextInput,
   Modal,
+  Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter } from 'lucide-react-native';
+import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '../utils/LanguageConfig';
+
+const { width } = Dimensions.get('window');
 
 export default function HistoryScreen() {
   const [translationsByDay, setTranslationsByDay] = useState<{ [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } }>({});
@@ -23,9 +26,14 @@ export default function HistoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedStartDate, setSelectedStartDate] = useState<string | null>(null);
+  const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null);
+  const [dateFilterMode, setDateFilterMode] = useState<'single' | 'range'>('single');
   const [selectedFromLanguage, setSelectedFromLanguage] = useState<string | null>(null);
   const [selectedToLanguage, setSelectedToLanguage] = useState<string | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarDate, setCalendarDate] = useState(new Date());
   const [availableDates, setAvailableDates] = useState<string[]>([]);
 
   useEffect(() => {
@@ -41,14 +49,27 @@ export default function HistoryScreen() {
   // Filter translations when search query, selected date, or language pair changes
   useEffect(() => {
     filterTranslations();
-  }, [searchQuery, selectedDate, selectedFromLanguage, selectedToLanguage, translationsByDay]);
+  }, [searchQuery, selectedDate, selectedStartDate, selectedEndDate, dateFilterMode, selectedFromLanguage, selectedToLanguage, translationsByDay]);
 
   const filterTranslations = () => {
     let filtered = { ...translationsByDay };
     
-    // First filter by date if selected
-    if (selectedDate) {
+    // Filter by date(s) if selected
+    if (dateFilterMode === 'single' && selectedDate) {
       filtered = selectedDate in filtered ? { [selectedDate]: filtered[selectedDate] } : {};
+    } else if (dateFilterMode === 'range' && selectedStartDate && selectedEndDate) {
+      const startTime = new Date(selectedStartDate).getTime();
+      const endTime = new Date(selectedEndDate).getTime();
+      const filteredByRange: typeof translationsByDay = {};
+      
+      Object.keys(filtered).forEach(dateKey => {
+        const dateTime = new Date(dateKey).getTime();
+        if (dateTime >= startTime && dateTime <= endTime) {
+          filteredByRange[dateKey] = filtered[dateKey];
+        }
+      });
+      
+      filtered = filteredByRange;
     }
 
     // Filter by language pair if selected
@@ -216,17 +237,22 @@ export default function HistoryScreen() {
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedDate(null);
+    setSelectedStartDate(null);
+    setSelectedEndDate(null);
+    setDateFilterMode('single');
     setSelectedFromLanguage(null);
     setSelectedToLanguage(null);
     setShowFilterModal(false);
+    setShowCalendar(false);
   };
 
   const applyFilters = () => {
     setShowFilterModal(false);
+    setShowCalendar(false);
   };
 
   const hasActiveFilters = () => {
-    return selectedDate || (selectedFromLanguage && selectedToLanguage);
+    return selectedDate || (selectedStartDate && selectedEndDate) || (selectedFromLanguage && selectedToLanguage);
   };
 
   const getTotalTranslations = () => {
@@ -237,8 +263,10 @@ export default function HistoryScreen() {
 
   const getFilterSummary = () => {
     const parts = [];
-    if (selectedDate) {
+    if (dateFilterMode === 'single' && selectedDate) {
       parts.push(formatDateHeader(selectedDate));
+    } else if (dateFilterMode === 'range' && selectedStartDate && selectedEndDate) {
+      parts.push(`${formatDateHeader(selectedStartDate)} - ${formatDateHeader(selectedEndDate)}`);
     }
     if (selectedFromLanguage && selectedToLanguage) {
       const fromLang = getLanguageByCode(selectedFromLanguage);
@@ -246,6 +274,72 @@ export default function HistoryScreen() {
       parts.push(`${fromLang?.nativeName} ↔ ${toLang?.nativeName}`);
     }
     return parts.join(' • ');
+  };
+
+  const generateCalendarDays = (date: Date) => {
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    
+    const days = [];
+    const current = new Date(startDate);
+    
+    for (let i = 0; i < 42; i++) {
+      days.push(new Date(current));
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return days;
+  };
+
+  const isDateInRange = (date: Date) => {
+    if (!selectedStartDate || !selectedEndDate) return false;
+    const dateTime = date.getTime();
+    const startTime = new Date(selectedStartDate).getTime();
+    const endTime = new Date(selectedEndDate).getTime();
+    return dateTime >= startTime && dateTime <= endTime;
+  };
+
+  const isDateSelected = (date: Date) => {
+    const dateString = date.toDateString();
+    if (dateFilterMode === 'single') {
+      return selectedDate === dateString;
+    } else {
+      return dateString === selectedStartDate || dateString === selectedEndDate;
+    }
+  };
+
+  const hasTranslationsOnDate = (date: Date) => {
+    return availableDates.includes(date.toDateString());
+  };
+
+  const handleCalendarDatePress = (date: Date) => {
+    const dateString = date.toDateString();
+    
+    if (dateFilterMode === 'single') {
+      setSelectedDate(dateString);
+      setShowCalendar(false);
+    } else {
+      if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
+        // Start new range
+        setSelectedStartDate(dateString);
+        setSelectedEndDate(null);
+      } else {
+        // Complete range
+        const startTime = new Date(selectedStartDate).getTime();
+        const endTime = date.getTime();
+        
+        if (endTime >= startTime) {
+          setSelectedEndDate(dateString);
+        } else {
+          setSelectedStartDate(dateString);
+          setSelectedEndDate(selectedStartDate);
+        }
+      }
+    }
   };
 
   if (isLoading) {
@@ -348,6 +442,142 @@ export default function HistoryScreen() {
               {/* Date Filter Section */}
               <View style={styles.filterSection}>
                 <Text style={styles.filterSectionTitle}>Filter by Date</Text>
+                
+                {/* Date Filter Mode Toggle */}
+                <View style={styles.dateFilterModeContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateFilterModeButton,
+                      dateFilterMode === 'single' && styles.dateFilterModeButtonActive
+                    ]}
+                    onPress={() => {
+                      setDateFilterMode('single');
+                      setSelectedStartDate(null);
+                      setSelectedEndDate(null);
+                    }}
+                  >
+                    <Text style={[
+                      styles.dateFilterModeText,
+                      dateFilterMode === 'single' && styles.dateFilterModeTextActive
+                    ]}>
+                      Single Date
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateFilterModeButton,
+                      dateFilterMode === 'range' && styles.dateFilterModeButtonActive
+                    ]}
+                    onPress={() => {
+                      setDateFilterMode('range');
+                      setSelectedDate(null);
+                    }}
+                  >
+                    <Text style={[
+                      styles.dateFilterModeText,
+                      dateFilterMode === 'range' && styles.dateFilterModeTextActive
+                    ]}>
+                      Date Range
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Calendar Toggle Button */}
+                <TouchableOpacity
+                  style={styles.calendarToggleButton}
+                  onPress={() => setShowCalendar(!showCalendar)}
+                >
+                  <Calendar size={16} color="#007AFF" />
+                  <Text style={styles.calendarToggleText}>
+                    {showCalendar ? 'Hide Calendar' : 'Show Calendar'}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Calendar */}
+                {showCalendar && (
+                  <View style={styles.calendarContainer}>
+                    <View style={styles.calendarHeader}>
+                      <TouchableOpacity
+                        style={styles.calendarNavButton}
+                        onPress={() => {
+                          const newDate = new Date(calendarDate);
+                          newDate.setMonth(newDate.getMonth() - 1);
+                          setCalendarDate(newDate);
+                        }}
+                      >
+                        <ChevronLeft size={20} color="#007AFF" />
+                      </TouchableOpacity>
+                      <Text style={styles.calendarHeaderText}>
+                        {calendarDate.toLocaleDateString([], { month: 'long', year: 'numeric' })}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.calendarNavButton}
+                        onPress={() => {
+                          const newDate = new Date(calendarDate);
+                          newDate.setMonth(newDate.getMonth() + 1);
+                          setCalendarDate(newDate);
+                        }}
+                      >
+                        <ChevronRight size={20} color="#007AFF" />
+                      </TouchableOpacity>
+                    </View>
+                    
+                    <View style={styles.calendarWeekDays}>
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                        <Text key={day} style={styles.calendarWeekDay}>{day}</Text>
+                      ))}
+                    </View>
+                    
+                    <View style={styles.calendarGrid}>
+                      {generateCalendarDays(calendarDate).map((date, index) => {
+                        const isCurrentMonth = date.getMonth() === calendarDate.getMonth();
+                        const isToday = date.toDateString() === new Date().toDateString();
+                        const isSelected = isDateSelected(date);
+                        const isInRange = isDateInRange(date);
+                        const hasTranslations = hasTranslationsOnDate(date);
+                        
+                        return (
+                          <TouchableOpacity
+                            key={index}
+                            style={[
+                              styles.calendarDay,
+                              !isCurrentMonth && styles.calendarDayOtherMonth,
+                              isToday && styles.calendarDayToday,
+                              isSelected && styles.calendarDaySelected,
+                              isInRange && styles.calendarDayInRange,
+                              hasTranslations && styles.calendarDayWithTranslations,
+                            ]}
+                            onPress={() => handleCalendarDatePress(date)}
+                            disabled={!isCurrentMonth}
+                          >
+                            <Text style={[
+                              styles.calendarDayText,
+                              !isCurrentMonth && styles.calendarDayTextOtherMonth,
+                              isToday && styles.calendarDayTextToday,
+                              isSelected && styles.calendarDayTextSelected,
+                              hasTranslations && styles.calendarDayTextWithTranslations,
+                            ]}>
+                              {date.getDate()}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    
+                    {dateFilterMode === 'range' && (
+                      <View style={styles.dateRangeInfo}>
+                        <Text style={styles.dateRangeInfoText}>
+                          {selectedStartDate && !selectedEndDate && 'Select end date'}
+                          {selectedStartDate && selectedEndDate && 
+                            `Range: ${formatDateHeader(selectedStartDate)} - ${formatDateHeader(selectedEndDate)}`
+                          }
+                          {!selectedStartDate && 'Select start date'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+
                 <ScrollView 
                   horizontal 
                   showsHorizontalScrollIndicator={false}
@@ -356,13 +586,22 @@ export default function HistoryScreen() {
                   <TouchableOpacity
                     style={[
                       styles.dateChip,
-                      !selectedDate && styles.dateChipSelected
+                      dateFilterMode === 'single' && !selectedDate && styles.dateChipSelected,
+                      dateFilterMode === 'range' && !selectedStartDate && !selectedEndDate && styles.dateChipSelected
                     ]}
-                    onPress={() => setSelectedDate(null)}
+                    onPress={() => {
+                      if (dateFilterMode === 'single') {
+                        setSelectedDate(null);
+                      } else {
+                        setSelectedStartDate(null);
+                        setSelectedEndDate(null);
+                      }
+                    }}
                   >
                     <Text style={[
                       styles.dateChipText,
-                      !selectedDate && styles.dateChipTextSelected
+                      ((dateFilterMode === 'single' && !selectedDate) || 
+                       (dateFilterMode === 'range' && !selectedStartDate && !selectedEndDate)) && styles.dateChipTextSelected
                     ]}>
                       All Dates
                     </Text>
@@ -372,13 +611,21 @@ export default function HistoryScreen() {
                       key={date}
                       style={[
                         styles.dateChip,
-                        selectedDate === date && styles.dateChipSelected
+                        ((dateFilterMode === 'single' && selectedDate === date) ||
+                         (dateFilterMode === 'range' && (selectedStartDate === date || selectedEndDate === date))) && styles.dateChipSelected
                       ]}
-                      onPress={() => setSelectedDate(date)}
+                      onPress={() => {
+                        if (dateFilterMode === 'single') {
+                          setSelectedDate(date);
+                        } else {
+                          handleCalendarDatePress(new Date(date));
+                        }
+                      }}
                     >
                       <Text style={[
                         styles.dateChipText,
-                        selectedDate === date && styles.dateChipTextSelected
+                        ((dateFilterMode === 'single' && selectedDate === date) ||
+                         (dateFilterMode === 'range' && (selectedStartDate === date || selectedEndDate === date))) && styles.dateChipTextSelected
                       ]}>
                         {formatDateHeader(date)}
                       </Text>
@@ -763,6 +1010,140 @@ const styles = StyleSheet.create({
   },
   dateChipTextSelected: {
     color: '#FFF',
+  },
+  dateFilterModeContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    backgroundColor: '#333',
+    borderRadius: 8,
+    padding: 2,
+  },
+  dateFilterModeButton: {
+    flex: 1,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  dateFilterModeButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  dateFilterModeText: {
+    color: '#999',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  dateFilterModeTextActive: {
+    color: '#FFF',
+  },
+  calendarToggleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#333',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    gap: 8,
+  },
+  calendarToggleText: {
+    color: '#007AFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  calendarContainer: {
+    backgroundColor: '#333',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  calendarNavButton: {
+    padding: 8,
+  },
+  calendarHeaderText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  calendarWeekDays: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  calendarWeekDay: {
+    flex: 1,
+    textAlign: 'center',
+    color: '#999',
+    fontSize: 12,
+    fontWeight: '500',
+    paddingVertical: 4,
+  },
+  calendarGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  calendarDay: {
+    width: `${100/7}%`,
+    aspectRatio: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 4,
+    marginBottom: 2,
+  },
+  calendarDayOtherMonth: {
+    opacity: 0.3,
+  },
+  calendarDayToday: {
+    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+    borderWidth: 1,
+    borderColor: '#007AFF',
+  },
+  calendarDaySelected: {
+    backgroundColor: '#007AFF',
+  },
+  calendarDayInRange: {
+    backgroundColor: 'rgba(0, 122, 255, 0.3)',
+  },
+  calendarDayWithTranslations: {
+    backgroundColor: 'rgba(52, 199, 89, 0.2)',
+  },
+  calendarDayText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  calendarDayTextOtherMonth: {
+    color: '#666',
+  },
+  calendarDayTextToday: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  calendarDayTextSelected: {
+    color: '#FFF',
+    fontWeight: '600',
+  },
+  calendarDayTextWithTranslations: {
+    color: '#34C759',
+    fontWeight: '600',
+  },
+  dateRangeInfo: {
+    marginTop: 12,
+    padding: 8,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderRadius: 6,
+  },
+  dateRangeInfoText: {
+    color: '#007AFF',
+    fontSize: 12,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   languagePairContainer: {
     flexDirection: 'row',
