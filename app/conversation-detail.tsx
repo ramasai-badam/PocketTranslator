@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, Volume2, Trash2, User, BookmarkPlus } from 'lucide-react-native';
+import { ArrowLeft, Volume2, Trash2, User, BookmarkPlus, Bookmark } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { TranslationHistoryManager, TranslationEntry } from '../utils/TranslationHistory';
@@ -25,10 +25,36 @@ export default function ConversationDetailScreen() {
   const [entries, setEntries] = useState<TranslationEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [savedEntries, setSavedEntries] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadConversationEntries();
   }, [languagePair]);
+
+  useEffect(() => {
+    checkSavedEntries();
+  }, [entries]);
+
+  const checkSavedEntries = async () => {
+    try {
+      const vocabularyWords = await VocabularyManager.getAllVocabularyWords();
+      const savedSet = new Set<string>();
+      
+      entries.forEach(entry => {
+        const isAlreadySaved = vocabularyWords.some(word => 
+          word.originalText === entry.originalText && 
+          word.translatedText === entry.translatedText
+        );
+        if (isAlreadySaved) {
+          savedSet.add(entry.id);
+        }
+      });
+      
+      setSavedEntries(savedSet);
+    } catch (error) {
+      console.error('Failed to check saved entries:', error);
+    }
+  };
 
   const loadConversationEntries = async () => {
     try {
@@ -106,6 +132,8 @@ export default function ConversationDetailScreen() {
       );
 
       if (result.success) {
+        // Update the saved entries state
+        setSavedEntries(prev => new Set(prev).add(entry.id));
         Alert.alert('Success', result.message);
       } else {
         Alert.alert(
@@ -231,8 +259,13 @@ export default function ConversationDetailScreen() {
                   <TouchableOpacity
                     style={styles.addToVocabButton}
                     onPress={() => handleAddToVocabulary(entry)}
+                    disabled={savedEntries.has(entry.id)}
                   >
-                    <BookmarkPlus size={16} color="#34C759" />
+                    {savedEntries.has(entry.id) ? (
+                      <Bookmark size={16} color="#34C759" />
+                    ) : (
+                      <BookmarkPlus size={16} color="#34C759" />
+                    )}
                   </TouchableOpacity>
                 </View>
               </View>

@@ -10,113 +10,20 @@ import {
   TextInput,
   Modal,
   Dimensions,
+  BackHandler,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, ChevronLeft, ChevronRight, BookOpen, History } from 'lucide-react-native';
+import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, ChevronLeft, ChevronRight, BookOpen, History, Bookmark } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '../utils/LanguageConfig';
-import { VocabularyManager, VocabularyEntry } from '../utils/VocabularyManager';
+import { VocabularyManager } from '../utils/VocabularyManager';
 
 const { width } = Dimensions.get('window');
 
-function VocabularyScreen() {
-  const [vocabularyWords, setVocabularyWords] = useState<VocabularyEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  useEffect(() => {
-    loadVocabulary();
-  }, []);
-
-  const loadVocabulary = async () => {
-    try {
-      const words = await VocabularyManager.getAllVocabularyWords();
-      setVocabularyWords(words);
-    } catch (error) {
-      console.error('Failed to load vocabulary:', error);
-    } finally {
-      setIsLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadVocabulary();
-  };
-
-  const handleDeleteWord = (wordId: string) => {
-    Alert.alert(
-      'Delete Word',
-      'Are you sure you want to remove this word from your vocabulary?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await VocabularyManager.deleteVocabularyWord(wordId);
-              await loadVocabulary();
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete word');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text style={styles.loadingText}>Loading vocabulary...</Text>
-      </View>
-    );
-  }
-
-  return (
-    <ScrollView
-      style={styles.scrollView}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />
-      }
-      showsVerticalScrollIndicator={false}
-    >
-      {vocabularyWords.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <BookOpen size={48} color="#666" />
-          <Text style={styles.emptyTitle}>No Vocabulary Words</Text>
-          <Text style={styles.emptySubtitle}>
-            Start adding words from your translation history to build your vocabulary collection.
-          </Text>
-        </View>
-      ) : (
-        vocabularyWords.map((word) => (
-          <View key={word.id} style={styles.vocabularyItem}>
-            <View style={styles.vocabularyContent}>
-              <Text style={styles.originalText}>{word.originalText}</Text>
-              <Text style={styles.translatedText}>{word.translatedText}</Text>
-              <Text style={styles.vocabularyDate}>
-                Added {word.dateAdded}
-              </Text>
-            </View>
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={() => handleDeleteWord(word.id)}
-            >
-              <Trash2 size={16} color="#FF3B30" />
-            </TouchableOpacity>
-          </View>
-        ))
-      )}
-    </ScrollView>
-  );
-}
-
 export default function HistoryScreen() {
-  const [currentView, setCurrentView] = useState<'tiles' | 'history' | 'vocabulary'>('tiles');
+  const [currentView, setCurrentView] = useState<'tiles' | 'history'>('tiles');
   const [translationsByDay, setTranslationsByDay] = useState<{ [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } }>({});
   const [filteredTranslationsByDay, setFilteredTranslationsByDay] = useState<{ [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } }>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -137,6 +44,7 @@ export default function HistoryScreen() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [savedConversations, setSavedConversations] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (currentView === 'history') {
@@ -149,6 +57,113 @@ export default function HistoryScreen() {
     const dates = Object.keys(translationsByDay).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
     setAvailableDates(dates);
   }, [translationsByDay]);
+
+  // Check saved conversations when translations load
+  useEffect(() => {
+    if (currentView === 'history') {
+      checkSavedConversations();
+    }
+  }, [translationsByDay, currentView]);
+
+  // Handle hardware back button and navigation gestures
+  useFocusEffect(
+    React.useCallback(() => {
+      const onBackPress = () => {
+        if (currentView === 'history') {
+          setCurrentView('tiles');
+          return true; // Prevent default back behavior
+        }
+        return false; // Allow default back behavior (go to previous screen)
+      };
+
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
+    }, [currentView])
+  );
+
+  const checkSavedConversations = async () => {
+    try {
+      const vocabularyWords = await VocabularyManager.getAllVocabularyWords();
+      const savedSet = new Set<string>();
+      
+      Object.keys(translationsByDay).forEach(dateKey => {
+        Object.keys(translationsByDay[dateKey]).forEach(languagePair => {
+          const { entries } = translationsByDay[dateKey][languagePair];
+          
+          // Check if any entry from this conversation is saved in vocabulary
+          const hasAnySavedEntry = entries.some(entry => 
+            vocabularyWords.some(word => 
+              word.originalText === entry.originalText && 
+              word.translatedText === entry.translatedText
+            )
+          );
+          
+          if (hasAnySavedEntry) {
+            savedSet.add(languagePair);
+          }
+        });
+      });
+      
+      setSavedConversations(savedSet);
+    } catch (error) {
+      console.error('Failed to check saved conversations:', error);
+    }
+  };
+
+  const handleToggleConversationBookmark = async (conversation: LanguagePairConversation, entries: TranslationEntry[]) => {
+    try {
+      const isCurrentlySaved = savedConversations.has(conversation.languagePair);
+      
+      if (isCurrentlySaved) {
+        // Remove all entries from vocabulary
+        const vocabularyWords = await VocabularyManager.getAllVocabularyWords();
+        
+        for (const entry of entries) {
+          const matchingWord = vocabularyWords.find(word => 
+            word.originalText === entry.originalText && 
+            word.translatedText === entry.translatedText
+          );
+          
+          if (matchingWord) {
+            await VocabularyManager.deleteVocabularyWord(matchingWord.id);
+          }
+        }
+        
+        // Update state
+        setSavedConversations(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(conversation.languagePair);
+          return newSet;
+        });
+        
+        Alert.alert('Success', 'Conversation removed from vocabulary');
+      } else {
+        // Add all entries to vocabulary
+        let successCount = 0;
+        
+        for (const entry of entries) {
+          const result = await VocabularyManager.saveVocabularyWord(
+            entry.originalText,
+            entry.translatedText,
+            entry.fromLanguage,
+            entry.toLanguage
+          );
+          
+          if (result.success) {
+            successCount++;
+          }
+        }
+        
+        // Update state
+        setSavedConversations(prev => new Set(prev).add(conversation.languagePair));
+        
+        Alert.alert('Success', `${successCount} translation${successCount !== 1 ? 's' : ''} added to vocabulary`);
+      }
+    } catch (error) {
+      console.error('Failed to toggle conversation bookmark:', error);
+      Alert.alert('Error', 'Failed to update vocabulary');
+    }
+  };
 
   // Filter translations when search query, selected date, or language pair changes
   useEffect(() => {
@@ -468,45 +483,26 @@ export default function HistoryScreen() {
 
   const renderTilesView = () => (
     <View style={styles.tilesContainer}>
-      <TouchableOpacity
-        style={styles.tile}
-        onPress={() => setCurrentView('vocabulary')}
-        activeOpacity={0.7}
-      >
-        <BookOpen size={48} color="#007AFF" />
-        <Text style={styles.tileTitle}>Vocabulary</Text>
-        <Text style={styles.tileSubtitle}>Build your word collection</Text>
-      </TouchableOpacity>
+      <View style={styles.tilesRow}>
+        <TouchableOpacity
+          style={styles.tile}
+          onPress={() => setCurrentView('history')}
+          activeOpacity={0.7}
+        >
+          <History size={49} color="#34C759" />
+          <Text style={styles.tileTitle}>History</Text>
+        </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.tile}
-        onPress={() => setCurrentView('history')}
-        activeOpacity={0.7}
-      >
-        <History size={48} color="#34C759" />
-        <Text style={styles.tileTitle}>Translation History</Text>
-        <Text style={styles.tileSubtitle}>Review past conversations</Text>
-      </TouchableOpacity>
-
-      {/* My Vocabulary Button */}
-      <TouchableOpacity
-        style={styles.vocabularyButton}
-        onPress={() => router.push('/vocabulary-list')}
-        activeOpacity={0.7}
-      >
-        <View style={styles.vocabularyButtonContent}>
-          <Text style={styles.vocabularyButtonIcon}>📚</Text>
-          <View style={styles.vocabularyButtonText}>
-            <Text style={styles.vocabularyButtonTitle}>My Vocabulary</Text>
-            <Text style={styles.vocabularyButtonSubtitle}>Practice saved words</Text>
-          </View>
-        </View>
-      </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.tile}
+          onPress={() => router.push('/vocabulary-list')}
+          activeOpacity={0.7}
+        >
+          <BookOpen size={49} color="#34C759" />
+          <Text style={styles.tileTitle}>My Vocabulary</Text>
+        </TouchableOpacity>
+      </View>
     </View>
-  );
-
-  const renderVocabularyView = () => (
-    <VocabularyScreen />
   );
 
   const renderHistoryView = () => {
@@ -937,6 +933,19 @@ export default function HistoryScreen() {
                             <Text style={styles.entryCount}>
                               {entries.length} translation{entries.length !== 1 ? 's' : ''}
                             </Text>
+                            <TouchableOpacity
+                              style={styles.bookmarkButton}
+                              onPress={(e) => {
+                                e.stopPropagation();
+                                handleToggleConversationBookmark(conversation, entries);
+                              }}
+                            >
+                              <Bookmark 
+                                size={16} 
+                                color={savedConversations.has(conversation.languagePair) ? "#34C759" : "#666"}
+                                fill={savedConversations.has(conversation.languagePair) ? "#34C759" : "none"}
+                              />
+                            </TouchableOpacity>
                             <Text style={styles.arrowText}>›</Text>
                           </View>
                         </TouchableOpacity>
@@ -1012,8 +1021,7 @@ export default function HistoryScreen() {
           <ArrowLeft size={24} color="#FFF" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
-          {currentView === 'tiles' ? 'Learning Hub' : 
-           currentView === 'vocabulary' ? 'Vocabulary' : 'Translation History'}
+          {currentView === 'tiles' ? 'Learning Hub' : 'Translation History'}
         </Text>
         {currentView === 'history' && (
           <TouchableOpacity
@@ -1029,7 +1037,6 @@ export default function HistoryScreen() {
 
       {/* Content based on current view */}
       {currentView === 'tiles' && renderTilesView()}
-      {currentView === 'vocabulary' && renderVocabularyView()}
       {currentView === 'history' && renderHistoryView()}
     </View>
   );
@@ -1076,31 +1083,43 @@ const styles = StyleSheet.create({
   },
   tilesContainer: {
     flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 40,
-    gap: 20,
+    // paddingHorizontal: 20,
+    margin: 20,
+    // paddingTop: 20,
+    justifyContent: 'flex-start',
+  },
+  tilesRow: {
+    flexDirection: 'row',
+    gap: 15,
   },
   tile: {
+    flex: 1,
+    aspectRatio: 1,
     backgroundColor: '#1A1A1A',
     borderRadius: 16,
-    padding: 24,
+    padding: 20,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#333',
-    minHeight: 140,
-    justifyContent: 'center',
+  },
+  tileIcon: {
+    fontSize: 40,
+    marginBottom: 12,
   },
   tileTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#FFF',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: 12,
+    marginBottom: 6,
+    textAlign: 'center',
   },
   tileSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#999',
     textAlign: 'center',
+    lineHeight: 16,
   },
   searchContainer: {
     paddingHorizontal: 20,
@@ -1547,6 +1566,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  bookmarkButton: {
+    padding: 4,
+  },
   entryCount: {
     fontSize: 12,
     color: '#999',
@@ -1625,33 +1647,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
     marginTop: 4,
-  },
-  vocabularyButton: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#34C759',
-  },
-  vocabularyButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  vocabularyButtonIcon: {
-    fontSize: 24,
-    marginRight: 16,
-  },
-  vocabularyButtonText: {
-    flex: 1,
-  },
-  vocabularyButtonTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#34C759',
-  },
-  vocabularyButtonSubtitle: {
-    fontSize: 14,
-    color: '#999',
-    marginTop: 2,
   },
 });
