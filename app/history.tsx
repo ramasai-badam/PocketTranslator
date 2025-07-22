@@ -13,7 +13,7 @@ import {
   BackHandler,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, ChevronLeft, ChevronRight, BookOpen, History, Bookmark } from 'lucide-react-native';
+import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, ChevronLeft, ChevronRight, BookOpen, History } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
@@ -44,7 +44,6 @@ export default function HistoryScreen() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [availableDates, setAvailableDates] = useState<string[]>([]);
-  const [savedConversations, setSavedConversations] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (currentView === 'history') {
@@ -57,13 +56,6 @@ export default function HistoryScreen() {
     const dates = Object.keys(translationsByDay).sort((a, b) => new Date(b).getTime() - new Date(a).getTime());
     setAvailableDates(dates);
   }, [translationsByDay]);
-
-  // Check saved conversations when translations load
-  useEffect(() => {
-    if (currentView === 'history') {
-      checkSavedConversations();
-    }
-  }, [translationsByDay, currentView]);
 
   // Handle hardware back button and navigation gestures
   useFocusEffect(
@@ -80,90 +72,6 @@ export default function HistoryScreen() {
       return () => subscription.remove();
     }, [currentView])
   );
-
-  const checkSavedConversations = async () => {
-    try {
-      const vocabularyWords = await VocabularyManager.getAllVocabularyWords();
-      const savedSet = new Set<string>();
-      
-      Object.keys(translationsByDay).forEach(dateKey => {
-        Object.keys(translationsByDay[dateKey]).forEach(languagePair => {
-          const { entries } = translationsByDay[dateKey][languagePair];
-          
-          // Check if any entry from this conversation is saved in vocabulary
-          const hasAnySavedEntry = entries.some(entry => 
-            vocabularyWords.some(word => 
-              word.originalText === entry.originalText && 
-              word.translatedText === entry.translatedText
-            )
-          );
-          
-          if (hasAnySavedEntry) {
-            savedSet.add(languagePair);
-          }
-        });
-      });
-      
-      setSavedConversations(savedSet);
-    } catch (error) {
-      console.error('Failed to check saved conversations:', error);
-    }
-  };
-
-  const handleToggleConversationBookmark = async (conversation: LanguagePairConversation, entries: TranslationEntry[]) => {
-    try {
-      const isCurrentlySaved = savedConversations.has(conversation.languagePair);
-      
-      if (isCurrentlySaved) {
-        // Remove all entries from vocabulary
-        const vocabularyWords = await VocabularyManager.getAllVocabularyWords();
-        
-        for (const entry of entries) {
-          const matchingWord = vocabularyWords.find(word => 
-            word.originalText === entry.originalText && 
-            word.translatedText === entry.translatedText
-          );
-          
-          if (matchingWord) {
-            await VocabularyManager.deleteVocabularyWord(matchingWord.id);
-          }
-        }
-        
-        // Update state
-        setSavedConversations(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(conversation.languagePair);
-          return newSet;
-        });
-        
-        Alert.alert('Success', 'Conversation removed from vocabulary');
-      } else {
-        // Add all entries to vocabulary
-        let successCount = 0;
-        
-        for (const entry of entries) {
-          const result = await VocabularyManager.saveVocabularyWord(
-            entry.originalText,
-            entry.translatedText,
-            entry.fromLanguage,
-            entry.toLanguage
-          );
-          
-          if (result.success) {
-            successCount++;
-          }
-        }
-        
-        // Update state
-        setSavedConversations(prev => new Set(prev).add(conversation.languagePair));
-        
-        Alert.alert('Success', `${successCount} translation${successCount !== 1 ? 's' : ''} added to vocabulary`);
-      }
-    } catch (error) {
-      console.error('Failed to toggle conversation bookmark:', error);
-      Alert.alert('Error', 'Failed to update vocabulary');
-    }
-  };
 
   // Filter translations when search query, selected date, or language pair changes
   useEffect(() => {
@@ -933,19 +841,6 @@ export default function HistoryScreen() {
                             <Text style={styles.entryCount}>
                               {entries.length} translation{entries.length !== 1 ? 's' : ''}
                             </Text>
-                            <TouchableOpacity
-                              style={styles.bookmarkButton}
-                              onPress={(e) => {
-                                e.stopPropagation();
-                                handleToggleConversationBookmark(conversation, entries);
-                              }}
-                            >
-                              <Bookmark 
-                                size={16} 
-                                color={savedConversations.has(conversation.languagePair) ? "#34C759" : "#666"}
-                                fill={savedConversations.has(conversation.languagePair) ? "#34C759" : "none"}
-                              />
-                            </TouchableOpacity>
                             <Text style={styles.arrowText}>›</Text>
                           </View>
                         </TouchableOpacity>
@@ -1565,9 +1460,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  bookmarkButton: {
-    padding: 4,
   },
   entryCount: {
     fontSize: 12,

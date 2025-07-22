@@ -65,6 +65,29 @@ export default function VocabularyListScreen() {
     );
   };
 
+  const handleClearAllVocabulary = () => {
+    Alert.alert(
+      'Clear All Vocabulary',
+      'Are you sure you want to delete all vocabulary words? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await VocabularyManager.clearAllVocabulary();
+              setVocabularyWords([]);
+              Alert.alert('Success', 'All vocabulary words have been cleared');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to clear vocabulary');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleSpellWord = async (word: string, languageCode: string) => {
     try {
       // Clean the word of punctuation for better pronunciation
@@ -142,7 +165,13 @@ export default function VocabularyListScreen() {
             {vocabularyWords.length} word{vocabularyWords.length !== 1 ? 's' : ''}
           </Text>
         </View>
-        <View style={styles.headerSpacer} />
+        <TouchableOpacity
+          style={styles.clearAllButton}
+          onPress={handleClearAllVocabulary}
+          disabled={vocabularyWords.length === 0}
+        >
+          <Trash2 size={20} color={vocabularyWords.length > 0 ? "#FF3B30" : "#666"} />
+        </TouchableOpacity>
       </View>
 
       {/* Vocabulary Words */}
@@ -269,8 +298,13 @@ const styles = StyleSheet.create({
     color: '#999',
     marginTop: 2,
   },
-  headerSpacer: {
+  clearAllButton: {
     width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,
