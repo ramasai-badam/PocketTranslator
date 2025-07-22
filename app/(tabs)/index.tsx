@@ -76,7 +76,7 @@ export default function TranslatorScreen() {
   const handleStartRecording = async (isTop: boolean) => {
     try {
       // Haptic feedback for mic press
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid);
       
       // Check if audio recording is initialized
       if (!isInitialized) {
@@ -210,7 +210,7 @@ export default function TranslatorScreen() {
     if (!text) return;
     
     // Haptic feedback for speaker press
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid);
     
     try {
       // Check if TTS voice is available for this language
