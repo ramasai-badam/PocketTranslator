@@ -528,7 +528,6 @@ export default function HistoryScreen() {
                     <View style={styles.calendarGrid}>
                       {generateCalendarDays(calendarDate).map((date, index) => {
                         const isCurrentMonth = date.getMonth() === calendarDate.getMonth();
-                        const isToday = date.toDateString() === new Date().toDateString();
                         const isSelected = isDateSelected(date);
                         const isInRange = isDateInRange(date);
                         const hasTranslations = hasTranslationsOnDate(date);
@@ -539,7 +538,6 @@ export default function HistoryScreen() {
                             style={[
                               styles.calendarDay,
                               !isCurrentMonth && styles.calendarDayOtherMonth,
-                              isToday && styles.calendarDayToday,
                               isSelected && styles.calendarDaySelected,
                               isInRange && styles.calendarDayInRange,
                               hasTranslations && styles.calendarDayWithTranslations,
@@ -550,7 +548,6 @@ export default function HistoryScreen() {
                             <Text style={[
                               styles.calendarDayText,
                               !isCurrentMonth && styles.calendarDayTextOtherMonth,
-                              isToday && styles.calendarDayTextToday,
                               isSelected && styles.calendarDayTextSelected,
                               hasTranslations && styles.calendarDayTextWithTranslations,
                             ]}>
@@ -1069,11 +1066,6 @@ const styles = StyleSheet.create({
   calendarDayOtherMonth: {
     opacity: 0.3,
   },
-  calendarDayToday: {
-    backgroundColor: 'rgba(0, 122, 255, 0.2)',
-    borderWidth: 1,
-    borderColor: '#007AFF',
-  },
   calendarDaySelected: {
     backgroundColor: '#007AFF',
   },
@@ -1090,10 +1082,6 @@ const styles = StyleSheet.create({
   },
   calendarDayTextOtherMonth: {
     color: '#666',
-  },
-  calendarDayTextToday: {
-    color: '#007AFF',
-    fontWeight: '600',
   },
   calendarDayTextSelected: {
     color: '#FFF',
