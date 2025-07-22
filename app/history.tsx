@@ -8,11 +8,13 @@ import {
   Alert,
   RefreshControl,
   TextInput,
+  Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
+import { SUPPORTED_LANGUAGES, getLanguageByCode } from '../utils/LanguageConfig';
 
 export default function HistoryScreen() {
   const [translationsByDay, setTranslationsByDay] = useState<{ [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } }>({});
@@ -21,7 +23,9 @@ export default function HistoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedFromLanguage, setSelectedFromLanguage] = useState<string | null>(null);
+  const [selectedToLanguage, setSelectedToLanguage] = useState<string | null>(null);
+  const [showFilterModal, setShowFilterModal] = useState(false);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
 
   useEffect(() => {
@@ -34,16 +38,46 @@ export default function HistoryScreen() {
     setAvailableDates(dates);
   }, [translationsByDay]);
 
-  // Filter translations when search query or selected date changes
+  // Filter translations when search query, selected date, or language pair changes
   useEffect(() => {
-    let filtered = translationsByDay;
+    filterTranslations();
+  }, [searchQuery, selectedDate, selectedFromLanguage, selectedToLanguage, translationsByDay]);
+
+  const filterTranslations = () => {
+    let filtered = { ...translationsByDay };
     
     // First filter by date if selected
     if (selectedDate) {
-      filtered = selectedDate in translationsByDay ? { [selectedDate]: translationsByDay[selectedDate] } : {};
+      filtered = selectedDate in filtered ? { [selectedDate]: filtered[selectedDate] } : {};
+    }
+
+    // Filter by language pair if selected
+    if (selectedFromLanguage && selectedToLanguage) {
+      const filteredByLanguage: typeof translationsByDay = {};
+      
+      Object.keys(filtered).forEach(dateKey => {
+        Object.keys(filtered[dateKey]).forEach(languagePair => {
+          const { conversation, entries } = filtered[dateKey][languagePair];
+          
+          // Check if this conversation matches the selected language pair (bidirectional)
+          const [lang1, lang2] = languagePair.split('-');
+          const matchesLanguagePair = 
+            (lang1 === selectedFromLanguage && lang2 === selectedToLanguage) ||
+            (lang1 === selectedToLanguage && lang2 === selectedFromLanguage);
+          
+          if (matchesLanguagePair) {
+            if (!filteredByLanguage[dateKey]) {
+              filteredByLanguage[dateKey] = {};
+            }
+            filteredByLanguage[dateKey][languagePair] = { conversation, entries };
+          }
+        });
+      });
+      
+      filtered = filteredByLanguage;
     }
     
-    // Then filter by search query
+    // Finally filter by search query
     if (!searchQuery.trim()) {
       setFilteredTranslationsByDay(filtered);
       return;
@@ -76,7 +110,7 @@ export default function HistoryScreen() {
     });
 
     setFilteredTranslationsByDay(searchFiltered);
-  }, [searchQuery, selectedDate, translationsByDay]);
+  };
 
   const loadTranslations = async () => {
     try {
@@ -182,13 +216,36 @@ export default function HistoryScreen() {
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedDate(null);
-    setShowDatePicker(false);
+    setSelectedFromLanguage(null);
+    setSelectedToLanguage(null);
+    setShowFilterModal(false);
+  };
+
+  const applyFilters = () => {
+    setShowFilterModal(false);
+  };
+
+  const hasActiveFilters = () => {
+    return selectedDate || (selectedFromLanguage && selectedToLanguage);
   };
 
   const getTotalTranslations = () => {
     return Object.values(filteredTranslationsByDay).reduce((total, dayData) => {
       return total + Object.values(dayData).reduce((dayTotal, { entries }) => dayTotal + entries.length, 0);
     }, 0);
+  };
+
+  const getFilterSummary = () => {
+    const parts = [];
+    if (selectedDate) {
+      parts.push(formatDateHeader(selectedDate));
+    }
+    if (selectedFromLanguage && selectedToLanguage) {
+      const fromLang = getLanguageByCode(selectedFromLanguage);
+      const toLang = getLanguageByCode(selectedToLanguage);
+      parts.push(`${fromLang?.nativeName} ↔ ${toLang?.nativeName}`);
+    }
+    return parts.join(' • ');
   };
 
   if (isLoading) {
@@ -245,55 +302,201 @@ export default function HistoryScreen() {
           )}
           <TouchableOpacity
             style={[styles.filterButton, selectedDate && styles.filterButtonActive]}
-            onPress={() => setShowDatePicker(!showDatePicker)}
+            style={[styles.filterButton, hasActiveFilters() && styles.filterButtonActive]}
+            onPress={() => setShowFilterModal(true)}
           >
-            <Filter size={16} color={selectedDate ? "#007AFF" : "#999"} />
+            <Filter size={16} color={hasActiveFilters() ? "#007AFF" : "#999"} />
           </TouchableOpacity>
         </View>
         
-        {/* Selected Date Indicator */}
-        {selectedDate && (
-          <View style={styles.selectedDateContainer}>
-            <Text style={styles.selectedDateText}>
-              Showing: {formatDateHeader(selectedDate)}
+        {/* Active Filters Indicator */}
+        {hasActiveFilters() && (
+          <View style={styles.activeFiltersContainer}>
+            <Text style={styles.activeFiltersText}>
+              Filters: {getFilterSummary()}
             </Text>
             <TouchableOpacity
-              style={styles.clearDateButton}
-              onPress={() => setSelectedDate(null)}
+              style={styles.clearFiltersButton}
+              onPress={clearFilters}
             >
               <X size={14} color="#007AFF" />
             </TouchableOpacity>
           </View>
         )}
-        
-        {/* Date Picker Dropdown */}
-        {showDatePicker && (
-          <View style={styles.datePickerContainer}>
-            <ScrollView style={styles.datePickerScroll} showsVerticalScrollIndicator={false}>
-              {availableDates.map((date) => (
-                <TouchableOpacity
-                  key={date}
-                  style={[
-                    styles.dateOption,
-                    selectedDate === date && styles.selectedDateOption
-                  ]}
-                  onPress={() => {
-                    setSelectedDate(date);
-                    setShowDatePicker(false);
-                  }}
-                >
-                  <Text style={[
-                    styles.dateOptionText,
-                    selectedDate === date && styles.selectedDateOptionText
-                  ]}>
-                    {formatDateHeader(date)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
       </View>
+
+      {/* Filter Modal */}
+      <Modal
+        visible={showFilterModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowFilterModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Filter Translations</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowFilterModal(false)}
+              >
+                <X size={24} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              {/* Date Filter Section */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Filter by Date</Text>
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.dateScrollView}
+                >
+                  <TouchableOpacity
+                    style={[
+                      styles.dateChip,
+                      !selectedDate && styles.dateChipSelected
+                    ]}
+                    onPress={() => setSelectedDate(null)}
+                  >
+                    <Text style={[
+                      styles.dateChipText,
+                      !selectedDate && styles.dateChipTextSelected
+                    ]}>
+                      All Dates
+                    </Text>
+                  </TouchableOpacity>
+                  {availableDates.map((date) => (
+                    <TouchableOpacity
+                      key={date}
+                      style={[
+                        styles.dateChip,
+                        selectedDate === date && styles.dateChipSelected
+                      ]}
+                      onPress={() => setSelectedDate(date)}
+                    >
+                      <Text style={[
+                        styles.dateChipText,
+                        selectedDate === date && styles.dateChipTextSelected
+                      ]}>
+                        {formatDateHeader(date)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Language Pair Filter Section */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Filter by Language Pair</Text>
+                <Text style={styles.filterSectionDescription}>
+                  Select two languages to show translations between them (in both directions)
+                </Text>
+                
+                <View style={styles.languagePairContainer}>
+                  {/* From Language */}
+                  <View style={styles.languageSelectContainer}>
+                    <Text style={styles.languageSelectLabel}>From Language</Text>
+                    <ScrollView style={styles.languageSelectScroll} showsVerticalScrollIndicator={false}>
+                      <TouchableOpacity
+                        style={[
+                          styles.languageOption,
+                          !selectedFromLanguage && styles.languageOptionSelected
+                        ]}
+                        onPress={() => setSelectedFromLanguage(null)}
+                      >
+                        <Text style={[
+                          styles.languageOptionText,
+                          !selectedFromLanguage && styles.languageOptionTextSelected
+                        ]}>
+                          Any Language
+                        </Text>
+                      </TouchableOpacity>
+                      {SUPPORTED_LANGUAGES.map((language) => (
+                        <TouchableOpacity
+                          key={language.code}
+                          style={[
+                            styles.languageOption,
+                            selectedFromLanguage === language.code && styles.languageOptionSelected
+                          ]}
+                          onPress={() => setSelectedFromLanguage(language.code)}
+                        >
+                          <Text style={[
+                            styles.languageOptionText,
+                            selectedFromLanguage === language.code && styles.languageOptionTextSelected
+                          ]}>
+                            {language.nativeName}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+
+                  {/* Arrow */}
+                  <View style={styles.languageArrowContainer}>
+                    <Text style={styles.languageArrow}>↔</Text>
+                  </View>
+
+                  {/* To Language */}
+                  <View style={styles.languageSelectContainer}>
+                    <Text style={styles.languageSelectLabel}>To Language</Text>
+                    <ScrollView style={styles.languageSelectScroll} showsVerticalScrollIndicator={false}>
+                      <TouchableOpacity
+                        style={[
+                          styles.languageOption,
+                          !selectedToLanguage && styles.languageOptionSelected
+                        ]}
+                        onPress={() => setSelectedToLanguage(null)}
+                      >
+                        <Text style={[
+                          styles.languageOptionText,
+                          !selectedToLanguage && styles.languageOptionTextSelected
+                        ]}>
+                          Any Language
+                        </Text>
+                      </TouchableOpacity>
+                      {SUPPORTED_LANGUAGES.map((language) => (
+                        <TouchableOpacity
+                          key={language.code}
+                          style={[
+                            styles.languageOption,
+                            selectedToLanguage === language.code && styles.languageOptionSelected
+                          ]}
+                          onPress={() => setSelectedToLanguage(language.code)}
+                        >
+                          <Text style={[
+                            styles.languageOptionText,
+                            selectedToLanguage === language.code && styles.languageOptionTextSelected
+                          ]}>
+                            {language.nativeName}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Modal Footer */}
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.clearAllButton}
+                onPress={clearFilters}
+              >
+                <Text style={styles.clearAllButtonText}>Clear All</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.applyButton}
+                onPress={applyFilters}
+              >
+                <Text style={styles.applyButtonText}>Apply Filters</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Translations by Day */}
       <ScrollView
@@ -307,10 +510,10 @@ export default function HistoryScreen() {
           <View style={styles.emptyContainer}>
             <MessageCircle size={48} color="#666" />
             <Text style={styles.emptyTitle}>
-              {selectedDate ? 'No conversations on this day' : searchQuery ? 'No matching translations' : 'No Translation History'}
+              {hasActiveFilters() ? 'No matching translations' : searchQuery ? 'No matching translations' : 'No Translation History'}
             </Text>
             <Text style={styles.emptySubtitle}>
-              {selectedDate ? 'Try selecting a different date or clear the filter' : searchQuery ? 'Try a different search term' : 'Start translating to build your learning history'}
+              {hasActiveFilters() ? 'Try adjusting your filters or clear them to see more results' : searchQuery ? 'Try a different search term' : 'Start translating to build your learning history'}
             </Text>
           </View>
         ) : (
@@ -465,7 +668,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 122, 255, 0.2)',
     borderRadius: 4,
   },
-  selectedDateContainer: {
+  activeFiltersContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -477,45 +680,170 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(0, 122, 255, 0.3)',
   },
-  selectedDateText: {
+  activeFiltersText: {
     color: '#007AFF',
     fontSize: 14,
     fontWeight: '500',
+    flex: 1,
   },
-  clearDateButton: {
+  clearFiltersButton: {
     padding: 2,
   },
-  datePickerContainer: {
-    position: 'absolute',
-    top: 60,
-    left: 0,
-    right: 0,
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
     backgroundColor: '#1A1A1A',
-    borderRadius: 8,
-    maxHeight: 200,
+    borderRadius: 16,
+    width: '90%',
+    maxHeight: '80%',
     borderWidth: 1,
     borderColor: '#333',
-    zIndex: 1000,
   },
-  datePickerScroll: {
-    maxHeight: 180,
-  },
-  dateOption: {
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#333',
   },
-  selectedDateOption: {
-    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFF',
   },
-  dateOptionText: {
+  modalCloseButton: {
+    padding: 4,
+  },
+  modalBody: {
+    maxHeight: 400,
+  },
+  filterSection: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
+    marginBottom: 8,
+  },
+  filterSectionDescription: {
+    fontSize: 14,
+    color: '#999',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  dateScrollView: {
+    flexDirection: 'row',
+  },
+  dateChip: {
+    backgroundColor: '#333',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#555',
+  },
+  dateChipSelected: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  dateChipText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  dateChipTextSelected: {
+    color: '#FFF',
+  },
+  languagePairContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  languageSelectContainer: {
+    flex: 1,
+  },
+  languageSelectLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#FFF',
+    marginBottom: 8,
+  },
+  languageSelectScroll: {
+    maxHeight: 150,
+    backgroundColor: '#333',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#555',
+  },
+  languageOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#555',
+  },
+  languageOptionSelected: {
+    backgroundColor: '#007AFF',
+  },
+  languageOptionText: {
     color: '#FFF',
     fontSize: 14,
   },
-  selectedDateOptionText: {
+  languageOptionTextSelected: {
+    color: '#FFF',
+    fontWeight: '500',
+  },
+  languageArrowContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 30,
+  },
+  languageArrow: {
+    fontSize: 20,
     color: '#007AFF',
     fontWeight: '500',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+    gap: 12,
+  },
+  clearAllButton: {
+    flex: 1,
+    backgroundColor: '#333',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  clearAllButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  applyButton: {
+    flex: 1,
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  applyButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   statsContainer: {
     flexDirection: 'row',
