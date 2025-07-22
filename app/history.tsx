@@ -12,11 +12,12 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, Languages } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { router, useRouter } from 'expo-router';
 import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
 
 export default function HistoryScreen() {
+  const navigation = useRouter();
   const [translationsByDay, setTranslationsByDay] = useState<{ [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } }>({});
   const [filteredTranslationsByDay, setFilteredTranslationsByDay] = useState<{ [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } }>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -26,6 +27,15 @@ export default function HistoryScreen() {
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [languagePairFilter, setLanguagePairFilter] = useState<string>('all');
   const [availableLanguagePairs, setAvailableLanguagePairs] = useState<string[]>([]);
+
+  const handleBackPress = () => {
+    if (navigation.canGoBack()) {
+      navigation.back();
+    } else {
+      // Fallback to home screen if no back navigation available
+      navigation.replace('/(tabs)');
+    }
+  };
 
   useEffect(() => {
     loadTranslations();
@@ -265,7 +275,7 @@ export default function HistoryScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={handleBackPress}
         >
           <ArrowLeft size={24} color="#FFF" />
         </TouchableOpacity>

@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, Volume2, Trash2, User } from 'lucide-react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useRouter } from 'expo-router';
 import * as Speech from 'expo-speech';
 import * as Haptics from 'expo-haptics';
 import { TranslationHistoryManager, TranslationEntry } from '../utils/TranslationHistory';
@@ -18,6 +18,7 @@ import { TTSVoiceManager } from '../utils/LanguagePackManager';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
 
 export default function ConversationDetailScreen() {
+  const navigation = useRouter();
   const params = useLocalSearchParams();
   const languagePair = params.languagePair as string;
   const displayName = params.displayName as string;
@@ -25,6 +26,15 @@ export default function ConversationDetailScreen() {
   const [entries, setEntries] = useState<TranslationEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const handleBackPress = () => {
+    if (navigation.canGoBack()) {
+      navigation.back();
+    } else {
+      // Fallback to history screen if no back navigation available
+      navigation.replace('/history');
+    }
+  };
 
   useEffect(() => {
     loadConversationEntries();
@@ -157,7 +167,7 @@ export default function ConversationDetailScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={handleBackPress}
         >
           <ArrowLeft size={24} color="#FFF" />
         </TouchableOpacity>

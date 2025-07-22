@@ -1,14 +1,16 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 
 // This is a tab wrapper that redirects to the main history screen
 export default function HistoryTab() {
-  React.useEffect(() => {
-    // Redirect to the main history screen
-    router.replace('/history');
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      // Redirect to the main history screen when tab is focused
+      router.push('/history');
+    }, [])
+  );
 
   return (
     <View style={styles.container}>

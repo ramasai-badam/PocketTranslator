@@ -12,14 +12,24 @@ import {
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Download, Check, X, ArrowLeft } from 'lucide-react-native';
-import { router } from 'expo-router';
+import { router, useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { TTSVoiceManager, AVAILABLE_TTS_VOICES, TTSVoice } from '../utils/LanguagePackManager';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
 
 export default function SettingsScreen() {
+  const navigation = useRouter();
   const [ttsVoices, setTTSVoices] = useState<TTSVoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  const handleBackPress = () => {
+    if (navigation.canGoBack()) {
+      navigation.back();
+    } else {
+      // Fallback to home screen if no back navigation available
+      navigation.replace('/(tabs)');
+    }
+  };
 
   useEffect(() => {
     initializeTTSVoices();
@@ -206,7 +216,7 @@ export default function SettingsScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={handleBackPress}
         >
           <ArrowLeft size={24} color="#FFF" />
         </TouchableOpacity>
