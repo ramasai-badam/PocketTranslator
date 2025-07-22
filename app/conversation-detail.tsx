@@ -224,14 +224,16 @@ export default function ConversationDetailScreen() {
                   <Text style={[styles.speakerLabel, { color: getSpeakerColor(entry.speaker) }]}>
                     {entry.speaker === 'user1' ? 'Speaker 1' : 'Speaker 2'}
                   </Text>
+                </View>
+                <View style={styles.entryHeaderRight}>
                   <TouchableOpacity
                     style={styles.addToVocabButton}
                     onPress={() => handleAddToVocabulary(entry)}
                   >
                     <BookmarkPlus size={16} color="#34C759" />
                   </TouchableOpacity>
+                  <Text style={styles.entryTime}>{formatDate(entry.timestamp)}</Text>
                 </View>
-                <Text style={styles.entryTime}>{formatDate(entry.timestamp)}</Text>
               </View>
 
               {/* Original Text */}
@@ -369,8 +371,12 @@ const styles = StyleSheet.create({
   entryTime: {
     fontSize: 12,
     color: '#999',
-    textAlign: 'right',
     marginBottom: 12,
+  },
+  entryHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
   textContainer: {
     marginBottom: 12,
