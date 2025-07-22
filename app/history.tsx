@@ -997,6 +997,20 @@ export default function HistoryScreen() {
     <View style={styles.container}>
       <StatusBar style="light" />
       
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => {
+            if (currentView === 'tiles') {
+              router.back();
+            } else {
+              setCurrentView('tiles');
+            }
+          }}
+        >
+          <ArrowLeft size={24} color="#FFF" />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {currentView === 'tiles' ? 'Learning Hub' : 
            currentView === 'vocabulary' ? 'Vocabulary' : 'Translation History'}
