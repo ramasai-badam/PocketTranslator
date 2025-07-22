@@ -209,10 +209,13 @@ export default function HistoryScreen() {
   };
 
   const formatDateHeader = (dateString: string) => {
+    const date = new Date(dateString);
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
 
     if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    } else {
       return date.toLocaleDateString([], { 
         weekday: 'long', 
         month: 'long', 
