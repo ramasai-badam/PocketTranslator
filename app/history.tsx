@@ -1192,7 +1192,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   languageSelectScroll: {
-    height: 150,
+    maxHeight: 150,
     backgroundColor: '#333',
     borderRadius: 8,
     borderWidth: 1,
