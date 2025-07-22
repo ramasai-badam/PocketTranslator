@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, Volume2, Trash2, User, Plus } from 'lucide-react-native';
+import { ArrowLeft, Volume2, Trash2, User } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { TranslationHistoryManager, TranslationEntry } from '../utils/TranslationHistory';
@@ -379,30 +379,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#FFF',
     lineHeight: 22,
-  },
-  entryActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
-  },
-  addToVocabButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(52, 199, 89, 0.2)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(52, 199, 89, 0.3)',
-    gap: 6,
-  },
-  addToVocabText: {
-    color: '#34C759',
-    fontSize: 12,
-    fontWeight: '500',
   },
   footer: {
     paddingHorizontal: 20,

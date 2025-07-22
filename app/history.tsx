@@ -790,26 +790,6 @@ export default function HistoryScreen() {
             </Text>
           </View>
         ) : (
-        <>
-          {/* Learning Features Tile */}
-          <View style={styles.learningFeaturesSection}>
-            <TouchableOpacity
-              style={styles.learningFeaturesTile}
-              onPress={() => router.push('/learning-features')}
-            >
-              <View style={styles.learningFeaturesIcon}>
-                <Text style={styles.learningFeaturesEmoji}>🎓</Text>
-              </View>
-              <View style={styles.learningFeaturesContent}>
-                <Text style={styles.learningFeaturesTitle}>Learning Features</Text>
-                <Text style={styles.learningFeaturesSubtitle}>
-                  Build vocabulary and practice with interactive tools
-                </Text>
-              </View>
-              <Text style={styles.learningFeaturesArrow}>›</Text>
-            </TouchableOpacity>
-          </View>
-
           // Sort dates (newest first)
           Object.keys(filteredTranslationsByDay)
             .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
@@ -877,7 +857,6 @@ export default function HistoryScreen() {
                 })}
               </View>
             ))
-        </>
         )}
       </ScrollView>
 
@@ -1431,51 +1410,5 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     lineHeight: 20,
-  },
-  learningFeaturesSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  learningFeaturesTile: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 16,
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#333',
-    marginBottom: 8,
-  },
-  learningFeaturesIcon: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  learningFeaturesEmoji: {
-    fontSize: 24,
-  },
-  learningFeaturesContent: {
-    flex: 1,
-  },
-  learningFeaturesTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#FFF',
-    marginBottom: 4,
-  },
-  learningFeaturesSubtitle: {
-    fontSize: 14,
-    color: '#999',
-    lineHeight: 18,
-  },
-  learningFeaturesArrow: {
-    fontSize: 24,
-    color: '#666',
-    fontWeight: 'bold',
-    marginLeft: 12,
   },
 });
