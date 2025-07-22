@@ -81,7 +81,6 @@ export class ModelManager {
       throw new Error('Llama context not initialized');
     }
 
-    console.log(`🚀 TRANSLATION REQUEST: "${text}" (${fromLang} → ${toLang})`);
     const startTime = Date.now();
 
     try {
@@ -97,7 +96,6 @@ Give only the ${toLang} translation.<end_of_turn>
       let fullTranslation = '';
 
       if (isStreamingEnabled) {
-        console.log('🌊 Starting REAL streaming translation...');
         
         let hasRealStreaming = false;
         let streamingBuffer = '';

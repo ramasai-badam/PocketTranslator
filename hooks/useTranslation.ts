@@ -97,7 +97,6 @@ export function useTranslation() {
     setError(null);
     
     try {
-      console.log('🚀 Starting translation with streaming...');
       
       // Use the new ModelManager translateText method with streaming
       const result = await ModelManager.translateText(text, fromLanguage, toLanguage);

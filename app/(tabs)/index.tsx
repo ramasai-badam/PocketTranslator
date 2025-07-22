@@ -165,7 +165,6 @@ export default function TranslatorScreen() {
           setIsStreamingToTop(!isTop); // Translation goes to opposite side
           
           const translatedText = await translateText(speechText, fromLang, toLang);
-          console.log('🎯 TRANSLATION RESULT:', translatedText);
           
           // Clear streaming state and show final translation
           setIsStreamingToTop(false);
