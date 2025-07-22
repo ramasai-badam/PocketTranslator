@@ -676,7 +676,7 @@ export default function HistoryScreen() {
                   {/* From Language */}
                   <View style={styles.languageSelectContainer}>
                     <Text style={styles.languageSelectLabel}>From Language</Text>
-                    <ScrollView style={styles.languageSelectScroll} showsVerticalScrollIndicator={false}>
+                    <ScrollView style={styles.languageSelectScroll} showsVerticalScrollIndicator={true}>
                       <TouchableOpacity
                         style={[
                           styles.languageOption,
@@ -719,7 +719,7 @@ export default function HistoryScreen() {
                   {/* To Language */}
                   <View style={styles.languageSelectContainer}>
                     <Text style={styles.languageSelectLabel}>To Language</Text>
-                    <ScrollView style={styles.languageSelectScroll} showsVerticalScrollIndicator={false}>
+                    <ScrollView style={styles.languageSelectScroll} showsVerticalScrollIndicator={true}>
                       <TouchableOpacity
                         style={[
                           styles.languageOption,
