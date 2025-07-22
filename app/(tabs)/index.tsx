@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Mic, Volume2, RotateCcw, Settings } from 'lucide-react-native';
+import { Mic, Volume2, RotateCcw, Settings, ArrowUpDown } from 'lucide-react-native';
 import * as Speech from 'expo-speech';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
@@ -23,6 +23,7 @@ import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { TTSVoiceManager } from '@/utils/LanguagePackManager';
 import { getLanguageDisplayName } from '@/utils/LanguageConfig';
 import { TranslationHistoryManager } from '@/utils/TranslationHistory';
+import { UserSettingsManager } from '@/utils/UserSettings';
 
 const { height, width } = Dimensions.get('window');
 
@@ -33,6 +34,10 @@ export default function TranslatorScreen() {
   const [bottomText, setBottomText] = useState('');
   const [isTopRecording, setIsTopRecording] = useState(false);
   const [isBottomRecording, setIsBottomRecording] = useState(false);
+  const [singleUserMode, setSingleUserMode] = useState(false);
+  const [singleUserText, setSingleUserText] = useState('');
+  const [singleUserTranslation, setSingleUserTranslation] = useState('');
+  const [isRecordingSingle, setIsRecordingSingle] = useState(false);
 
   const { translateText, isTranslating, streamingText } = useTranslation();
   const { startRecording, stopRecording, isRecording, isInitialized, error: audioError, cleanup } = useAudioRecording();
@@ -40,6 +45,20 @@ export default function TranslatorScreen() {
   const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
   const [isStreamingToTop, setIsStreamingToTop] = useState(false);
 
+  // Load user settings on component mount
+  useEffect(() => {
+    loadUserSettings();
+  }, []);
+
+  const loadUserSettings = async () => {
+    try {
+      const userSingleUserMode = await UserSettingsManager.getSingleUserMode();
+      setSingleUserMode(userSingleUserMode);
+      console.log('Loaded single user mode setting:', userSingleUserMode);
+    } catch (error) {
+      console.error('Failed to load user settings:', error);
+    }
+  };
   // Save translation to history
   const saveToHistory = async (
     originalText: string,
@@ -73,6 +92,113 @@ export default function TranslatorScreen() {
   // Models are ready when hooks are loaded (lazy loading)
   const modelsReady = true;
 
+  // Single user mode handlers
+  const handleSingleUserStartRecording = async () => {
+    try {
+      // Haptic feedback for mic press
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid);
+      
+      // Check if audio recording is initialized
+      if (!isInitialized) {
+        Alert.alert('Audio Error', 'Audio recording is not ready. Please try again.');
+        return;
+      }
+
+      // Check if already recording
+      if (isRecording) {
+        Alert.alert('Recording Error', 'Already recording. Please stop the current recording first.');
+        return;
+      }
+
+      // Check if models are ready
+      if (!modelsReady) {
+        Alert.alert('Models Loading', 'AI models are still loading. Please wait a moment.');
+        return;
+      }
+
+      if (audioError) {
+        Alert.alert('Audio Error', audioError);
+        return;
+      }
+
+      console.log('Starting single user recording');
+      setIsRecordingSingle(true);
+      await startRecording();
+    } catch (error) {
+      console.error('Single user recording start error:', error);
+      Alert.alert('Recording Error', 'Failed to start recording');
+      setIsRecordingSingle(false);
+    }
+  };
+
+  const handleSingleUserStopRecording = async () => {
+    console.log('Stopping single user recording');
+    setTranscriptionError(null);
+    try {
+      const audioUri = await stopRecording();
+      if (audioUri) {
+        const fromLang = topLanguage; // Use top language as source
+        const toLang = bottomLanguage; // Use bottom language as target
+        
+        console.log('🎯 SINGLE USER RECORDING COMPLETE:');
+        console.log('  - From language (speech input):', fromLang);
+        console.log('  - To language (translation target):', toLang);
+        
+        let speechText = '';
+        let errorMsg = null;
+        
+        // Clear previous results
+        setSingleUserText('');
+        setSingleUserTranslation('');
+        
+        // Transcribe the audio
+        try {
+          console.log('🎯 CALLING TRANSCRIPTION with language:', fromLang);
+          speechText = await transcribeWav(audioUri, fromLang) || '';
+          if (!speechText) {
+            errorMsg = 'Transcription failed or returned empty.';
+            setTranscriptionError(errorMsg);
+          }
+        } catch (error) {
+          errorMsg = 'Transcription error occurred.';
+          setTranscriptionError(errorMsg);
+          console.error('Transcription error:', error);
+        }
+
+        // Show transcribed text immediately
+        setSingleUserText(errorMsg ? errorMsg : speechText);
+
+        // Only proceed with translation if transcription was successful
+        if (!errorMsg && speechText) {
+          const translatedText = await translateText(speechText, fromLang, toLang);
+          setSingleUserTranslation(translatedText);
+          
+          // Save to history: single user mode always uses user1
+          await saveToHistory(speechText, translatedText, fromLang, toLang, 'user1');
+        }
+      }
+    } catch (error) {
+      console.error('Single user recording stop error:', error);
+      setTranscriptionError('Failed to translate speech.');
+      setSingleUserText('Failed to translate speech.');
+      setSingleUserTranslation('');
+      Alert.alert('Translation Error', 'Failed to translate speech');
+    } finally {
+      console.log('Cleaning up single user recording state');
+      setIsRecordingSingle(false);
+    }
+  };
+
+  const swapSingleUserLanguages = () => {
+    const tempLang = topLanguage;
+    setTopLanguage(bottomLanguage);
+    setBottomLanguage(tempLang);
+    
+    // Swap the text content as well
+    const tempText = singleUserText;
+    setSingleUserText(singleUserTranslation);
+    setSingleUserTranslation(tempText);
+  };
   const handleStartRecording = async (isTop: boolean) => {
     try {
       // Haptic feedback for mic press
@@ -249,6 +375,138 @@ export default function TranslatorScreen() {
     setBottomText(topText);
   };
 
+  // Render single user mode interface
+  const renderSingleUserMode = () => (
+    <View style={styles.singleUserContainer}>
+      <StatusBar style="light" />
+      
+      {/* Header with Settings Button */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.historyButton}
+          onPress={() => {
+            requestAnimationFrame(() => {
+              router.push('/history');
+            });
+          }}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.historyButtonText}>📚</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.settingsButton}
+          onPress={() => {
+            requestAnimationFrame(() => {
+              router.push('/settings');
+            });
+          }}
+          activeOpacity={0.7}
+        >
+          <Settings size={24} color="#FFF" />
+        </TouchableOpacity>
+      </View>
+      
+      {/* Model Status Indicator */}
+      {!modelsReady && (
+        <View style={styles.modelStatusContainer}>
+          <Text style={styles.modelStatusText}>
+            {isTranslating || isTranscribing ? 'Loading AI models...' : 'AI models not ready'}
+          </Text>
+        </View>
+      )}
+      
+      {/* Language Selection */}
+      <View style={styles.singleUserLanguageContainer}>
+        <View style={styles.languageSelectorWrapper}>
+          <Text style={styles.languageLabel}>From</Text>
+          <LanguageSelector
+            selectedLanguage={topLanguage}
+            onLanguageChange={setTopLanguage}
+          />
+        </View>
+        
+        <TouchableOpacity 
+          style={styles.swapLanguagesButton} 
+          onPress={swapSingleUserLanguages}
+        >
+          <ArrowUpDown size={20} color="#FFF" />
+        </TouchableOpacity>
+        
+        <View style={styles.languageSelectorWrapper}>
+          <Text style={styles.languageLabel}>To</Text>
+          <LanguageSelector
+            selectedLanguage={bottomLanguage}
+            onLanguageChange={setBottomLanguage}
+          />
+        </View>
+      </View>
+      
+      {/* Input Section */}
+      <View style={styles.singleUserInputSection}>
+        <Text style={styles.singleUserSectionTitle}>
+          Speak in {getLanguageDisplayName(topLanguage)}
+        </Text>
+        <View style={styles.singleUserTextContainer}>
+          <Text style={styles.singleUserText}>
+            {singleUserText || 'Tap and hold the microphone to start speaking...'}
+          </Text>
+        </View>
+        
+        <View style={styles.singleUserControls}>
+          <TouchableOpacity
+            style={[
+              styles.singleUserMicButton, 
+              isRecordingSingle && styles.recordingButton,
+              (!modelsReady || isRecording) && styles.disabledButton
+            ]}
+            onPressIn={handleSingleUserStartRecording}
+            onPressOut={handleSingleUserStopRecording}
+            disabled={!modelsReady || isRecording}
+          >
+            <Mic size={32} color={(modelsReady && !isRecording) ? "white" : "#666"} />
+            {isRecordingSingle && <RecordingIndicator />}
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.singleUserSpeakerButton}
+            onPress={() => handleSpeak(singleUserText, topLanguage)}
+            disabled={!singleUserText}
+          >
+            <Volume2 size={24} color={singleUserText ? "white" : "#666"} />
+          </TouchableOpacity>
+        </View>
+      </View>
+      
+      {/* Translation Section */}
+      <View style={styles.singleUserTranslationSection}>
+        <Text style={styles.singleUserSectionTitle}>
+          Translation in {getLanguageDisplayName(bottomLanguage)}
+        </Text>
+        <View style={styles.singleUserTextContainer}>
+          <Text style={styles.singleUserTranslationText}>
+            {streamingText || singleUserTranslation || 'Translation will appear here...'}
+          </Text>
+        </View>
+        
+        <View style={styles.singleUserTranslationControls}>
+          <TouchableOpacity
+            style={styles.singleUserSpeakerButton}
+            onPress={() => handleSpeak(singleUserTranslation, bottomLanguage)}
+            disabled={!singleUserTranslation}
+          >
+            <Volume2 size={24} color={singleUserTranslation ? "white" : "#666"} />
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+
+  // Return appropriate interface based on mode
+  if (singleUserMode) {
+    return renderSingleUserMode();
+  }
+
+  // Original dual user interface
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -499,5 +757,110 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  // Single User Mode Styles
+  singleUserContainer: {
+    flex: 1,
+    backgroundColor: '#1a1a1a',
+  },
+  singleUserLanguageContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 30,
+  },
+  languageSelectorWrapper: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  languageLabel: {
+    color: '#999',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 8,
+  },
+  swapLanguagesButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+  },
+  singleUserInputSection: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  singleUserTranslationSection: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  singleUserSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFF',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  singleUserTextContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    justifyContent: 'center',
+    minHeight: 120,
+  },
+  singleUserText: {
+    color: '#FFF',
+    fontSize: 18,
+    lineHeight: 26,
+    textAlign: 'center',
+  },
+  singleUserTranslationText: {
+    color: '#FFF',
+    fontSize: 18,
+    lineHeight: 26,
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  singleUserControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 30,
+  },
+  singleUserTranslationControls: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  singleUserMicButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    position: 'relative',
+  },
+  singleUserSpeakerButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
 });

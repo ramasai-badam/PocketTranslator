@@ -9,22 +9,25 @@ import {
   ActivityIndicator,
   Linking,
   Platform,
+  Switch,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Download, Check, X, ArrowLeft } from 'lucide-react-native';
+import { Download, Check, X, ArrowLeft, User, Users } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { TTSVoiceManager, AVAILABLE_TTS_VOICES, TTSVoice } from '../utils/LanguagePackManager';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
+import { UserSettingsManager } from '../utils/UserSettings';
 
 export default function SettingsScreen() {
   const [ttsVoices, setTTSVoices] = useState<TTSVoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [singleUserMode, setSingleUserMode] = useState(false);
 
   useEffect(() => {
     // Defer initialization to avoid blocking the navigation animation
     const timeoutId = setTimeout(() => {
-      initializeTTSVoices();
+      initializeSettings();
     }, 100);
     
     return () => clearTimeout(timeoutId);
@@ -35,14 +38,14 @@ export default function SettingsScreen() {
     React.useCallback(() => {
       if (!isLoading) {
         const timeoutId = setTimeout(() => {
-          initializeTTSVoices();
+          initializeSettings();
         }, 50);
         return () => clearTimeout(timeoutId);
       }
     }, [isLoading])
   );
 
-  const initializeTTSVoices = async () => {
+  const initializeSettings = async () => {
     try {
       console.log('Loading TTS voices from storage...');
       const voices = await TTSVoiceManager.getAllTTSVoices();
@@ -50,13 +53,31 @@ export default function SettingsScreen() {
       
       const voicesWithDownloading = voices.map(voice => ({ ...voice, isDownloading: false }));
       setTTSVoices(voicesWithDownloading);
+      
+      // Load user settings
+      const userSingleUserMode = await UserSettingsManager.getSingleUserMode();
+      setSingleUserMode(userSingleUserMode);
+      console.log('User settings loaded, singleUserMode:', userSingleUserMode);
+      
       setIsLoading(false);
     } catch (error) {
-      console.error('Failed to initialize TTS voices:', error);
+      console.error('Failed to initialize settings:', error);
       setIsLoading(false);
     }
   };
 
+  const handleSingleUserModeToggle = async (enabled: boolean) => {
+    try {
+      setSingleUserMode(enabled);
+      await UserSettingsManager.setSingleUserMode(enabled);
+      console.log('Single user mode updated:', enabled);
+    } catch (error) {
+      console.error('Failed to update single user mode:', error);
+      // Revert the toggle if save failed
+      setSingleUserMode(!enabled);
+      Alert.alert('Error', 'Failed to save setting. Please try again.');
+    }
+  };
   const enableTTSVoice = async (languageCode: string) => {
     try {
       // Update UI to show enabling state
@@ -218,17 +239,54 @@ export default function SettingsScreen() {
         >
           <ArrowLeft size={24} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>TTS Voice Settings</Text>
+        <Text style={styles.headerTitle}>Settings</Text>
         <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.headerSubtitleContainer}>
         <Text style={styles.headerSubtitle}>
-          Manage text-to-speech voices for translation output
+          Customize your translation experience
         </Text>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* User Interface Settings */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Interface</Text>
+          <Text style={styles.sectionDescription}>
+            Choose how you want to use the translator interface.
+          </Text>
+        </View>
+
+        <View style={styles.settingItem}>
+          <View style={styles.settingInfo}>
+            <View style={styles.settingIconContainer}>
+              {singleUserMode ? (
+                <User size={24} color="#007AFF" />
+              ) : (
+                <Users size={24} color="#007AFF" />
+              )}
+            </View>
+            <View style={styles.settingTextContainer}>
+              <Text style={styles.settingName}>Single User Mode</Text>
+              <Text style={styles.settingDescription}>
+                {singleUserMode 
+                  ? 'Unified interface for individual learning'
+                  : 'Split-screen interface for conversations'
+                }
+              </Text>
+            </View>
+          </View>
+          <Switch
+            value={singleUserMode}
+            onValueChange={handleSingleUserModeToggle}
+            trackColor={{ false: '#333', true: '#007AFF' }}
+            thumbColor={singleUserMode ? '#FFF' : '#999'}
+            ios_backgroundColor="#333"
+          />
+        </View>
+
+        {/* TTS Voice Settings */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Available TTS Voices</Text>
           <Text style={styles.sectionDescription}>
@@ -276,7 +334,7 @@ export default function SettingsScreen() {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          💡 Tip: Download TTS voices from your device settings to hear translations in different languages.
+          💡 Tip: Single user mode provides a focused learning experience, while dual user mode is perfect for conversations.
         </Text>
       </View>
     </View>
@@ -352,6 +410,43 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999',
     lineHeight: 20,
+  },
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  settingInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  settingIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  settingTextContainer: {
+    flex: 1,
+  },
+  settingName: {
+    fontSize: 16,
+    color: '#FFF',
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  settingDescription: {
+    fontSize: 14,
+    color: '#999',
+    lineHeight: 18,
   },
   languageItem: {
     flexDirection: 'row',
