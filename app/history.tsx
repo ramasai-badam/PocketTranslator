@@ -418,7 +418,6 @@ export default function HistoryScreen() {
             </TouchableOpacity>
           )}
           <TouchableOpacity
-            style={[styles.filterButton, selectedDate && styles.filterButtonActive]}
             style={[styles.filterButton, hasActiveFilters() && styles.filterButtonActive]}
             onPress={() => setShowFilterModal(true)}
           >
