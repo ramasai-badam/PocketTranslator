@@ -38,6 +38,7 @@ export default function TranslatorScreen() {
   const [singleUserText, setSingleUserText] = useState('');
   const [singleUserTranslation, setSingleUserTranslation] = useState('');
   const [isRecordingSingle, setIsRecordingSingle] = useState(false);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
 
   const { translateText, isTranslating, streamingText } = useTranslation();
   const { startRecording, stopRecording, isRecording, isInitialized, error: audioError, cleanup } = useAudioRecording();
@@ -50,13 +51,24 @@ export default function TranslatorScreen() {
     loadUserSettings();
   }, []);
 
+  // Listen for focus events to reload settings when returning from settings screen
+  useEffect(() => {
+    const unsubscribe = router.addListener?.('focus', () => {
+      loadUserSettings();
+    });
+    return unsubscribe;
+  }, []);
+
   const loadUserSettings = async () => {
+    setIsLoadingSettings(true);
     try {
       const userSingleUserMode = await UserSettingsManager.getSingleUserMode();
       setSingleUserMode(userSingleUserMode);
       console.log('Loaded single user mode setting:', userSingleUserMode);
     } catch (error) {
       console.error('Failed to load user settings:', error);
+    } finally {
+      setIsLoadingSettings(false);
     }
   };
   // Save translation to history
@@ -502,8 +514,20 @@ export default function TranslatorScreen() {
   );
 
   // Return appropriate interface based on mode
-  if (singleUserMode) {
+  if (!isLoadingSettings && singleUserMode) {
     return renderSingleUserMode();
+  }
+
+  // Show loading state while settings are being loaded
+  if (isLoadingSettings) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style="light" />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </View>
+    );
   }
 
   // Original dual user interface
@@ -712,6 +736,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
     paddingHorizontal: 40,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#FFF',
+    fontSize: 16,
   },
   micButton: {
     width: 80,
