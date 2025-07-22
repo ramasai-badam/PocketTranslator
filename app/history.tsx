@@ -296,6 +296,32 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontWeight: '500',
   },
+  searchContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  searchIcon: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#FFF',
+    fontSize: 16,
+    paddingVertical: 12,
+  },
+  clearSearchButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
   scrollView: {
     flex: 1,
   },

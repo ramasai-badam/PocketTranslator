@@ -333,7 +333,7 @@ export default function TranslatorScreen() {
             ]}
             onPressIn={() => handleStartRecording(false)}
             onPressOut={() => handleStopRecording(false)}
-            disabled={isTopRecording || !modelsReady}
+            disabled={isRecording || !modelsReady}
           >
             <Mic size={32} color={modelsReady ? "white" : "#666"} />
             {isBottomRecording && <RecordingIndicator />}

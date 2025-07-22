@@ -335,26 +335,16 @@ const styles = StyleSheet.create({
     borderColor: '#333',
   },
   entryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     marginBottom: 12,
   },
   speakerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  speakerIcon: {
-    fontSize: 16,
-  },
-  speakerLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    width: '100%',
   },
   entryTime: {
     fontSize: 12,
     color: '#999',
+    textAlign: 'right',
   },
   textContainer: {
     marginBottom: 12,
