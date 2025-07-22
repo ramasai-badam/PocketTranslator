@@ -362,25 +362,25 @@ const styles = StyleSheet.create({
   interactiveTextContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
   wordButton: {
-    paddingHorizontal: 2,
-    paddingVertical: 1,
+    paddingHorizontal: 1,
+    paddingVertical: 0,
     borderRadius: 4,
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    marginHorizontal: 1,
-    marginVertical: 1,
+    marginHorizontal: 0.5,
+    marginVertical: 0.5,
   },
   interactiveWord: {
     fontSize: 16,
     color: '#FFF',
-    lineHeight: 22,
+    lineHeight: 20,
   },
   wordSpace: {
     fontSize: 16,
     color: '#FFF',
-    lineHeight: 22,
+    lineHeight: 20,
   },
   footer: {
     paddingHorizontal: 20,
