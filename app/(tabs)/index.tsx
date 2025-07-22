@@ -150,7 +150,6 @@ export default function TranslatorScreen() {
         }
 
         // 🚀 IMMEDIATELY show transcribed text on the speaking side
-        console.log('🎯 SHOWING TRANSCRIBED TEXT IMMEDIATELY');
         if (isTop) {
           setTopText(errorMsg ? errorMsg : speechText);
           setBottomText(''); // Clear opposite side before translation
@@ -161,10 +160,6 @@ export default function TranslatorScreen() {
 
         // Only proceed with translation if transcription was successful
         if (!errorMsg && speechText) {
-          console.log('🎯 CALLING TRANSLATION:');
-          console.log('  - Speech text:', speechText);
-          console.log('  - From language:', fromLang);
-          console.log('  - To language:', toLang);
           
           // Set streaming target (opposite side from speaking)
           setIsStreamingToTop(!isTop); // Translation goes to opposite side
