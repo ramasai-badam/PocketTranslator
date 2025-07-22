@@ -329,6 +329,36 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#FFF',
+    fontSize: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+    flex: 1,
+    textAlign: 'center',
+    marginHorizontal: 16,
+  },
+  clearButton: {
+    padding: 8,
+  },
   searchContainer: {
     paddingHorizontal: 20,
     paddingBottom: 20,
@@ -512,5 +542,5 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     lineHeight: 20,
-  }
+  },
 });
