@@ -496,10 +496,18 @@ export default function HistoryScreen() {
 
                 {/* Calendar Toggle Button */}
                 <TouchableOpacity
-                  style={styles.calendarToggleButton}
+                  style={styles.calendarToggleBanner}
                   onPress={() => setShowCalendar(!showCalendar)}
                 >
-                  <Calendar size={16} color="#007AFF" />
+                  <View style={styles.calendarBannerContent}>
+                    <Calendar size={20} color="#007AFF" />
+                    <Text style={styles.calendarBannerText}>
+                      {showCalendar ? 'Hide Calendar' : 'Show Calendar'}
+                    </Text>
+                  </View>
+                  <Text style={styles.calendarBannerArrow}>
+                    {showCalendar ? '▲' : '▼'}
+                  </Text>
                 </TouchableOpacity>
 
                 {/* Calendar */}
@@ -1036,17 +1044,31 @@ const styles = StyleSheet.create({
   dateFilterModeTextActive: {
     color: '#FFF',
   },
-  calendarToggleButton: {
-    alignSelf: 'flex-start',
+  calendarToggleBanner: {
     backgroundColor: '#333',
-    padding: 8,
-    borderRadius: 6,
+    borderRadius: 8,
+    padding: 12,
     marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: '#555',
   },
-  calendarToggleText: {
+  calendarBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  calendarBannerText: {
     color: '#007AFF',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '500',
+  },
+  calendarBannerArrow: {
+    color: '#007AFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   calendarContainer: {
     backgroundColor: '#333',
