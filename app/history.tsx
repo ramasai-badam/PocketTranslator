@@ -580,29 +580,6 @@ export default function HistoryScreen() {
                   showsHorizontalScrollIndicator={false}
                   style={styles.dateScrollView}
                 >
-                  <TouchableOpacity
-                    style={[
-                      styles.dateChip,
-                      dateFilterMode === 'single' && !selectedDate && styles.dateChipSelected,
-                      dateFilterMode === 'range' && !selectedStartDate && !selectedEndDate && styles.dateChipSelected
-                    ]}
-                    onPress={() => {
-                      if (dateFilterMode === 'single') {
-                        setSelectedDate(null);
-                      } else {
-                        setSelectedStartDate(null);
-                        setSelectedEndDate(null);
-                      }
-                    }}
-                  >
-                    <Text style={[
-                      styles.dateChipText,
-                      ((dateFilterMode === 'single' && !selectedDate) || 
-                       (dateFilterMode === 'range' && !selectedStartDate && !selectedEndDate)) && styles.dateChipTextSelected
-                    ]}>
-                      All Dates
-                    </Text>
-                  </TouchableOpacity>
                   {availableDates.map((date) => (
                     <TouchableOpacity
                       key={date}
@@ -1034,15 +1011,11 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
   calendarToggleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignSelf: 'flex-start',
     backgroundColor: '#333',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+    padding: 8,
+    borderRadius: 6,
     marginBottom: 16,
-    gap: 8,
   },
   calendarToggleText: {
     color: '#007AFF',
