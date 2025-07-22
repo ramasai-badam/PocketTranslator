@@ -101,29 +101,6 @@ export default function HistoryScreen() {
       });
       
       filtered = filteredByLanguage;
-    } else if (selectedFromLanguage || selectedToLanguage) {
-      const filteredByLanguage: typeof translationsByDay = {};
-      
-      Object.keys(filtered).forEach(dateKey => {
-        Object.keys(filtered[dateKey]).forEach(languagePair => {
-          const { conversation, entries } = filtered[dateKey][languagePair];
-          
-          // Check if this conversation includes the selected language
-          const [lang1, lang2] = languagePair.split('-');
-          const includesSelectedLanguage = 
-            (selectedFromLanguage && (lang1 === selectedFromLanguage || lang2 === selectedFromLanguage)) ||
-            (selectedToLanguage && (lang1 === selectedToLanguage || lang2 === selectedToLanguage));
-          
-          if (includesSelectedLanguage) {
-            if (!filteredByLanguage[dateKey]) {
-              filteredByLanguage[dateKey] = {};
-            }
-            filteredByLanguage[dateKey][languagePair] = { conversation, entries };
-          }
-        });
-      });
-      
-      filtered = filteredByLanguage;
     }
     
     // Finally filter by search query
