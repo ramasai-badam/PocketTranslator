@@ -1289,6 +1289,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   calendarHeader: {
+    alignSelf: 'stretch',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
