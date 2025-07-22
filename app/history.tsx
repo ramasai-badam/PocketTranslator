@@ -8,11 +8,13 @@ import {
   Alert,
   RefreshControl,
   TextInput,
+  Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, MessageCircle, Trash2, ChartBar as BarChart3, Search, X } from 'lucide-react-native';
+import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, Languages } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
+import { getLanguageDisplayName } from '../utils/LanguageConfig';
 
 export default function HistoryScreen() {
   const [translationsByDay, setTranslationsByDay] = useState<{ [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } }>({});
@@ -20,60 +22,115 @@ export default function HistoryScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statistics, setStatistics] = useState({
-    totalConversations: 0,
-    totalTranslations: 0,
-    mostUsedLanguagePair: null as string | null,
-  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [languagePairFilter, setLanguagePairFilter] = useState<string>('all');
+  const [availableLanguagePairs, setAvailableLanguagePairs] = useState<string[]>([]);
 
   useEffect(() => {
     loadTranslations();
   }, []);
 
-  // Filter translations when search query changes
+  // Filter translations when search query or filters change
   useEffect(() => {
-    if (!searchQuery.trim()) {
-      setFilteredTranslationsByDay(translationsByDay);
-      return;
-    }
+    applyFilters();
+  }, [searchQuery, translationsByDay, dateFilter, languagePairFilter]);
 
-    const filtered: typeof translationsByDay = {};
-    const query = searchQuery.toLowerCase();
+  const applyFilters = () => {
+    let filtered = { ...translationsByDay };
 
-    Object.keys(translationsByDay).forEach(dateKey => {
-      Object.keys(translationsByDay[dateKey]).forEach(languagePair => {
-        const { conversation, entries } = translationsByDay[dateKey][languagePair];
-        
-        // Filter entries that match search query
-        const matchingEntries = entries.filter(entry => 
-          entry.originalText.toLowerCase().includes(query) ||
-          entry.translatedText.toLowerCase().includes(query) ||
-          conversation.displayName.toLowerCase().includes(query)
-        );
-
-        if (matchingEntries.length > 0) {
-          if (!filtered[dateKey]) {
-            filtered[dateKey] = {};
-          }
-          filtered[dateKey][languagePair] = {
-            conversation,
-            entries: matchingEntries
-          };
+    // Apply date filter
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      const cutoffDate = new Date();
+      
+      switch (dateFilter) {
+        case 'today':
+          cutoffDate.setHours(0, 0, 0, 0);
+          break;
+        case 'week':
+          cutoffDate.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          cutoffDate.setMonth(now.getMonth() - 1);
+          break;
+      }
+      
+      const filteredByDate: typeof filtered = {};
+      Object.keys(filtered).forEach(dateKey => {
+        const date = new Date(dateKey);
+        if (date >= cutoffDate) {
+          filteredByDate[dateKey] = filtered[dateKey];
         }
       });
-    });
+      filtered = filteredByDate;
+    }
+
+    // Apply language pair filter
+    if (languagePairFilter !== 'all') {
+      const filteredByLanguage: typeof filtered = {};
+      Object.keys(filtered).forEach(dateKey => {
+        const dayData: typeof filtered[string] = {};
+        Object.keys(filtered[dateKey]).forEach(languagePair => {
+          if (languagePair === languagePairFilter) {
+            dayData[languagePair] = filtered[dateKey][languagePair];
+          }
+        });
+        if (Object.keys(dayData).length > 0) {
+          filteredByLanguage[dateKey] = dayData;
+        }
+      });
+      filtered = filteredByLanguage;
+    }
+
+    // Apply search query filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const filteredBySearch: typeof filtered = {};
+      
+      Object.keys(filtered).forEach(dateKey => {
+        const dayData: typeof filtered[string] = {};
+        Object.keys(filtered[dateKey]).forEach(languagePair => {
+          const { conversation, entries } = filtered[dateKey][languagePair];
+          
+          // Filter entries that match search query
+          const matchingEntries = entries.filter(entry => 
+            entry.originalText.toLowerCase().includes(query) ||
+            entry.translatedText.toLowerCase().includes(query) ||
+            conversation.displayName.toLowerCase().includes(query)
+          );
+
+          if (matchingEntries.length > 0) {
+            dayData[languagePair] = {
+              conversation,
+              entries: matchingEntries
+            };
+          }
+        });
+        
+        if (Object.keys(dayData).length > 0) {
+          filteredBySearch[dateKey] = dayData;
+        }
+      });
+      filtered = filteredBySearch;
+    }
 
     setFilteredTranslationsByDay(filtered);
-  }, [searchQuery, translationsByDay]);
+  };
 
   const loadTranslations = async () => {
     try {
-      const [convs, stats] = await Promise.all([
-        TranslationHistoryManager.getTranslationsByDay(),
-        TranslationHistoryManager.getStatistics(),
-      ]);
+      const convs = await TranslationHistoryManager.getTranslationsByDay();
       setTranslationsByDay(convs);
-      setStatistics(stats);
+      
+      // Extract available language pairs
+      const pairs = new Set<string>();
+      Object.values(convs).forEach(dayData => {
+        Object.keys(dayData).forEach(languagePair => {
+          pairs.add(languagePair);
+        });
+      });
+      setAvailableLanguagePairs(Array.from(pairs));
     } catch (error) {
       console.error('Failed to load translations:', error);
       Alert.alert('Error', 'Failed to load translation history');
@@ -135,11 +192,7 @@ export default function HistoryScreen() {
             try {
               await TranslationHistoryManager.clearAllHistory();
               setTranslationsByDay({});
-              setStatistics({
-                totalConversations: 0,
-                totalTranslations: 0,
-                mostUsedLanguagePair: null,
-              });
+              setAvailableLanguagePairs([]);
               Alert.alert('Success', 'All translation history has been cleared');
             } catch (error) {
               Alert.alert('Error', 'Failed to clear history');
@@ -182,6 +235,17 @@ export default function HistoryScreen() {
     }, 0);
   };
 
+  const getLanguagePairDisplayName = (languagePair: string) => {
+    const [lang1, lang2] = languagePair.split('-');
+    return `${getLanguageDisplayName(lang1)} ↔ ${getLanguageDisplayName(lang2)}`;
+  };
+
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    setDateFilter('all');
+    setLanguagePairFilter('all');
+  };
+
   if (isLoading) {
     return (
       <View style={styles.container}>
@@ -215,28 +279,6 @@ export default function HistoryScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Statistics */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <BarChart3 size={20} color="#007AFF" />
-          <Text style={styles.statNumber}>{statistics.totalTranslations}</Text>
-          <Text style={styles.statLabel}>Translations</Text>
-        </View>
-        <View style={styles.statItem}>
-          <MessageCircle size={20} color="#34C759" />
-          <Text style={styles.statNumber}>{statistics.totalConversations}</Text>
-          <Text style={styles.statLabel}>Conversations</Text>
-        </View>
-      </View>
-
-      {statistics.mostUsedLanguagePair && (
-        <View style={styles.mostUsedContainer}>
-          <Text style={styles.mostUsedText}>
-            Most practiced: {statistics.mostUsedLanguagePair}
-          </Text>
-        </View>
-      )}
-
       {/* Search */}
       <View style={styles.searchContainer}>
         <View style={styles.searchInputContainer}>
@@ -257,7 +299,47 @@ export default function HistoryScreen() {
             </TouchableOpacity>
           )}
         </View>
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={() => setShowFilters(true)}
+        >
+          <Filter size={20} color="#007AFF" />
+        </TouchableOpacity>
       </View>
+
+      {/* Active Filters Display */}
+      {(dateFilter !== 'all' || languagePairFilter !== 'all') && (
+        <View style={styles.activeFiltersContainer}>
+          <Text style={styles.activeFiltersTitle}>Active filters:</Text>
+          <View style={styles.activeFilters}>
+            {dateFilter !== 'all' && (
+              <View style={styles.filterChip}>
+                <Calendar size={12} color="#007AFF" />
+                <Text style={styles.filterChipText}>
+                  {dateFilter.charAt(0).toUpperCase() + dateFilter.slice(1)}
+                </Text>
+                <TouchableOpacity onPress={() => setDateFilter('all')}>
+                  <X size={12} color="#007AFF" />
+                </TouchableOpacity>
+              </View>
+            )}
+            {languagePairFilter !== 'all' && (
+              <View style={styles.filterChip}>
+                <Languages size={12} color="#007AFF" />
+                <Text style={styles.filterChipText}>
+                  {getLanguagePairDisplayName(languagePairFilter)}
+                </Text>
+                <TouchableOpacity onPress={() => setLanguagePairFilter('all')}>
+                  <X size={12} color="#007AFF" />
+                </TouchableOpacity>
+              </View>
+            )}
+            <TouchableOpacity style={styles.clearFiltersButton} onPress={clearAllFilters}>
+              <Text style={styles.clearFiltersText}>Clear all</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Translations by Day */}
       <ScrollView
@@ -348,6 +430,123 @@ export default function HistoryScreen() {
         )}
       </ScrollView>
 
+      {/* Filter Modal */}
+      <Modal
+        visible={showFilters}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowFilters(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Filter Translations</Text>
+            <TouchableOpacity
+              style={styles.modalCloseButton}
+              onPress={() => setShowFilters(false)}
+            >
+              <X size={24} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {/* Date Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>
+                <Calendar size={16} color="#007AFF" /> Date Range
+              </Text>
+              <View style={styles.filterOptions}>
+                {[
+                  { value: 'all', label: 'All time' },
+                  { value: 'today', label: 'Today' },
+                  { value: 'week', label: 'Past week' },
+                  { value: 'month', label: 'Past month' },
+                ].map((option) => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.filterOption,
+                      dateFilter === option.value && styles.filterOptionSelected,
+                    ]}
+                    onPress={() => setDateFilter(option.value as any)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterOptionText,
+                        dateFilter === option.value && styles.filterOptionTextSelected,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Language Pair Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>
+                <Languages size={16} color="#007AFF" /> Language Pair
+              </Text>
+              <View style={styles.filterOptions}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterOption,
+                    languagePairFilter === 'all' && styles.filterOptionSelected,
+                  ]}
+                  onPress={() => setLanguagePairFilter('all')}
+                >
+                  <Text
+                    style={[
+                      styles.filterOptionText,
+                      languagePairFilter === 'all' && styles.filterOptionTextSelected,
+                    ]}
+                  >
+                    All language pairs
+                  </Text>
+                </TouchableOpacity>
+                {availableLanguagePairs.map((pair) => (
+                  <TouchableOpacity
+                    key={pair}
+                    style={[
+                      styles.filterOption,
+                      languagePairFilter === pair && styles.filterOptionSelected,
+                    ]}
+                    onPress={() => setLanguagePairFilter(pair)}
+                  >
+                    <Text
+                      style={[
+                        styles.filterOptionText,
+                        languagePairFilter === pair && styles.filterOptionTextSelected,
+                      ]}
+                    >
+                      {getLanguagePairDisplayName(pair)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            <TouchableOpacity
+              style={styles.clearAllButton}
+              onPress={() => {
+                clearAllFilters();
+                setShowFilters(false);
+              }}
+            >
+              <Text style={styles.clearAllButtonText}>Clear All Filters</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.applyButton}
+              onPress={() => setShowFilters(false)}
+            >
+              <Text style={styles.applyButtonText}>Apply Filters</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {Object.keys(filteredTranslationsByDay).length > 0 && (
         <View style={styles.footer}>
           <Text style={styles.footerText}>
@@ -430,44 +629,155 @@ const styles = StyleSheet.create({
     padding: 4,
     marginLeft: 8,
   },
-  statsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    gap: 20,
-  },
-  statItem: {
-    flex: 1,
-    backgroundColor: '#1A1A1A',
+  filterButton: {
+    width: 44,
+    height: 44,
     borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#1A1A1A',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
+    borderWidth: 1,
+    borderColor: '#333',
+    marginLeft: 12,
   },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFF',
+  activeFiltersContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 16,
   },
-  statLabel: {
+  activeFiltersTitle: {
     fontSize: 12,
     color: '#999',
-    textAlign: 'center',
+    marginBottom: 8,
   },
-  mostUsedContainer: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 12,
+  activeFilters: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    alignItems: 'center',
+  },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: 'rgba(0, 122, 255, 0.1)',
-    borderRadius: 8,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 6,
     borderWidth: 1,
     borderColor: 'rgba(0, 122, 255, 0.3)',
   },
-  mostUsedText: {
+  filterChipText: {
+    fontSize: 12,
     color: '#007AFF',
-    fontSize: 14,
-    textAlign: 'center',
     fontWeight: '500',
+  },
+  clearFiltersButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  clearFiltersText: {
+    fontSize: 12,
+    color: '#FF3B30',
+    fontWeight: '500',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  modalCloseButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  filterSection: {
+    marginVertical: 20,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  filterOptions: {
+    gap: 8,
+  },
+  filterOption: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 8,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  filterOptionSelected: {
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderColor: '#007AFF',
+  },
+  filterOptionText: {
+    fontSize: 16,
+    color: '#FFF',
+  },
+  filterOptionTextSelected: {
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+    gap: 12,
+  },
+  clearAllButton: {
+    flex: 1,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 8,
+    paddingVertical: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  clearAllButtonText: {
+    fontSize: 16,
+    color: '#FF3B30',
+    fontWeight: '500',
+  },
+  applyButton: {
+    flex: 1,
+    backgroundColor: '#007AFF',
+    borderRadius: 8,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  applyButtonText: {
+    fontSize: 16,
+    color: '#FFF',
+    fontWeight: '600',
   },
   scrollView: {
     flex: 1,

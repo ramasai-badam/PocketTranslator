@@ -1,381 +1,502 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
+  ScrollView,
   TouchableOpacity,
   Alert,
+  RefreshControl,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Mic, Volume2, RotateCcw, Settings } from 'lucide-react-native';
-import * as Speech from 'expo-speech';
-import * as Haptics from 'expo-haptics';
-import { Audio } from 'expo-av';
+import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, Languages } from 'lucide-react-native';
 import { router } from 'expo-router';
-import LanguageSelector from '@/components/LanguageSelector';
-import RecordingIndicator from '@/components/RecordingIndicator';
-import TranslationDisplay from '@/components/TranslationDisplay';
-import { useTranslation } from '@/hooks/useTranslation';
-import { useSpeechToText } from '@/hooks/useSpeechToText';
-import { useAudioRecording } from '@/hooks/useAudioRecording';
-import { useFrameworkReady } from '@/hooks/useFrameworkReady';
-import { TTSVoiceManager } from '@/utils/LanguagePackManager';
-import { getLanguageDisplayName } from '@/utils/LanguageConfig';
-import { TranslationHistoryManager } from '@/utils/TranslationHistory';
+import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
+import { SUPPORTED_LANGUAGES, getLanguageDisplayName } from '../utils/LanguageConfig';
 
-const { height, width } = Dimensions.get('window');
+export default function HistoryScreen() {
+  const [translationsByDay, setTranslationsByDay] = useState<{ [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } }>({});
+  const [filteredTranslationsByDay, setFilteredTranslationsByDay] = useState<{ [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } }>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
+  const [languagePairFilter, setLanguagePairFilter] = useState<string>('all');
+  const [availableLanguagePairs, setAvailableLanguagePairs] = useState<string[]>([]);
 
-export default function TranslatorScreen() {
-  const [topLanguage, setTopLanguage] = useState('en');
-  const [bottomLanguage, setBottomLanguage] = useState('es');
-  const [topText, setTopText] = useState('');
-  const [bottomText, setBottomText] = useState('');
-  const [isTopRecording, setIsTopRecording] = useState(false);
-  const [isBottomRecording, setIsBottomRecording] = useState(false);
+  useEffect(() => {
+    loadTranslations();
+  }, []);
 
-  const { translateText, isTranslating, streamingText } = useTranslation();
-  const { startRecording, stopRecording, isRecording, isInitialized, error: audioError, cleanup } = useAudioRecording();
-  const { transcribeWav, isTranscribing, error: whisperError } = useSpeechToText();
-  const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
-  const [isStreamingToTop, setIsStreamingToTop] = useState(false);
+  // Filter translations when search query or filters change
+  useEffect(() => {
+    applyFilters();
+  }, [searchQuery, translationsByDay, dateFilter, languagePairFilter]);
 
-  // Save translation to history
-  const saveToHistory = async (
-    originalText: string,
-    translatedText: string,
-    fromLang: string,
-    toLang: string,
-    speaker: 'user1' | 'user2'
-  ) => {
-    try {
-      await TranslationHistoryManager.saveTranslation(
-        originalText,
-        translatedText,
-        fromLang,
-        toLang,
-        speaker
-      );
-      console.log('Translation saved to history successfully');
-    } catch (error) {
-      console.error('Failed to save translation to history:', error);
-    }
-  };
+  const applyFilters = () => {
+    const filtered: typeof translationsByDay = {};
+    const query = searchQuery.toLowerCase();
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  // Helper function to get display text with streaming support
-  const getDisplayText = (baseText: string, isStreamingTarget: boolean) => {
-    if (isTranslating && isStreamingTarget && streamingText) {
-      return streamingText;
-    }
-    return baseText;
-  };
+    Object.keys(translationsByDay).forEach(dateKey => {
+      // Apply date filter
+      const entryDate = new Date(dateKey);
+      if (dateFilter === 'today' && entryDate.getTime() !== today.getTime()) return;
+      if (dateFilter === 'week' && entryDate < weekAgo) return;
+      if (dateFilter === 'month' && entryDate < monthAgo) return;
 
-  // Models are ready when hooks are loaded (lazy loading)
-  const modelsReady = true;
-
-  const handleStartRecording = async (isTop: boolean) => {
-    try {
-      // Add haptic feedback
-      try {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      } catch (error) {
-        // Haptics not available on web/simulator
-      }
-      
-      // Check if audio recording is initialized
-      if (!isInitialized) {
-        Alert.alert('Audio Error', 'Audio recording is not ready. Please try again.');
-        return;
-      }
-
-      // Check if already recording
-      if (isRecording) {
-        Alert.alert('Recording Error', 'Already recording. Please stop the current recording first.');
-        return;
-      }
-
-      // Check if models are ready
-      if (!modelsReady) {
-        Alert.alert('Models Loading', 'AI models are still loading. Please wait a moment.');
-        return;
-      }
-
-      if (audioError) {
-        Alert.alert('Audio Error', audioError);
-        return;
-      }
-
-     console.log(`Starting recording for ${isTop ? 'TOP' : 'BOTTOM'} user`);
-     
-      if (isTop) {
-        setIsTopRecording(true);
-      } else {
-        setIsBottomRecording(true);
-      }
-      
-      await startRecording();
-    } catch (error) {
-     console.error('Recording start error:', error);
-      Alert.alert('Recording Error', 'Failed to start recording');
-      setIsTopRecording(false);
-      setIsBottomRecording(false);
-    }
-  };
-
-  const handleStopRecording = async (isTop: boolean) => {
-   console.log(`Stopping recording for ${isTop ? 'TOP' : 'BOTTOM'} user`);
-    setTranscriptionError(null);
-    
-    // Add haptic feedback
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch (error) {
-      // Haptics not available on web/simulator
-    }
-    
-    try {
-      const audioUri = await stopRecording();
-      if (audioUri) {
-        const fromLang = isTop ? topLanguage : bottomLanguage;
-        const toLang = isTop ? bottomLanguage : topLanguage;
+      Object.keys(translationsByDay[dateKey]).forEach(languagePair => {
+        const { conversation, entries } = translationsByDay[dateKey][languagePair];
         
-        console.log('🎯 RECORDING COMPLETE:');
-        console.log('  - Side pressed:', isTop ? 'TOP' : 'BOTTOM');
-        console.log('  - From language (speech input):', fromLang);
-        console.log('  - To language (translation target):', toLang);
-        
-        let speechText = '';
-        let errorMsg = null;
-        
-        // Always try to transcribe - the transcribeWav function handles initialization
-        try {
-          console.log('🎯 CALLING TRANSCRIPTION with language:', fromLang);
-          speechText = await transcribeWav(audioUri, fromLang) || '';
-          if (!speechText) {
-            errorMsg = 'Transcription failed or returned empty.';
-            setTranscriptionError(errorMsg);
+        // Apply language pair filter
+        if (languagePairFilter !== 'all' && languagePair !== languagePairFilter) return;
+
+        // Apply search query filter
+        const matchingEntries = entries.filter(entry => {
+          if (!query) return true;
+          return entry.originalText.toLowerCase().includes(query) ||
+                 entry.translatedText.toLowerCase().includes(query) ||
+                 conversation.displayName.toLowerCase().includes(query);
+        });
+
+        if (matchingEntries.length > 0) {
+          if (!filtered[dateKey]) {
+            filtered[dateKey] = {};
           }
-        } catch (error) {
-          errorMsg = 'Transcription error occurred.';
-          setTranscriptionError(errorMsg);
-          console.error('Transcription error:', error);
+          filtered[dateKey][languagePair] = {
+            conversation,
+            entries: matchingEntries
+          };
         }
+      });
+    });
 
-        // 🚀 IMMEDIATELY show transcribed text on the speaking side
-        console.log('🎯 SHOWING TRANSCRIBED TEXT IMMEDIATELY');
-        if (isTop) {
-          setTopText(errorMsg ? errorMsg : speechText);
-          setBottomText(''); // Clear opposite side before translation
-        } else {
-          setBottomText(errorMsg ? errorMsg : speechText);
-          setTopText(''); // Clear opposite side before translation
-        }
+    setFilteredTranslationsByDay(filtered);
+  };
 
-        // Only proceed with translation if transcription was successful
-        if (!errorMsg && speechText) {
-          console.log('🎯 CALLING TRANSLATION:');
-          console.log('  - Speech text:', speechText);
-          console.log('  - From language:', fromLang);
-          console.log('  - To language:', toLang);
-          
-          // Set streaming target (opposite side from speaking)
-          setIsStreamingToTop(!isTop); // Translation goes to opposite side
-          
-          const translatedText = await translateText(speechText, fromLang, toLang);
-          console.log('🎯 TRANSLATION RESULT:', translatedText);
-          
-          // Clear streaming state and show final translation
-          setIsStreamingToTop(false);
-          
-          // Update the translation side with final result
-          if (isTop) {
-            setBottomText(translatedText);
-            // Save to history: top side spoke (user1), translation goes to bottom
-            await saveToHistory(speechText, translatedText, fromLang, toLang, 'user1');
-          } else {
-            setTopText(translatedText);
-            // Save to history: bottom side spoke (user2), translation goes to top
-            await saveToHistory(speechText, translatedText, fromLang, toLang, 'user2');
-          }
-        }
-      }
+  const getAvailableLanguagePairs = (translations: typeof translationsByDay): string[] => {
+    const pairs = new Set<string>();
+    Object.values(translations).forEach(dayData => {
+      Object.keys(dayData).forEach(languagePair => {
+        pairs.add(languagePair);
+      });
+    });
+    return Array.from(pairs);
+  };
+
+  const getLanguagePairDisplayName = (languagePair: string): string => {
+    const [lang1, lang2] = languagePair.split('-');
+    const name1 = getLanguageDisplayName(lang1);
+    const name2 = getLanguageDisplayName(lang2);
+    return `${name1} ↔ ${name2}`;
+  };
+
+  const getDateFilterLabel = (filter: string): string => {
+    switch (filter) {
+      case 'today': return 'Today';
+      case 'week': return 'Past Week';
+      case 'month': return 'Past Month';
+      default: return 'All Time';
+    }
+  };
+
+  const getActiveFiltersCount = (): number => {
+    let count = 0;
+    if (dateFilter !== 'all') count++;
+    if (languagePairFilter !== 'all') count++;
+    return count;
+  };
+
+  const clearAllFilters = () => {
+    setDateFilter('all');
+    setLanguagePairFilter('all');
+    setSearchQuery('');
+  };
+
+  const loadTranslations = async () => {
+    try {
+      const convs = await TranslationHistoryManager.getTranslationsByDay();
+      setTranslationsByDay(convs);
+      
+      // Extract available language pairs for filter
+      const pairs = getAvailableLanguagePairs(convs);
+      setAvailableLanguagePairs(pairs);
     } catch (error) {
-     console.error('Recording stop error:', error);
-      setTranscriptionError('Failed to translate speech.');
-      setIsStreamingToTop(false); // Clear streaming state on error
-      if (isTop) {
-        setTopText('Failed to translate speech.');
-        setBottomText('');
-      } else {
-        setBottomText('Failed to translate speech.');
-        setTopText('');
-      }
-      Alert.alert('Translation Error', 'Failed to translate speech');
+      console.error('Failed to load translations:', error);
+      Alert.alert('Error', 'Failed to load translation history');
     } finally {
-     console.log(`Cleaning up recording state for ${isTop ? 'TOP' : 'BOTTOM'} user`);
-      setIsTopRecording(false);
-      setIsBottomRecording(false);
+      setIsLoading(false);
+      setRefreshing(false);
     }
   };
 
-  const handleSpeak = async (text: string, language: string) => {
-    if (!text) return;
-    
-    // Add haptic feedback
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch (error) {
-      // Haptics not available on web/simulator
-    }
-    
-    try {
-      // Check if TTS voice is available for this language
-      const isVoiceAvailable = await TTSVoiceManager.canSpeakLanguage(language);
-      
-      if (!isVoiceAvailable) {
-        const languageName = getLanguageDisplayName(language);
-        Alert.alert(
-          'TTS Voice Not Available',
-          `Text-to-speech voice for ${languageName} is not available. Would you like to enable it?`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Enable',
-              onPress: () => router.push('/settings')
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadTranslations();
+  };
+
+  const handleConversationPress = (conversation: LanguagePairConversation) => {
+    // Navigate to conversation detail screen
+    router.push({
+      pathname: '/conversation-detail',
+      params: {
+        languagePair: conversation.languagePair,
+        displayName: conversation.displayName,
+      },
+    });
+  };
+
+  const handleDeleteTranslation = (translationId: string) => {
+    Alert.alert(
+      'Delete Translation',
+      'Are you sure you want to delete this translation?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await TranslationHistoryManager.deleteTranslation(translationId);
+              await loadTranslations(); // Reload data
+              Alert.alert('Success', 'Translation deleted successfully');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete translation');
             }
-          ]
-        );
-        return;
-      }
+          },
+        },
+      ]
+    );
+  };
 
-      Speech.speak(text, {
-        language: language,
-        pitch: 1.0,
-        rate: 0.8,
-      });
-    } catch (error) {
-      console.error('Failed to speak text:', error);
-      // Fallback to speaking without language check
-      Speech.speak(text, {
-        language: language,
-        pitch: 1.0,
-        rate: 0.8,
+  const handleClearAllHistory = () => {
+    Alert.alert(
+      'Clear All History',
+      'Are you sure you want to delete all translation history? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await TranslationHistoryManager.clearAllHistory();
+              setTranslationsByDay({});
+              setAvailableLanguagePairs([]);
+              Alert.alert('Success', 'All translation history has been cleared');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to clear history');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const formatDateHeader = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    } else {
+      return date.toLocaleDateString([], { 
+        weekday: 'long', 
+        month: 'long', 
+        day: 'numeric' 
       });
     }
   };
 
-  const swapLanguages = () => {
-    setTopLanguage(bottomLanguage);
-    setBottomLanguage(topLanguage);
-    setTopText(bottomText);
-    setBottomText(topText);
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
   };
+
+  const getTotalTranslations = () => {
+    return Object.values(filteredTranslationsByDay).reduce((total, dayData) => {
+      return total + Object.values(dayData).reduce((dayTotal, { entries }) => dayTotal + entries.length, 0);
+    }, 0);
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style="light" />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading history...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
       
-      {/* Header with Settings Button */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.historyButton}
-          onPress={() => router.push('/history')}
+          style={styles.backButton}
+          onPress={() => router.back()}
         >
-          <Text style={styles.historyButtonText}>📚</Text>
+          <ArrowLeft size={24} color="#FFF" />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Translation History</Text>
         <TouchableOpacity
-          style={styles.settingsButton}
-          onPress={() => router.push('/settings')}
+          style={styles.clearButton}
+          onPress={handleClearAllHistory}
+          disabled={Object.keys(translationsByDay).length === 0}
         >
-          <Settings size={24} color="#FFF" />
+          <Trash2 size={20} color={Object.keys(translationsByDay).length > 0 ? "#FF3B30" : "#666"} />
         </TouchableOpacity>
       </View>
-      
-      {/* Model Status Indicator */}
-      {!modelsReady && (
-        <View style={styles.modelStatusContainer}>
-          <Text style={styles.modelStatusText}>
-            {isTranslating || isTranscribing ? 'Loading AI models...' : 'AI models not ready'}
-          </Text>
+
+      {/* Search and Filter */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Search size={20} color="#999" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search translations..."
+            placeholderTextColor="#999"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              style={styles.clearSearchButton}
+              onPress={() => setSearchQuery('')}
+            >
+              <X size={16} color="#999" />
+            </TouchableOpacity>
+          )}
+        </View>
+        
+        <TouchableOpacity
+          style={[styles.filterButton, getActiveFiltersCount() > 0 && styles.filterButtonActive]}
+          onPress={() => setShowFilters(true)}
+        >
+          <Filter size={20} color={getActiveFiltersCount() > 0 ? "#007AFF" : "#999"} />
+          {getActiveFiltersCount() > 0 && (
+            <View style={styles.filterBadge}>
+              <Text style={styles.filterBadgeText}>{getActiveFiltersCount()}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Active Filters Display */}
+      {getActiveFiltersCount() > 0 && (
+        <View style={styles.activeFiltersContainer}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activeFiltersScroll}>
+            {dateFilter !== 'all' && (
+              <View style={styles.activeFilterChip}>
+                <Calendar size={14} color="#007AFF" />
+                <Text style={styles.activeFilterText}>{getDateFilterLabel(dateFilter)}</Text>
+                <TouchableOpacity onPress={() => setDateFilter('all')}>
+                  <X size={14} color="#007AFF" />
+                </TouchableOpacity>
+              </View>
+            )}
+            {languagePairFilter !== 'all' && (
+              <View style={styles.activeFilterChip}>
+                <Languages size={14} color="#007AFF" />
+                <Text style={styles.activeFilterText}>{getLanguagePairDisplayName(languagePairFilter)}</Text>
+                <TouchableOpacity onPress={() => setLanguagePairFilter('all')}>
+                  <X size={14} color="#007AFF" />
+                </TouchableOpacity>
+              </View>
+            )}
+          </ScrollView>
+          <TouchableOpacity style={styles.clearFiltersButton} onPress={clearAllFilters}>
+            <Text style={styles.clearFiltersText}>Clear All</Text>
+          </TouchableOpacity>
         </View>
       )}
-      
-      {/* Top Section (Rotated 180 degrees) */}
-      <View style={[styles.section, styles.topSection]}>
-        <View style={styles.rotatedContent}>
-          <LanguageSelector
-            selectedLanguage={topLanguage}
-            onLanguageChange={setTopLanguage}
-            isRotated={true}
-          />
-          <TranslationDisplay
-            text={getDisplayText(topText, isStreamingToTop)}
-            isRotated={true}
-          />
-          <View style={styles.controls}>
-            <TouchableOpacity
-              style={[
-                styles.micButton, 
-                isTopRecording && styles.recordingButton,
-               (!modelsReady || isRecording) && styles.disabledButton
-              ]}
-              onPressIn={() => handleStartRecording(true)}
-              onPressOut={() => handleStopRecording(true)}
-             disabled={!modelsReady || isRecording}
-            >
-             <Mic size={32} color={(modelsReady && !isRecording) ? "white" : "#666"} />
-              {isTopRecording && <RecordingIndicator />}
+
+      {/* Filter Modal */}
+      <Modal
+        visible={showFilters}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowFilters(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Filter Translations</Text>
+            <TouchableOpacity onPress={() => setShowFilters(false)}>
+              <X size={24} color="#FFF" />
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.speakerButton}
-              onPress={() => handleSpeak(topText, topLanguage)}
-              disabled={!topText}
-            >
-              <Volume2 size={28} color={topText ? "white" : "#666"} />
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            {/* Date Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Date Range</Text>
+              {['all', 'today', 'week', 'month'].map((filter) => (
+                <TouchableOpacity
+                  key={filter}
+                  style={[styles.filterOption, dateFilter === filter && styles.filterOptionActive]}
+                  onPress={() => setDateFilter(filter as any)}
+                >
+                  <Calendar size={20} color={dateFilter === filter ? "#007AFF" : "#999"} />
+                  <Text style={[styles.filterOptionText, dateFilter === filter && styles.filterOptionTextActive]}>
+                    {getDateFilterLabel(filter)}
+                  </Text>
+                  {dateFilter === filter && <View style={styles.filterOptionCheck} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Language Pair Filter */}
+            <View style={styles.filterSection}>
+              <Text style={styles.filterSectionTitle}>Language Pairs</Text>
+              <TouchableOpacity
+                style={[styles.filterOption, languagePairFilter === 'all' && styles.filterOptionActive]}
+                onPress={() => setLanguagePairFilter('all')}
+              >
+                <Languages size={20} color={languagePairFilter === 'all' ? "#007AFF" : "#999"} />
+                <Text style={[styles.filterOptionText, languagePairFilter === 'all' && styles.filterOptionTextActive]}>
+                  All Language Pairs
+                </Text>
+                {languagePairFilter === 'all' && <View style={styles.filterOptionCheck} />}
+              </TouchableOpacity>
+              {availableLanguagePairs.map((pair) => (
+                <TouchableOpacity
+                  key={pair}
+                  style={[styles.filterOption, languagePairFilter === pair && styles.filterOptionActive]}
+                  onPress={() => setLanguagePairFilter(pair)}
+                >
+                  <Languages size={20} color={languagePairFilter === pair ? "#007AFF" : "#999"} />
+                  <Text style={[styles.filterOptionText, languagePairFilter === pair && styles.filterOptionTextActive]}>
+                    {getLanguagePairDisplayName(pair)}
+                  </Text>
+                  {languagePairFilter === pair && <View style={styles.filterOptionCheck} />}
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            <TouchableOpacity style={styles.clearAllButton} onPress={clearAllFilters}>
+              <Text style={styles.clearAllButtonText}>Clear All Filters</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.applyButton} onPress={() => setShowFilters(false)}>
+              <Text style={styles.applyButtonText}>Apply Filters</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </View>
-      {/* Center Divider with Swap Button */}
-      <View style={styles.divider}>
-        <TouchableOpacity style={styles.swapButton} onPress={swapLanguages}>
-          <RotateCcw size={24} color="white" />
-        </TouchableOpacity>
-      </View>
-      {/* Bottom Section */}
-      <View style={[styles.section, styles.bottomSection]}>
-        <LanguageSelector
-          selectedLanguage={bottomLanguage}
-          onLanguageChange={setBottomLanguage}
-          isRotated={false}
-        />
-        <TranslationDisplay
-          text={getDisplayText(bottomText, !isStreamingToTop)}
-          isRotated={false}
-        />
-        <View style={styles.controls}>
-          <TouchableOpacity
-            style={[
-              styles.micButton, 
-              isBottomRecording && styles.recordingButton,
-             (!modelsReady || isRecording) && styles.disabledButton
-            ]}
-            onPressIn={() => handleStartRecording(false)}
-            onPressOut={() => handleStopRecording(false)}
-           disabled={!modelsReady || isRecording}
-          >
-           <Mic size={32} color={(modelsReady && !isRecording) ? "white" : "#666"} />
-            {isBottomRecording && <RecordingIndicator />}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.speakerButton}
-            onPress={() => handleSpeak(bottomText, bottomLanguage)}
-            disabled={!bottomText}
-          >
-            <Volume2 size={28} color={bottomText ? "white" : "#666"} />
-          </TouchableOpacity>
+      </Modal>
+
+      {/* Translations by Day */}
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {Object.keys(filteredTranslationsByDay).length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <MessageCircle size={48} color="#666" />
+            <Text style={styles.emptyTitle}>
+              {searchQuery || getActiveFiltersCount() > 0 ? 'No matching translations' : 'No Translation History'}
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              {searchQuery || getActiveFiltersCount() > 0 ? 'Try adjusting your search or filters' : 'Start translating to build your learning history'}
+            </Text>
+          </View>
+        ) : (
+          // Sort dates (newest first)
+          Object.keys(filteredTranslationsByDay)
+            .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+            .map((dateKey) => (
+              <View key={dateKey} style={styles.daySection}>
+                {/* Day Header */}
+                <Text style={styles.dayHeader}>{formatDateHeader(dateKey)}</Text>
+                
+                {/* Language Pairs for this day */}
+                {Object.keys(filteredTranslationsByDay[dateKey]).map((languagePair) => {
+                  const { conversation, entries } = filteredTranslationsByDay[dateKey][languagePair];
+                  return (
+                    <View key={`${dateKey}-${languagePair}`} style={styles.languagePairSection}>
+                      {/* Language Pair Header */}
+                      <TouchableOpacity
+                        style={styles.languagePairHeader}
+                        onPress={() => handleConversationPress(conversation)}
+                      >
+                        <Text style={styles.languagePairTitle}>
+                          {conversation.displayName}
+                        </Text>
+                        <View style={styles.languagePairInfo}>
+                          <Text style={styles.entryCount}>
+                            {entries.length} translation{entries.length !== 1 ? 's' : ''}
+                          </Text>
+                          <Text style={styles.arrowText}>›</Text>
+                        </View>
+                      </TouchableOpacity>
+                      
+                      {/* Individual Translations */}
+                      {entries.slice(0, 3).map((entry) => (
+                        <View key={entry.id} style={styles.translationItem}>
+                          <View style={styles.translationContent}>
+                            <Text style={styles.originalText} numberOfLines={1}>
+                              {entry.originalText}
+                            </Text>
+                            <Text style={styles.translatedText} numberOfLines={1}>
+                              {entry.translatedText}
+                            </Text>
+                            <Text style={styles.translationTime}>
+                              {formatDate(entry.timestamp)}
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            style={styles.deleteButton}
+                            onPress={() => handleDeleteTranslation(entry.id)}
+                          >
+                            <Trash2 size={16} color="#FF3B30" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                      
+                      {entries.length > 3 && (
+                        <TouchableOpacity
+                          style={styles.viewMoreButton}
+                          onPress={() => handleConversationPress(conversation)}
+                        >
+                          <Text style={styles.viewMoreText}>
+                            View {entries.length - 3} more translation{entries.length - 3 !== 1 ? 's' : ''}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            ))
+        )}
+      </ScrollView>
+
+      {Object.keys(filteredTranslationsByDay).length > 0 && (
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            💡 Tip: Tap any conversation to review and practice your translations
+          </Text>
         </View>
-      </View>
+      )}
     </View>
   );
 }
@@ -383,133 +504,836 @@ export default function TranslatorScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#000',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#FFF',
+    fontSize: 16,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+  },
+  backButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+    flex: 1,
+    textAlign: 'center',
+  },
+  clearButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    gap: 12,
+  },
+  searchInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  searchIcon: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#FFF',
+    fontSize: 16,
+    paddingVertical: 12,
+  },
+  clearSearchButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  filterButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: '#1A1A1A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#333',
+    position: 'relative',
+  },
+  filterButtonActive: {
+    borderColor: '#007AFF',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+  },
+  filterBadge: {
     position: 'absolute',
-    top: 60,
-    left: 20,
-    right: 20,
-    zIndex: 100,
+    top: -4,
+    right: -4,
+    backgroundColor: '#007AFF',
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  filterBadgeText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  activeFiltersContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    gap: 12,
+  },
+  activeFiltersScroll: {
+    flex: 1,
+  },
+  activeFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    gap: 6,
+  },
+  activeFilterText: {
+    color: '#007AFF',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  clearFiltersButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  clearFiltersText: {
+    color: '#FF3B30',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    pointerEvents: 'box-none', // Allow touch events to pass through to children
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
   },
-  historyButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    pointerEvents: 'auto', // Ensure button itself is touchable
-  },
-  historyButtonText: {
+  modalTitle: {
     fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
   },
-  settingsButton: {
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  filterSection: {
+    marginVertical: 20,
+  },
+  filterSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FFF',
+    marginBottom: 16,
+  },
+  filterOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 8,
+    gap: 12,
+  },
+  filterOptionActive: {
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+  },
+  filterOptionText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#FFF',
+  },
+  filterOptionTextActive: {
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  filterOptionCheck: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#007AFF',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+    gap: 12,
+  },
+  clearAllButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#1A1A1A',
+    alignItems: 'center',
+  },
+  clearAllButtonText: {
+    color: '#FF3B30',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  applyButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+  },
+  applyButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFF',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+    paddingHorizontal: 40,
+  },
+  daySection: {
+    marginBottom: 24,
+  },
+  dayHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginHorizontal: 20,
+    marginBottom: 12,
+  },
+  languagePairSection: {
+    backgroundColor: '#1A1A1A',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+    overflow: 'hidden',
+  },
+  languagePairHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+  },
+  languagePairTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
+    flex: 1,
+  },
+  languagePairInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  entryCount: {
+    fontSize: 12,
+    color: '#999',
+  },
+  translationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+        );
+
+        if (matchingEntries.length > 0) {
+          if (!filtered[dateKey]) {
+            filtered[dateKey] = {};
+          }
+          filtered[dateKey][languagePair] = {
+            conversation,
+            entries: matchingEntries
+          };
+        }
+      });
+    });
+
+    setFilteredTranslationsByDay(filtered);
+  }, [searchQuery, translationsByDay]);
+
+  const loadTranslations = async () => {
+    try {
+      const [convs, stats] = await Promise.all([
+        TranslationHistoryManager.getTranslationsByDay(),
+        TranslationHistoryManager.getStatistics(),
+      ]);
+      setTranslationsByDay(convs);
+      setStatistics(stats);
+    } catch (error) {
+      console.error('Failed to load translations:', error);
+      Alert.alert('Error', 'Failed to load translation history');
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadTranslations();
+  };
+
+  const handleConversationPress = (conversation: LanguagePairConversation) => {
+    // Navigate to conversation detail screen
+    router.push({
+      pathname: '/conversation-detail',
+      params: {
+        languagePair: conversation.languagePair,
+        displayName: conversation.displayName,
+      },
+    });
+  };
+
+  const handleDeleteTranslation = (translationId: string) => {
+    Alert.alert(
+      'Delete Translation',
+      'Are you sure you want to delete this translation?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await TranslationHistoryManager.deleteTranslation(translationId);
+              await loadTranslations(); // Reload data
+              Alert.alert('Success', 'Translation deleted successfully');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete translation');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleClearAllHistory = () => {
+    Alert.alert(
+      'Clear All History',
+      'Are you sure you want to delete all translation history? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await TranslationHistoryManager.clearAllHistory();
+              setTranslationsByDay({});
+              setStatistics({
+                totalConversations: 0,
+                totalTranslations: 0,
+                mostUsedLanguagePair: null,
+              });
+              Alert.alert('Success', 'All translation history has been cleared');
+            } catch (error) {
+              Alert.alert('Error', 'Failed to clear history');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const formatDateHeader = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    } else {
+      return date.toLocaleDateString([], { 
+        weekday: 'long', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+    }
+  };
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
+  const getTotalTranslations = () => {
+    return Object.values(filteredTranslationsByDay).reduce((total, dayData) => {
+      return total + Object.values(dayData).reduce((dayTotal, { entries }) => dayTotal + entries.length, 0);
+    }, 0);
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style="light" />
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading history...</Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <StatusBar style="light" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <ArrowLeft size={24} color="#FFF" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Translation History</Text>
+        <TouchableOpacity
+          style={styles.clearButton}
+          onPress={handleClearAllHistory}
+          disabled={Object.keys(translationsByDay).length === 0}
+        >
+          <Trash2 size={20} color={Object.keys(translationsByDay).length > 0 ? "#FF3B30" : "#666"} />
+        </TouchableOpacity>
+      </View>
+
+      {/* Statistics */}
+      <View style={styles.statsContainer}>
+        <View style={styles.statItem}>
+          <BarChart3 size={20} color="#007AFF" />
+          <Text style={styles.statNumber}>{statistics.totalTranslations}</Text>
+          <Text style={styles.statLabel}>Translations</Text>
+        </View>
+        <View style={styles.statItem}>
+          <MessageCircle size={20} color="#34C759" />
+          <Text style={styles.statNumber}>{statistics.totalConversations}</Text>
+          <Text style={styles.statLabel}>Conversations</Text>
+        </View>
+      </View>
+
+      {statistics.mostUsedLanguagePair && (
+        <View style={styles.mostUsedContainer}>
+          <Text style={styles.mostUsedText}>
+            Most practiced: {statistics.mostUsedLanguagePair}
+          </Text>
+        </View>
+      )}
+
+      {/* Search */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Search size={20} color="#999" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search translations..."
+            placeholderTextColor="#999"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              style={styles.clearSearchButton}
+              onPress={() => setSearchQuery('')}
+            >
+              <X size={16} color="#999" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* Translations by Day */}
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {Object.keys(filteredTranslationsByDay).length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <MessageCircle size={48} color="#666" />
+            <Text style={styles.emptyTitle}>
+              {searchQuery ? 'No matching translations' : 'No Translation History'}
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              {searchQuery ? 'Try a different search term' : 'Start translating to build your learning history'}
+            </Text>
+          </View>
+        ) : (
+          // Sort dates (newest first)
+          Object.keys(filteredTranslationsByDay)
+            .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+            .map((dateKey) => (
+              <View key={dateKey} style={styles.daySection}>
+                {/* Day Header */}
+                <Text style={styles.dayHeader}>{formatDateHeader(dateKey)}</Text>
+                
+                {/* Language Pairs for this day */}
+                {Object.keys(filteredTranslationsByDay[dateKey]).map((languagePair) => {
+                  const { conversation, entries } = filteredTranslationsByDay[dateKey][languagePair];
+                  return (
+                    <View key={`${dateKey}-${languagePair}`} style={styles.languagePairSection}>
+                      {/* Language Pair Header */}
+                      <TouchableOpacity
+                        style={styles.languagePairHeader}
+                        onPress={() => handleConversationPress(conversation)}
+                      >
+                        <Text style={styles.languagePairTitle}>
+                          {conversation.displayName}
+                        </Text>
+                        <View style={styles.languagePairInfo}>
+                          <Text style={styles.entryCount}>
+                            {entries.length} translation{entries.length !== 1 ? 's' : ''}
+                          </Text>
+                          <Text style={styles.arrowText}>›</Text>
+                        </View>
+                      </TouchableOpacity>
+                      
+                      {/* Individual Translations */}
+                      {entries.slice(0, 3).map((entry) => (
+                        <View key={entry.id} style={styles.translationItem}>
+                          <View style={styles.translationContent}>
+                            <Text style={styles.originalText} numberOfLines={1}>
+                              {entry.originalText}
+                            </Text>
+                            <Text style={styles.translatedText} numberOfLines={1}>
+                              {entry.translatedText}
+                            </Text>
+                            <Text style={styles.translationTime}>
+                              {formatDate(entry.timestamp)}
+                            </Text>
+                          </View>
+                          <TouchableOpacity
+                            style={styles.deleteButton}
+                            onPress={() => handleDeleteTranslation(entry.id)}
+                          >
+                            <Trash2 size={16} color="#FF3B30" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                      
+                      {entries.length > 3 && (
+                        <TouchableOpacity
+                          style={styles.viewMoreButton}
+                          onPress={() => handleConversationPress(conversation)}
+                        >
+                          <Text style={styles.viewMoreText}>
+                            View {entries.length - 3} more translation{entries.length - 3 !== 1 ? 's' : ''}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            ))
+        )}
+      </ScrollView>
+
+      {Object.keys(filteredTranslationsByDay).length > 0 && (
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            💡 Tip: Tap any conversation to review and practice your translations
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#FFF',
+    fontSize: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
+  },
+  backButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    pointerEvents: 'auto', // Ensure button itself is touchable
   },
-  modelStatusContainer: {
-    position: 'absolute',
-    top: 50,
-    left: 0,
-    right: 0,
-    zIndex: 50,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingVertical: 8,
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+    flex: 1,
+    textAlign: 'center',
+  },
+  clearButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
     paddingHorizontal: 16,
-    pointerEvents: 'none', // Allow touch events to pass through
+    borderWidth: 1,
+    borderColor: '#333',
   },
-  modelStatusText: {
-    color: '#fbbf24',
+  searchIcon: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#FFF',
+    fontSize: 16,
+    paddingVertical: 12,
+  },
+  clearSearchButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    gap: 20,
+  },
+  statItem: {
+    flex: 1,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    gap: 8,
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  statLabel: {
     fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+  },
+  mostUsedContainer: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 12,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+  },
+  mostUsedText: {
+    color: '#007AFF',
+    fontSize: 14,
     textAlign: 'center',
     fontWeight: '500',
   },
-  section: {
+  scrollView: {
     flex: 1,
-    padding: 20,
-    justifyContent: 'space-between',
-    paddingTop: 40, // Add more top padding to avoid header overlap
   },
-  topSection: {
-    backgroundColor: '#2563eb',
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
-    paddingTop: 60, // Extra padding for the rotated top section
-  },
-  bottomSection: {
-    backgroundColor: '#dc2626',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-  },
-  rotatedContent: {
+  emptyContainer: {
     flex: 1,
-    transform: [{ rotate: '180deg' }],
-    justifyContent: 'space-between',
-  },
-  controls: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFF',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
     paddingHorizontal: 40,
   },
-  micButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
+  daySection: {
+    marginBottom: 24,
+  },
+  dayHeader: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFF',
+    marginHorizontal: 20,
+    marginBottom: 12,
+  },
+  languagePairSection: {
+    backgroundColor: '#1A1A1A',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
+    overflow: 'hidden',
+  },
+  languagePairHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    position: 'relative',
+    padding: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
-  recordingButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    borderColor: 'white',
+  languagePairTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFF',
+    flex: 1,
   },
-  disabledButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  speakerButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
+  languagePairInfo: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    gap: 8,
   },
-  divider: {
-    height: 60,
-    backgroundColor: '#1a1a1a',
-    justifyContent: 'center',
+  entryCount: {
+    fontSize: 12,
+    color: '#999',
+  },
+  translationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+  },
+  translationContent: {
+    flex: 1,
+  },
+  originalText: {
+    fontSize: 14,
+    color: '#FFF',
+    marginBottom: 4,
+  },
+  translatedText: {
+    fontSize: 14,
+    color: '#999',
+    marginBottom: 4,
+  },
+  translationTime: {
+    fontSize: 12,
+    color: '#666',
+  },
+  deleteButton: {
+    padding: 8,
+    marginLeft: 12,
+  },
+  viewMoreButton: {
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
     alignItems: 'center',
   },
-  swapButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#374151',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+  viewMoreText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  arrowText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: 'bold',
+  },
+  footer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+  },
+  footerText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
