@@ -12,6 +12,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, Volume2, Trash2, User } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
+import * as Haptics from 'expo-haptics';
 import { TranslationHistoryManager, TranslationEntry } from '../utils/TranslationHistory';
 import { TTSVoiceManager } from '../utils/LanguagePackManager';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
@@ -58,6 +59,13 @@ export default function ConversationDetailScreen() {
 
   const handleSpeak = async (text: string, language: string) => {
     if (!text) return;
+    
+    // Add haptic feedback
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      // Haptics not available on web/simulator
+    }
     
     try {
       // Check if TTS voice is available for this language

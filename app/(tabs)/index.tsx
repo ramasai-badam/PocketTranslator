@@ -10,6 +10,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { Mic, Volume2, RotateCcw, Settings } from 'lucide-react-native';
 import * as Speech from 'expo-speech';
+import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import { router } from 'expo-router';
 import LanguageSelector from '@/components/LanguageSelector';
@@ -74,6 +75,13 @@ export default function TranslatorScreen() {
 
   const handleStartRecording = async (isTop: boolean) => {
     try {
+      // Add haptic feedback
+      try {
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      } catch (error) {
+        // Haptics not available on web/simulator
+      }
+      
       // Check if audio recording is initialized
       if (!isInitialized) {
         Alert.alert('Audio Error', 'Audio recording is not ready. Please try again.');
@@ -117,6 +125,14 @@ export default function TranslatorScreen() {
   const handleStopRecording = async (isTop: boolean) => {
    console.log(`Stopping recording for ${isTop ? 'TOP' : 'BOTTOM'} user`);
     setTranscriptionError(null);
+    
+    // Add haptic feedback
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      // Haptics not available on web/simulator
+    }
+    
     try {
       const audioUri = await stopRecording();
       if (audioUri) {
@@ -204,6 +220,13 @@ export default function TranslatorScreen() {
 
   const handleSpeak = async (text: string, language: string) => {
     if (!text) return;
+    
+    // Add haptic feedback
+    try {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    } catch (error) {
+      // Haptics not available on web/simulator
+    }
     
     try {
       // Check if TTS voice is available for this language
