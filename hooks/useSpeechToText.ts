@@ -75,7 +75,6 @@ export function useSpeechToText() {
       const { result } = await promise;
       
       console.log('Transcription result:', result);
-      console.log('🎯 TRANSCRIPTION SUCCESS for language:', language, '→', result);
       setIsTranscribing(false);
       return result;
     } catch (err) {

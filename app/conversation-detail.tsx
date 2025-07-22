@@ -224,6 +224,10 @@ export default function ConversationDetailScreen() {
                   <Text style={[styles.speakerLabel, { color: getSpeakerColor(entry.speaker) }]}>
                     {entry.speaker === 'user1' ? 'Speaker 1' : 'Speaker 2'}
                   </Text>
+                </View>
+                
+                <View style={styles.entryHeaderRight}>
+                  <Text style={styles.entryTime}>{formatDate(entry.timestamp)}</Text>
                   <TouchableOpacity
                     style={styles.addToVocabButton}
                     onPress={() => handleAddToVocabulary(entry)}
@@ -231,7 +235,6 @@ export default function ConversationDetailScreen() {
                     <BookmarkPlus size={16} color="#34C759" />
                   </TouchableOpacity>
                 </View>
-                <Text style={styles.entryTime}>{formatDate(entry.timestamp)}</Text>
               </View>
 
               {/* Original Text */}
@@ -366,11 +369,32 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
   },
+  entryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  speakerInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  speakerIcon: {
+    fontSize: 16,
+    marginRight: 8,
+  },
+  speakerLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  entryHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
   entryTime: {
     fontSize: 12,
     color: '#999',
-    textAlign: 'right',
-    marginBottom: 12,
   },
   textContainer: {
     marginBottom: 12,
