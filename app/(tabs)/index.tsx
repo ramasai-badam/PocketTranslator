@@ -10,6 +10,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { Mic, Volume2, RotateCcw, Settings } from 'lucide-react-native';
 import * as Speech from 'expo-speech';
+import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import { router } from 'expo-router';
 import LanguageSelector from '@/components/LanguageSelector';
@@ -74,6 +75,9 @@ export default function TranslatorScreen() {
 
   const handleStartRecording = async (isTop: boolean) => {
     try {
+      // Haptic feedback for mic press
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      
       // Check if audio recording is initialized
       if (!isInitialized) {
         Alert.alert('Audio Error', 'Audio recording is not ready. Please try again.');
@@ -204,6 +208,9 @@ export default function TranslatorScreen() {
 
   const handleSpeak = async (text: string, language: string) => {
     if (!text) return;
+    
+    // Haptic feedback for speaker press
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     try {
       // Check if TTS voice is available for this language
