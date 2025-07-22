@@ -13,8 +13,8 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, Languages } from 'lucide-react-native';
 import { router } from 'expo-router';
-import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
-import { getLanguageDisplayName } from '../utils/LanguageConfig';
+import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../../utils/TranslationHistory';
+import { getLanguageDisplayName } from '../../utils/LanguageConfig';
 
 export default function HistoryScreen() {
   const [translationsByDay, setTranslationsByDay] = useState<{ [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } }>({});
