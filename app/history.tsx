@@ -810,7 +810,7 @@ export default function HistoryScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Sort dates (newest first) */}
+          // Sort dates (newest first)
           Object.keys(filteredTranslationsByDay)
             .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
             .map((dateKey) => (
