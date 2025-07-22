@@ -10,7 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, MessageCircle, Trash2, ChartBar as BarChart3, Search, X } from 'lucide-react-native';
+import { ArrowLeft, MessageCircle, Trash2, Search, X } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
 
@@ -20,11 +20,6 @@ export default function HistoryScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statistics, setStatistics] = useState({
-    totalConversations: 0,
-    totalTranslations: 0,
-    mostUsedLanguagePair: null as string | null,
-  });
 
   useEffect(() => {
     loadTranslations();
@@ -68,12 +63,8 @@ export default function HistoryScreen() {
 
   const loadTranslations = async () => {
     try {
-      const [convs, stats] = await Promise.all([
-        TranslationHistoryManager.getTranslationsByDay(),
-        TranslationHistoryManager.getStatistics(),
-      ]);
+      const convs = await TranslationHistoryManager.getTranslationsByDay();
       setTranslationsByDay(convs);
-      setStatistics(stats);
     } catch (error) {
       console.error('Failed to load translations:', error);
       Alert.alert('Error', 'Failed to load translation history');
@@ -135,11 +126,6 @@ export default function HistoryScreen() {
             try {
               await TranslationHistoryManager.clearAllHistory();
               setTranslationsByDay({});
-              setStatistics({
-                totalConversations: 0,
-                totalTranslations: 0,
-                mostUsedLanguagePair: null,
-              });
               Alert.alert('Success', 'All translation history has been cleared');
             } catch (error) {
               Alert.alert('Error', 'Failed to clear history');
@@ -214,28 +200,6 @@ export default function HistoryScreen() {
           <Trash2 size={20} color={Object.keys(translationsByDay).length > 0 ? "#FF3B30" : "#666"} />
         </TouchableOpacity>
       </View>
-
-      {/* Statistics */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <BarChart3 size={20} color="#007AFF" />
-          <Text style={styles.statNumber}>{statistics.totalTranslations}</Text>
-          <Text style={styles.statLabel}>Translations</Text>
-        </View>
-        <View style={styles.statItem}>
-          <MessageCircle size={20} color="#34C759" />
-          <Text style={styles.statNumber}>{statistics.totalConversations}</Text>
-          <Text style={styles.statLabel}>Conversations</Text>
-        </View>
-      </View>
-
-      {statistics.mostUsedLanguagePair && (
-        <View style={styles.mostUsedContainer}>
-          <Text style={styles.mostUsedText}>
-            Most practiced: {statistics.mostUsedLanguagePair}
-          </Text>
-        </View>
-      )}
 
       {/* Search */}
       <View style={styles.searchContainer}>
@@ -365,45 +329,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#000',
   },
   loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#FFF',
-    fontSize: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFF',
-    flex: 1,
-    textAlign: 'center',
-  },
-  clearButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   searchContainer: {
     paddingHorizontal: 20,
     paddingBottom: 20,
