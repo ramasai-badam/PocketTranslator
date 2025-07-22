@@ -60,13 +60,6 @@ export default function ConversationDetailScreen() {
   const handleSpeak = async (text: string, language: string) => {
     if (!text) return;
     
-    // Add haptic feedback
-    try {
-      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    } catch (error) {
-      // Haptics not available on web/simulator
-    }
-    
     try {
       // Check if TTS voice is available for this language
       const isVoiceAvailable = await TTSVoiceManager.canSpeakLanguage(language);
