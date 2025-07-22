@@ -334,17 +334,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
   },
-  entryHeader: {
-    alignItems: 'flex-end',
-    marginBottom: 12,
-  },
-  speakerInfo: {
-    width: '100%',
-  },
   entryTime: {
     fontSize: 12,
     color: '#999',
     textAlign: 'right',
+    marginBottom: 12,
   },
   textContainer: {
     marginBottom: 12,
