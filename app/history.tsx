@@ -78,18 +78,29 @@ export default function HistoryScreen() {
     }
 
     // Filter by language pair if selected
-    if (selectedFromLanguage && selectedToLanguage) {
+    if (selectedFromLanguage || selectedToLanguage) {
       const filteredByLanguage: typeof translationsByDay = {};
       
       Object.keys(filtered).forEach(dateKey => {
         Object.keys(filtered[dateKey]).forEach(languagePair => {
           const { conversation, entries } = filtered[dateKey][languagePair];
           
-          // Check if this conversation matches the selected language pair (bidirectional)
+          // Check if this conversation matches the selected language pair
           const [lang1, lang2] = languagePair.split('-');
-          const matchesLanguagePair = 
-            (lang1 === selectedFromLanguage && lang2 === selectedToLanguage) ||
-            (lang1 === selectedToLanguage && lang2 === selectedFromLanguage);
+          let matchesLanguagePair = false;
+
+          if (selectedFromLanguage && selectedToLanguage) {
+            // Both languages selected: exact bidirectional match
+            matchesLanguagePair = 
+              (lang1 === selectedFromLanguage && lang2 === selectedToLanguage) ||
+              (lang1 === selectedToLanguage && lang2 === selectedFromLanguage);
+          } else if (selectedFromLanguage && !selectedToLanguage) {
+            // Only "from" language selected: match any pair containing this language
+            matchesLanguagePair = lang1 === selectedFromLanguage || lang2 === selectedFromLanguage;
+          } else if (!selectedFromLanguage && selectedToLanguage) {
+            // Only "to" language selected: match any pair containing this language
+            matchesLanguagePair = lang1 === selectedToLanguage || lang2 === selectedToLanguage;
+          }
           
           if (matchesLanguagePair) {
             if (!filteredByLanguage[dateKey]) {
@@ -653,7 +664,11 @@ export default function HistoryScreen() {
                   {/* From Language */}
                   <View style={styles.languageSelectContainer}>
                     <Text style={styles.languageSelectLabel}>From Language</Text>
-                    <ScrollView style={styles.languageSelectScroll} showsVerticalScrollIndicator={false}>
+                    <ScrollView 
+                      style={styles.languageSelectScroll} 
+                      showsVerticalScrollIndicator={true}
+                      nestedScrollEnabled={true}
+                    >
                       <TouchableOpacity
                         style={[
                           styles.languageOption,
@@ -696,7 +711,11 @@ export default function HistoryScreen() {
                   {/* To Language */}
                   <View style={styles.languageSelectContainer}>
                     <Text style={styles.languageSelectLabel}>To Language</Text>
-                    <ScrollView style={styles.languageSelectScroll} showsVerticalScrollIndicator={false}>
+                    <ScrollView 
+                      style={styles.languageSelectScroll} 
+                      showsVerticalScrollIndicator={true}
+                      nestedScrollEnabled={true}
+                    >
                       <TouchableOpacity
                         style={[
                           styles.languageOption,
@@ -1169,7 +1188,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   languageSelectScroll: {
-    maxHeight: 150,
+    height: 150,
     backgroundColor: '#333',
     borderRadius: 8,
     borderWidth: 1,
