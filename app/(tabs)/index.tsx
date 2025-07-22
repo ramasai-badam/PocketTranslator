@@ -364,13 +364,14 @@ const styles = StyleSheet.create({
   },
   header: {
     position: 'absolute',
-    top: 50,
+    top: 60,
     left: 20,
     right: 20,
-    zIndex: 1000,
+    zIndex: 100,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    pointerEvents: 'box-none', // Allow touch events to pass through to children
   },
   historyButton: {
     width: 44,
@@ -381,6 +382,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+    pointerEvents: 'auto', // Ensure button itself is touchable
   },
   historyButtonText: {
     fontSize: 20,
@@ -394,16 +396,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+    pointerEvents: 'auto', // Ensure button itself is touchable
   },
   modelStatusContainer: {
     position: 'absolute',
-    top: 40,
+    top: 50,
     left: 0,
     right: 0,
-    zIndex: 1000,
+    zIndex: 50,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     paddingVertical: 8,
     paddingHorizontal: 16,
+    pointerEvents: 'none', // Allow touch events to pass through
   },
   modelStatusText: {
     color: '#fbbf24',
@@ -415,11 +419,13 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     justifyContent: 'space-between',
+    paddingTop: 40, // Add more top padding to avoid header overlap
   },
   topSection: {
     backgroundColor: '#2563eb',
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
+    paddingTop: 60, // Extra padding for the rotated top section
   },
   bottomSection: {
     backgroundColor: '#dc2626',
