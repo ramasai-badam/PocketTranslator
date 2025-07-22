@@ -32,6 +32,11 @@ export default function HistoryScreen() {
   const [selectedFromLanguage, setSelectedFromLanguage] = useState<string | null>(null);
   const [selectedToLanguage, setSelectedToLanguage] = useState<string | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [tempSelectedDate, setTempSelectedDate] = useState<string | null>(null);
+  const [tempSelectedStartDate, setTempSelectedStartDate] = useState<string | null>(null);
+  const [tempSelectedEndDate, setTempSelectedEndDate] = useState<string | null>(null);
+  const [tempSelectedFromLanguage, setTempSelectedFromLanguage] = useState<string | null>(null);
+  const [tempSelectedToLanguage, setTempSelectedToLanguage] = useState<string | null>(null);
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [availableDates, setAvailableDates] = useState<string[]>([]);
@@ -239,11 +244,21 @@ export default function HistoryScreen() {
     setDateFilterMode('single');
     setSelectedFromLanguage(null);
     setSelectedToLanguage(null);
+    setTempSelectedDate(null);
+    setTempSelectedStartDate(null);
+    setTempSelectedEndDate(null);
+    setTempSelectedFromLanguage(null);
+    setTempSelectedToLanguage(null);
     setShowFilterModal(false);
     setShowCalendar(false);
   };
 
   const applyFilters = () => {
+    setSelectedDate(tempSelectedDate);
+    setSelectedStartDate(tempSelectedStartDate);
+    setSelectedEndDate(tempSelectedEndDate);
+    setSelectedFromLanguage(tempSelectedFromLanguage);
+    setSelectedToLanguage(tempSelectedToLanguage);
     setShowFilterModal(false);
     setShowCalendar(false);
   };
@@ -317,23 +332,23 @@ export default function HistoryScreen() {
     const dateString = date.toDateString();
     
     if (dateFilterMode === 'single') {
-      setSelectedDate(dateString);
+      setTempSelectedDate(dateString);
       setShowCalendar(false);
     } else {
-      if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
+      if (!tempSelectedStartDate || (tempSelectedStartDate && tempSelectedEndDate)) {
         // Start new range
-        setSelectedStartDate(dateString);
-        setSelectedEndDate(null);
+        setTempSelectedStartDate(dateString);
+        setTempSelectedEndDate(null);
       } else {
         // Complete range
-        const startTime = new Date(selectedStartDate).getTime();
+        const startTime = new Date(tempSelectedStartDate).getTime();
         const endTime = date.getTime();
         
         if (endTime >= startTime) {
-          setSelectedEndDate(dateString);
+          setTempSelectedEndDate(dateString);
         } else {
-          setSelectedStartDate(dateString);
-          setSelectedEndDate(selectedStartDate);
+          setTempSelectedStartDate(dateString);
+          setTempSelectedEndDate(tempSelectedStartDate);
         }
       }
     }
@@ -525,8 +540,12 @@ export default function HistoryScreen() {
                     <View style={styles.calendarGrid}>
                       {generateCalendarDays(calendarDate).map((date, index) => {
                         const isCurrentMonth = date.getMonth() === calendarDate.getMonth();
-                        const isSelected = isDateSelected(date);
-                        const isInRange = isDateInRange(date);
+                        const isSelected = dateFilterMode === 'single' 
+                          ? tempSelectedDate === date.toDateString()
+                          : tempSelectedStartDate === date.toDateString() || tempSelectedEndDate === date.toDateString();
+                        const isInRange = dateFilterMode === 'range' && tempSelectedStartDate && tempSelectedEndDate
+                          ? date.getTime() >= new Date(tempSelectedStartDate).getTime() && date.getTime() <= new Date(tempSelectedEndDate).getTime()
+                          : false;
                         const hasTranslations = hasTranslationsOnDate(date);
                         
                         return (
@@ -558,11 +577,11 @@ export default function HistoryScreen() {
                     {dateFilterMode === 'range' && (
                       <View style={styles.dateRangeInfo}>
                         <Text style={styles.dateRangeInfoText}>
-                          {selectedStartDate && !selectedEndDate && 'Select end date'}
-                          {selectedStartDate && selectedEndDate && 
-                            `Range: ${formatDateHeader(selectedStartDate)} - ${formatDateHeader(selectedEndDate)}`
+                          {tempSelectedStartDate && !tempSelectedEndDate && 'Select end date'}
+                          {tempSelectedStartDate && tempSelectedEndDate && 
+                            `Range: ${formatDateHeader(tempSelectedStartDate)} - ${formatDateHeader(tempSelectedEndDate)}`
                           }
-                          {!selectedStartDate && 'Select start date'}
+                          {!tempSelectedStartDate && 'Select start date'}
                         </Text>
                       </View>
                     )}
@@ -584,9 +603,22 @@ export default function HistoryScreen() {
                       ]}
                       onPress={() => {
                         if (dateFilterMode === 'single') {
-                          setSelectedDate(date);
+                          setTempSelectedDate(date);
                         } else {
-                          handleCalendarDatePress(new Date(date));
+                          const dateString = new Date(date).toDateString();
+                          if (!tempSelectedStartDate || (tempSelectedStartDate && tempSelectedEndDate)) {
+                            setTempSelectedStartDate(dateString);
+                            setTempSelectedEndDate(null);
+                          } else {
+                            const startTime = new Date(tempSelectedStartDate).getTime();
+                            const endTime = new Date(date).getTime();
+                            if (endTime >= startTime) {
+                              setTempSelectedEndDate(dateString);
+                            } else {
+                              setTempSelectedStartDate(dateString);
+                              setTempSelectedEndDate(tempSelectedStartDate);
+                            }
+                          }
                         }
                       }}
                     >
@@ -617,13 +649,13 @@ export default function HistoryScreen() {
                       <TouchableOpacity
                         style={[
                           styles.languageOption,
-                          !selectedFromLanguage && styles.languageOptionSelected
+                          !tempSelectedFromLanguage && styles.languageOptionSelected
                         ]}
-                        onPress={() => setSelectedFromLanguage(null)}
+                        onPress={() => setTempSelectedFromLanguage(null)}
                       >
                         <Text style={[
                           styles.languageOptionText,
-                          !selectedFromLanguage && styles.languageOptionTextSelected
+                          !tempSelectedFromLanguage && styles.languageOptionTextSelected
                         ]}>
                           Any Language
                         </Text>
@@ -633,13 +665,13 @@ export default function HistoryScreen() {
                           key={language.code}
                           style={[
                             styles.languageOption,
-                            selectedFromLanguage === language.code && styles.languageOptionSelected
+                            tempSelectedFromLanguage === language.code && styles.languageOptionSelected
                           ]}
-                          onPress={() => setSelectedFromLanguage(language.code)}
+                          onPress={() => setTempSelectedFromLanguage(language.code)}
                         >
                           <Text style={[
                             styles.languageOptionText,
-                            selectedFromLanguage === language.code && styles.languageOptionTextSelected
+                            tempSelectedFromLanguage === language.code && styles.languageOptionTextSelected
                           ]}>
                             {language.nativeName}
                           </Text>
@@ -660,13 +692,13 @@ export default function HistoryScreen() {
                       <TouchableOpacity
                         style={[
                           styles.languageOption,
-                          !selectedToLanguage && styles.languageOptionSelected
+                          !tempSelectedToLanguage && styles.languageOptionSelected
                         ]}
-                        onPress={() => setSelectedToLanguage(null)}
+                        onPress={() => setTempSelectedToLanguage(null)}
                       >
                         <Text style={[
                           styles.languageOptionText,
-                          !selectedToLanguage && styles.languageOptionTextSelected
+                          !tempSelectedToLanguage && styles.languageOptionTextSelected
                         ]}>
                           Any Language
                         </Text>
@@ -676,13 +708,13 @@ export default function HistoryScreen() {
                           key={language.code}
                           style={[
                             styles.languageOption,
-                            selectedToLanguage === language.code && styles.languageOptionSelected
+                            tempSelectedToLanguage === language.code && styles.languageOptionSelected
                           ]}
-                          onPress={() => setSelectedToLanguage(language.code)}
+                          onPress={() => setTempSelectedToLanguage(language.code)}
                         >
                           <Text style={[
                             styles.languageOptionText,
-                            selectedToLanguage === language.code && styles.languageOptionTextSelected
+                            tempSelectedToLanguage === language.code && styles.languageOptionTextSelected
                           ]}>
                             {language.nativeName}
                           </Text>
