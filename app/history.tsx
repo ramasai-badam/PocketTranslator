@@ -16,8 +16,104 @@ import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, ChevronL
 import { router } from 'expo-router';
 import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '../utils/LanguageConfig';
+import { VocabularyManager, VocabularyEntry } from '../utils/VocabularyManager';
 
 const { width } = Dimensions.get('window');
+
+function VocabularyScreen() {
+  const [vocabularyWords, setVocabularyWords] = useState<VocabularyEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    loadVocabulary();
+  }, []);
+
+  const loadVocabulary = async () => {
+    try {
+      const words = await VocabularyManager.getAllVocabularyWords();
+      setVocabularyWords(words);
+    } catch (error) {
+      console.error('Failed to load vocabulary:', error);
+    } finally {
+      setIsLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadVocabulary();
+  };
+
+  const handleDeleteWord = (wordId: string) => {
+    Alert.alert(
+      'Delete Word',
+      'Are you sure you want to remove this word from your vocabulary?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await VocabularyManager.deleteVocabularyWord(wordId);
+              await loadVocabulary();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to delete word');
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading vocabulary...</Text>
+      </View>
+    );
+  }
+
+  return (
+    <ScrollView
+      style={styles.scrollView}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />
+      }
+      showsVerticalScrollIndicator={false}
+    >
+      {vocabularyWords.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <BookOpen size={48} color="#666" />
+          <Text style={styles.emptyTitle}>No Vocabulary Words</Text>
+          <Text style={styles.emptySubtitle}>
+            Start adding words from your translation history to build your vocabulary collection.
+          </Text>
+        </View>
+      ) : (
+        vocabularyWords.map((word) => (
+          <View key={word.id} style={styles.vocabularyItem}>
+            <View style={styles.vocabularyContent}>
+              <Text style={styles.originalText}>{word.originalText}</Text>
+              <Text style={styles.translatedText}>{word.translatedText}</Text>
+              <Text style={styles.vocabularyDate}>
+                Added {word.dateAdded}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => handleDeleteWord(word.id)}
+            >
+              <Trash2 size={16} color="#FF3B30" />
+            </TouchableOpacity>
+          </View>
+        ))
+      )}
+    </ScrollView>
+  );
+}
 
 export default function HistoryScreen() {
   const [currentView, setCurrentView] = useState<'tiles' | 'history' | 'vocabulary'>('tiles');
@@ -395,13 +491,7 @@ export default function HistoryScreen() {
   );
 
   const renderVocabularyView = () => (
-    <View style={styles.emptyContainer}>
-      <BookOpen size={48} color="#666" />
-      <Text style={styles.emptyTitle}>Vocabulary Builder</Text>
-      <Text style={styles.emptySubtitle}>
-        Coming soon! Save words and phrases to build your personal vocabulary collection.
-      </Text>
-    </View>
+    <VocabularyScreen />
   );
 
   const renderHistoryView = () => {
@@ -1500,5 +1590,24 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  vocabularyItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1A1A1A',
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  vocabularyContent: {
+    flex: 1,
+  },
+  vocabularyDate: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
   },
 });
