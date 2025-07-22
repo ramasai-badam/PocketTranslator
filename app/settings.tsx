@@ -19,40 +19,31 @@ import { getLanguageDisplayName } from '../utils/LanguageConfig';
 
 export default function SettingsScreen() {
   const [ttsVoices, setTTSVoices] = useState<TTSVoice[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    // Defer initialization to avoid blocking the navigation animation
-    const timeoutId = setTimeout(() => {
-      initializeTTSVoices();
-    }, 100);
-    
-    return () => clearTimeout(timeoutId);
+    initializeTTSVoices();
   }, []);
 
   // Refresh TTS voices when screen is focused
   useFocusEffect(
     React.useCallback(() => {
-      if (!isLoading) {
-        const timeoutId = setTimeout(() => {
-          initializeTTSVoices();
-        }, 50);
-        return () => clearTimeout(timeoutId);
-      }
+      initializeTTSVoices();
     }, [isLoading])
   );
 
   const initializeTTSVoices = async () => {
     try {
+      setIsLoading(true);
       console.log('Loading TTS voices from storage...');
       const voices = await TTSVoiceManager.getAllTTSVoices();
       console.log('TTS voices loaded:', voices.map(v => ({ code: v.code, name: v.name, isAvailable: v.isAvailable, isDefault: v.isDefault })));
       
       const voicesWithDownloading = voices.map(voice => ({ ...voice, isDownloading: false }));
       setTTSVoices(voicesWithDownloading);
-      setIsLoading(false);
     } catch (error) {
       console.error('Failed to initialize TTS voices:', error);
+    } finally {
       setIsLoading(false);
     }
   };
