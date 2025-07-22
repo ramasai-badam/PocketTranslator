@@ -10,7 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, MessageCircle, Trash2, Search, X, Calendar } from 'lucide-react-native';
+import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
 
@@ -235,7 +235,7 @@ export default function HistoryScreen() {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-          {(searchQuery.length > 0 || selectedDate) && (
+          {searchQuery.length > 0 && (
             <TouchableOpacity
               style={styles.clearSearchButton}
               onPress={clearFilters}
@@ -243,20 +243,28 @@ export default function HistoryScreen() {
               <X size={16} color="#999" />
             </TouchableOpacity>
           )}
-        </View>
-        
-        {/* Date Filter */}
-        <View style={styles.filterContainer}>
           <TouchableOpacity
-            style={[styles.dateFilterButton, selectedDate && styles.dateFilterButtonActive]}
+            style={[styles.filterButton, selectedDate && styles.filterButtonActive]}
             onPress={() => setShowDatePicker(!showDatePicker)}
           >
-            <Calendar size={16} color={selectedDate ? "#007AFF" : "#999"} />
-            <Text style={[styles.dateFilterText, selectedDate && styles.dateFilterTextActive]}>
-              {selectedDate ? formatDateHeader(selectedDate) : 'Filter by date'}
-            </Text>
+            <Filter size={16} color={selectedDate ? "#007AFF" : "#999"} />
           </TouchableOpacity>
         </View>
+        
+        {/* Selected Date Indicator */}
+        {selectedDate && (
+          <View style={styles.selectedDateContainer}>
+            <Text style={styles.selectedDateText}>
+              Showing: {formatDateHeader(selectedDate)}
+            </Text>
+            <TouchableOpacity
+              style={styles.clearDateButton}
+              onPress={() => setSelectedDate(null)}
+            >
+              <X size={14} color="#007AFF" />
+            </TouchableOpacity>
+          </View>
+        )}
         
         {/* Date Picker Dropdown */}
         {showDatePicker && (
@@ -449,34 +457,37 @@ const styles = StyleSheet.create({
     padding: 4,
     marginLeft: 8,
   },
-  filterContainer: {
-    marginTop: 12,
+  filterButton: {
+    padding: 8,
+    marginLeft: 4,
   },
-  dateFilterButton: {
+  filterButtonActive: {
+    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+    borderRadius: 4,
+  },
+  selectedDateContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A1A1A',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
+    marginTop: 8,
     borderWidth: 1,
-    borderColor: '#333',
-    gap: 8,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
   },
-  dateFilterButtonActive: {
-    borderColor: '#007AFF',
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
-  },
-  dateFilterText: {
-    color: '#999',
-    fontSize: 14,
-  },
-  dateFilterTextActive: {
+  selectedDateText: {
     color: '#007AFF',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  clearDateButton: {
+    padding: 2,
   },
   datePickerContainer: {
     position: 'absolute',
-    top: 80,
+    top: 60,
     left: 0,
     right: 0,
     backgroundColor: '#1A1A1A',
