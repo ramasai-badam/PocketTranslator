@@ -21,6 +21,18 @@ export interface LanguagePairConversation {
   totalEntries: number;
 }
 
+export interface VocabularyEntry {
+  id: string;
+  originalWord: string;
+  translatedWord: string;
+  fromLanguage: string;
+  toLanguage: string;
+  timestamp: number;
+  notes?: string;
+}
+
+const VOCABULARY_STORAGE_KEY = 'vocabularyList';
+
 export class TranslationHistoryManager {
   /**
    * Save a new translation to history
@@ -258,5 +270,89 @@ export class TranslationHistoryManager {
       totalTranslations,
       mostUsedLanguagePair,
     };
+  }
+
+  /**
+   * Save a vocabulary entry
+   */
+  static async saveVocabularyEntry(
+    originalWord: string,
+    translatedWord: string,
+    fromLanguage: string,
+    toLanguage: string,
+    notes?: string
+  ): Promise<void> {
+    try {
+      const entry: VocabularyEntry = {
+        id: `vocab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        originalWord,
+        translatedWord,
+        fromLanguage,
+        toLanguage,
+        timestamp: Date.now(),
+        notes,
+      };
+
+      const vocabularyList = await this.getVocabularyList();
+      
+      // Check if this word pair already exists
+      const existingEntry = vocabularyList.find(
+        v => v.originalWord.toLowerCase() === originalWord.toLowerCase() && 
+             v.fromLanguage === fromLanguage && 
+             v.toLanguage === toLanguage
+      );
+      
+      if (existingEntry) {
+        throw new Error('This word is already in your vocabulary list');
+      }
+
+      vocabularyList.push(entry);
+      await AsyncStorage.setItem(VOCABULARY_STORAGE_KEY, JSON.stringify(vocabularyList));
+      console.log('Vocabulary entry saved:', entry);
+    } catch (error) {
+      console.error('Failed to save vocabulary entry:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all vocabulary entries
+   */
+  static async getVocabularyList(): Promise<VocabularyEntry[]> {
+    try {
+      const stored = await AsyncStorage.getItem(VOCABULARY_STORAGE_KEY);
+      const vocabularyList = stored ? JSON.parse(stored) : [];
+      return vocabularyList.sort((a, b) => b.timestamp - a.timestamp);
+    } catch (error) {
+      console.error('Failed to load vocabulary list:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Delete a vocabulary entry
+   */
+  static async deleteVocabularyEntry(entryId: string): Promise<void> {
+    try {
+      const vocabularyList = await this.getVocabularyList();
+      const filteredList = vocabularyList.filter(entry => entry.id !== entryId);
+      await AsyncStorage.setItem(VOCABULARY_STORAGE_KEY, JSON.stringify(filteredList));
+      console.log(`Vocabulary entry ${entryId} deleted`);
+    } catch (error) {
+      console.error('Failed to delete vocabulary entry:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Clear all vocabulary entries
+   */
+  static async clearVocabulary(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem(VOCABULARY_STORAGE_KEY);
+      console.log('Vocabulary cleared');
+    } catch (error) {
+      console.error('Failed to clear vocabulary:', error);
+    }
   }
 }
