@@ -487,6 +487,21 @@ export default function HistoryScreen() {
         <Text style={styles.tileTitle}>Translation History</Text>
         <Text style={styles.tileSubtitle}>Review past conversations</Text>
       </TouchableOpacity>
+
+      {/* My Vocabulary Button */}
+      <TouchableOpacity
+        style={styles.vocabularyButton}
+        onPress={() => router.push('/vocabulary-list')}
+        activeOpacity={0.7}
+      >
+        <View style={styles.vocabularyButtonContent}>
+          <Text style={styles.vocabularyButtonIcon}>📚</Text>
+          <View style={styles.vocabularyButtonText}>
+            <Text style={styles.vocabularyButtonTitle}>My Vocabulary</Text>
+            <Text style={styles.vocabularyButtonSubtitle}>Practice saved words</Text>
+          </View>
+        </View>
+      </TouchableOpacity>
     </View>
   );
 
@@ -1009,20 +1024,6 @@ export default function HistoryScreen() {
             <Trash2 size={20} color={Object.keys(translationsByDay).length > 0 ? "#FF3B30" : "#666"} />
           </TouchableOpacity>
         )}
-        
-        {/* Vocabulary Button */}
-        <TouchableOpacity
-          style={styles.vocabularyButton}
-          onPress={() => router.push('/vocabulary-list')}
-        >
-          <View style={styles.vocabularyButtonContent}>
-            <Text style={styles.vocabularyButtonIcon}>📚</Text>
-            <View style={styles.vocabularyButtonText}>
-              <Text style={styles.vocabularyButtonTitle}>My Vocabulary</Text>
-              <Text style={styles.vocabularyButtonSubtitle}>Practice saved words</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
         {currentView !== 'history' && <View style={styles.headerSpacer} />}
       </View>
 
@@ -1627,8 +1628,6 @@ const styles = StyleSheet.create({
   },
   vocabularyButton: {
     backgroundColor: '#1A1A1A',
-    marginHorizontal: 20,
-    marginBottom: 16,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
