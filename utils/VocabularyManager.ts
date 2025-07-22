@@ -11,6 +11,7 @@ export interface VocabularyEntry {
   translatedLanguage: string;
   timestamp: number;
   dateAdded: string; // Human-readable date
+  sourceTranslationEntryId?: string; // Link back to original translation
 }
 
 export class VocabularyManager {
@@ -21,7 +22,8 @@ export class VocabularyManager {
     originalText: string,
     translatedText: string,
     originalLanguage: string,
-    translatedLanguage: string
+    translatedLanguage: string,
+    sourceTranslationEntryId?: string
   ): Promise<{ success: boolean; message: string; isDuplicate?: boolean }> {
     try {
       // Check for duplicates first
@@ -48,6 +50,7 @@ export class VocabularyManager {
         translatedLanguage,
         timestamp: Date.now(),
         dateAdded: new Date().toLocaleDateString(),
+        sourceTranslationEntryId,
       };
 
       existingWords.push(entry);

@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, Volume2, Trash2, User, BookmarkPlus } from 'lucide-react-native';
+import { ArrowLeft, Volume2, Trash2, User, Bookmark } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { TranslationHistoryManager, TranslationEntry } from '../utils/TranslationHistory';
@@ -25,9 +25,11 @@ export default function ConversationDetailScreen() {
   const [entries, setEntries] = useState<TranslationEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [bookmarkedEntries, setBookmarkedEntries] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     loadConversationEntries();
+    loadBookmarkedEntries();
   }, [languagePair]);
 
   const loadConversationEntries = async () => {
@@ -52,9 +54,19 @@ export default function ConversationDetailScreen() {
     }
   };
 
+  const loadBookmarkedEntries = async () => {
+    try {
+      const vocabularyWords = await VocabularyManager.getAllVocabularyWords();
+      const bookmarked = new Set(vocabularyWords.map(word => word.sourceTranslationEntryId).filter(Boolean));
+      setBookmarkedEntries(bookmarked);
+    } catch (error) {
+      console.error('Failed to load bookmarked entries:', error);
+    }
+  };
   const onRefresh = () => {
     setRefreshing(true);
     loadConversationEntries();
+    loadBookmarkedEntries();
   };
 
   const handleSpeak = async (text: string, language: string) => {
@@ -98,14 +110,23 @@ export default function ConversationDetailScreen() {
 
   const handleAddToVocabulary = async (entry: TranslationEntry) => {
     try {
+      const isBookmarked = bookmarkedEntries.has(entry.id);
+      
+      if (isBookmarked) {
+        Alert.alert('Already Bookmarked', 'This translation is already saved to your vocabulary');
+        return;
+      }
+
       const result = await VocabularyManager.saveVocabularyWord(
         entry.originalText,
         entry.translatedText,
         entry.fromLanguage,
-        entry.toLanguage
+        entry.toLanguage,
+        entry.id
       );
 
       if (result.success) {
+        setBookmarkedEntries(prev => new Set([...prev, entry.id]));
         Alert.alert('Success', result.message);
       } else {
         Alert.alert(
@@ -232,7 +253,11 @@ export default function ConversationDetailScreen() {
                     style={styles.addToVocabButton}
                     onPress={() => handleAddToVocabulary(entry)}
                   >
-                    <BookmarkPlus size={16} color="#34C759" />
+                    <Bookmark 
+                      size={16} 
+                      color={bookmarkedEntries.has(entry.id) ? "#34C759" : "#666"}
+                      fill={bookmarkedEntries.has(entry.id) ? "#34C759" : "none"}
+                    />
                   </TouchableOpacity>
                 </View>
               </View>
