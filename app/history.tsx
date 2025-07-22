@@ -488,9 +488,6 @@ export default function HistoryScreen() {
                   onPress={() => setShowCalendar(!showCalendar)}
                 >
                   <Calendar size={16} color="#007AFF" />
-                  <Text style={styles.calendarToggleText}>
-                    {showCalendar ? 'Hide Calendar' : 'Show Calendar'}
-                  </Text>
                 </TouchableOpacity>
 
                 {/* Calendar */}
