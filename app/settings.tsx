@@ -22,14 +22,22 @@ export default function SettingsScreen() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    initializeTTSVoices();
+    // Defer initialization to avoid blocking the navigation animation
+    const timeoutId = setTimeout(() => {
+      initializeTTSVoices();
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
   }, []);
 
   // Refresh TTS voices when screen is focused
   useFocusEffect(
     React.useCallback(() => {
       if (!isLoading) {
-        initializeTTSVoices();
+        const timeoutId = setTimeout(() => {
+          initializeTTSVoices();
+        }, 50);
+        return () => clearTimeout(timeoutId);
       }
     }, [isLoading])
   );

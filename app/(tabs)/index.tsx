@@ -256,13 +256,23 @@ export default function TranslatorScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.historyButton}
-          onPress={() => router.push('/history')}
+          onPress={() => {
+            requestAnimationFrame(() => {
+              router.push('/history');
+            });
+          }}
+          activeOpacity={0.7}
         >
           <Text style={styles.historyButtonText}>📚</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.settingsButton}
-          onPress={() => router.push('/settings')}
+          onPress={() => {
+            requestAnimationFrame(() => {
+              router.push('/settings');
+            });
+          }}
+          activeOpacity={0.7}
         >
           <Settings size={24} color="#FFF" />
         </TouchableOpacity>
