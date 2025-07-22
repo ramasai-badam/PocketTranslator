@@ -210,13 +210,10 @@ export default function HistoryScreen() {
 
   const formatDateHeader = (dateString: string) => {
     const date = new Date(dateString);
-    const today = new Date();
-    const yesterday = new Date(today);
+    const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
 
-    if (date.toDateString() === today.toDateString()) {
-      return 'Today';
-    } else if (date.toDateString() === yesterday.toDateString()) {
+    if (date.toDateString() === yesterday.toDateString()) {
       return 'Yesterday';
     } else {
       return date.toLocaleDateString([], { 
