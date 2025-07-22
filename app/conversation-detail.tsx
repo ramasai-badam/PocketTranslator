@@ -224,6 +224,12 @@ export default function ConversationDetailScreen() {
                   <Text style={[styles.speakerLabel, { color: getSpeakerColor(entry.speaker) }]}>
                     {entry.speaker === 'user1' ? 'Speaker 1' : 'Speaker 2'}
                   </Text>
+                  <TouchableOpacity
+                    style={styles.addToVocabButton}
+                    onPress={() => handleAddToVocabulary(entry)}
+                  >
+                    <BookmarkPlus size={16} color="#34C759" />
+                  </TouchableOpacity>
                 </View>
                 <Text style={styles.entryTime}>{formatDate(entry.timestamp)}</Text>
               </View>
@@ -240,12 +246,6 @@ export default function ConversationDetailScreen() {
                       onPress={() => handleSpeak(entry.originalText, entry.fromLanguage)}
                     >
                       <Volume2 size={16} color="#007AFF" />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.addToVocabButton}
-                      onPress={() => handleAddToVocabulary(entry)}
-                    >
-                      <BookmarkPlus size={16} color="#34C759" />
                     </TouchableOpacity>
                   </View>
                 </View>
