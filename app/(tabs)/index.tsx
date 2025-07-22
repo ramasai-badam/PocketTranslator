@@ -11,7 +11,7 @@ import {
   Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, Languages } from 'lucide-react-native';
+import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, Languages, BarChart3 } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
 import { SUPPORTED_LANGUAGES, getLanguageDisplayName } from '../utils/LanguageConfig';
@@ -26,6 +26,11 @@ export default function HistoryScreen() {
   const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month'>('all');
   const [languagePairFilter, setLanguagePairFilter] = useState<string>('all');
   const [availableLanguagePairs, setAvailableLanguagePairs] = useState<string[]>([]);
+  const [statistics, setStatistics] = useState({
+    totalConversations: 0,
+    totalTranslations: 0,
+    mostUsedLanguagePair: null,
+  });
 
   useEffect(() => {
     loadTranslations();
@@ -121,8 +126,12 @@ export default function HistoryScreen() {
 
   const loadTranslations = async () => {
     try {
-      const convs = await TranslationHistoryManager.getTranslationsByDay();
+      const [convs, stats] = await Promise.all([
+        TranslationHistoryManager.getTranslationsByDay(),
+        TranslationHistoryManager.getStatistics(),
+      ]);
       setTranslationsByDay(convs);
+      setStatistics(stats);
       
       // Extract available language pairs for filter
       const pairs = getAvailableLanguagePairs(convs);
@@ -189,6 +198,11 @@ export default function HistoryScreen() {
               await TranslationHistoryManager.clearAllHistory();
               setTranslationsByDay({});
               setAvailableLanguagePairs([]);
+              setStatistics({
+                totalConversations: 0,
+                totalTranslations: 0,
+                mostUsedLanguagePair: null,
+              });
               Alert.alert('Success', 'All translation history has been cleared');
             } catch (error) {
               Alert.alert('Error', 'Failed to clear history');
@@ -263,6 +277,28 @@ export default function HistoryScreen() {
           <Trash2 size={20} color={Object.keys(translationsByDay).length > 0 ? "#FF3B30" : "#666"} />
         </TouchableOpacity>
       </View>
+
+      {/* Statistics */}
+      <View style={styles.statsContainer}>
+        <View style={styles.statItem}>
+          <BarChart3 size={20} color="#007AFF" />
+          <Text style={styles.statNumber}>{statistics.totalTranslations}</Text>
+          <Text style={styles.statLabel}>Translations</Text>
+        </View>
+        <View style={styles.statItem}>
+          <MessageCircle size={20} color="#34C759" />
+          <Text style={styles.statNumber}>{statistics.totalConversations}</Text>
+          <Text style={styles.statLabel}>Conversations</Text>
+        </View>
+      </View>
+
+      {statistics.mostUsedLanguagePair && (
+        <View style={styles.mostUsedContainer}>
+          <Text style={styles.mostUsedText}>
+            Most practiced: {statistics.mostUsedLanguagePair}
+          </Text>
+        </View>
+      )}
 
       {/* Search and Filter */}
       <View style={styles.searchContainer}>
@@ -797,492 +833,6 @@ const styles = StyleSheet.create({
   translationItem: {
     flexDirection: 'row',
     alignItems: 'center',
-        );
-
-        if (matchingEntries.length > 0) {
-          if (!filtered[dateKey]) {
-            filtered[dateKey] = {};
-          }
-          filtered[dateKey][languagePair] = {
-            conversation,
-            entries: matchingEntries
-          };
-        }
-      });
-    });
-
-    setFilteredTranslationsByDay(filtered);
-  }, [searchQuery, translationsByDay]);
-
-  const loadTranslations = async () => {
-    try {
-      const [convs, stats] = await Promise.all([
-        TranslationHistoryManager.getTranslationsByDay(),
-        TranslationHistoryManager.getStatistics(),
-      ]);
-      setTranslationsByDay(convs);
-      setStatistics(stats);
-    } catch (error) {
-      console.error('Failed to load translations:', error);
-      Alert.alert('Error', 'Failed to load translation history');
-    } finally {
-      setIsLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  const onRefresh = () => {
-    setRefreshing(true);
-    loadTranslations();
-  };
-
-  const handleConversationPress = (conversation: LanguagePairConversation) => {
-    // Navigate to conversation detail screen
-    router.push({
-      pathname: '/conversation-detail',
-      params: {
-        languagePair: conversation.languagePair,
-        displayName: conversation.displayName,
-      },
-    });
-  };
-
-  const handleDeleteTranslation = (translationId: string) => {
-    Alert.alert(
-      'Delete Translation',
-      'Are you sure you want to delete this translation?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await TranslationHistoryManager.deleteTranslation(translationId);
-              await loadTranslations(); // Reload data
-              Alert.alert('Success', 'Translation deleted successfully');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete translation');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleClearAllHistory = () => {
-    Alert.alert(
-      'Clear All History',
-      'Are you sure you want to delete all translation history? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await TranslationHistoryManager.clearAllHistory();
-              setTranslationsByDay({});
-              setStatistics({
-                totalConversations: 0,
-                totalTranslations: 0,
-                mostUsedLanguagePair: null,
-              });
-              Alert.alert('Success', 'All translation history has been cleared');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to clear history');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const formatDateHeader = (dateString: string) => {
-    const date = new Date(dateString);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (date.toDateString() === today.toDateString()) {
-      return 'Today';
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
-    } else {
-      return date.toLocaleDateString([], { 
-        weekday: 'long', 
-        month: 'long', 
-        day: 'numeric' 
-      });
-    }
-  };
-
-  const formatDate = (timestamp: number) => {
-    return new Date(timestamp).toLocaleTimeString([], { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
-
-  const getTotalTranslations = () => {
-    return Object.values(filteredTranslationsByDay).reduce((total, dayData) => {
-      return total + Object.values(dayData).reduce((dayTotal, { entries }) => dayTotal + entries.length, 0);
-    }, 0);
-  };
-
-  if (isLoading) {
-    return (
-      <View style={styles.container}>
-        <StatusBar style="light" />
-        <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading history...</Text>
-        </View>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
-      
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <ArrowLeft size={24} color="#FFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Translation History</Text>
-        <TouchableOpacity
-          style={styles.clearButton}
-          onPress={handleClearAllHistory}
-          disabled={Object.keys(translationsByDay).length === 0}
-        >
-          <Trash2 size={20} color={Object.keys(translationsByDay).length > 0 ? "#FF3B30" : "#666"} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Statistics */}
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <BarChart3 size={20} color="#007AFF" />
-          <Text style={styles.statNumber}>{statistics.totalTranslations}</Text>
-          <Text style={styles.statLabel}>Translations</Text>
-        </View>
-        <View style={styles.statItem}>
-          <MessageCircle size={20} color="#34C759" />
-          <Text style={styles.statNumber}>{statistics.totalConversations}</Text>
-          <Text style={styles.statLabel}>Conversations</Text>
-        </View>
-      </View>
-
-      {statistics.mostUsedLanguagePair && (
-        <View style={styles.mostUsedContainer}>
-          <Text style={styles.mostUsedText}>
-            Most practiced: {statistics.mostUsedLanguagePair}
-          </Text>
-        </View>
-      )}
-
-      {/* Search */}
-      <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Search size={20} color="#999" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search translations..."
-            placeholderTextColor="#999"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity
-              style={styles.clearSearchButton}
-              onPress={() => setSearchQuery('')}
-            >
-              <X size={16} color="#999" />
-            </TouchableOpacity>
-          )}
-        </View>
-      </View>
-
-      {/* Translations by Day */}
-      <ScrollView
-        style={styles.scrollView}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />
-        }
-        showsVerticalScrollIndicator={false}
-      >
-        {Object.keys(filteredTranslationsByDay).length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <MessageCircle size={48} color="#666" />
-            <Text style={styles.emptyTitle}>
-              {searchQuery ? 'No matching translations' : 'No Translation History'}
-            </Text>
-            <Text style={styles.emptySubtitle}>
-              {searchQuery ? 'Try a different search term' : 'Start translating to build your learning history'}
-            </Text>
-          </View>
-        ) : (
-          // Sort dates (newest first)
-          Object.keys(filteredTranslationsByDay)
-            .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-            .map((dateKey) => (
-              <View key={dateKey} style={styles.daySection}>
-                {/* Day Header */}
-                <Text style={styles.dayHeader}>{formatDateHeader(dateKey)}</Text>
-                
-                {/* Language Pairs for this day */}
-                {Object.keys(filteredTranslationsByDay[dateKey]).map((languagePair) => {
-                  const { conversation, entries } = filteredTranslationsByDay[dateKey][languagePair];
-                  return (
-                    <View key={`${dateKey}-${languagePair}`} style={styles.languagePairSection}>
-                      {/* Language Pair Header */}
-                      <TouchableOpacity
-                        style={styles.languagePairHeader}
-                        onPress={() => handleConversationPress(conversation)}
-                      >
-                        <Text style={styles.languagePairTitle}>
-                          {conversation.displayName}
-                        </Text>
-                        <View style={styles.languagePairInfo}>
-                          <Text style={styles.entryCount}>
-                            {entries.length} translation{entries.length !== 1 ? 's' : ''}
-                          </Text>
-                          <Text style={styles.arrowText}>›</Text>
-                        </View>
-                      </TouchableOpacity>
-                      
-                      {/* Individual Translations */}
-                      {entries.slice(0, 3).map((entry) => (
-                        <View key={entry.id} style={styles.translationItem}>
-                          <View style={styles.translationContent}>
-                            <Text style={styles.originalText} numberOfLines={1}>
-                              {entry.originalText}
-                            </Text>
-                            <Text style={styles.translatedText} numberOfLines={1}>
-                              {entry.translatedText}
-                            </Text>
-                            <Text style={styles.translationTime}>
-                              {formatDate(entry.timestamp)}
-                            </Text>
-                          </View>
-                          <TouchableOpacity
-                            style={styles.deleteButton}
-                            onPress={() => handleDeleteTranslation(entry.id)}
-                          >
-                            <Trash2 size={16} color="#FF3B30" />
-                          </TouchableOpacity>
-                        </View>
-                      ))}
-                      
-                      {entries.length > 3 && (
-                        <TouchableOpacity
-                          style={styles.viewMoreButton}
-                          onPress={() => handleConversationPress(conversation)}
-                        >
-                          <Text style={styles.viewMoreText}>
-                            View {entries.length - 3} more translation{entries.length - 3 !== 1 ? 's' : ''}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            ))
-        )}
-      </ScrollView>
-
-      {Object.keys(filteredTranslationsByDay).length > 0 && (
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
-            💡 Tip: Tap any conversation to review and practice your translations
-          </Text>
-        </View>
-      )}
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#FFF',
-    fontSize: 16,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 20,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFF',
-    flex: 1,
-    textAlign: 'center',
-  },
-  clearButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  searchContainer: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  searchInputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1A1A1A',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  searchIcon: {
-    marginRight: 12,
-  },
-  searchInput: {
-    flex: 1,
-    color: '#FFF',
-    fontSize: 16,
-    paddingVertical: 12,
-  },
-  clearSearchButton: {
-    padding: 4,
-    marginLeft: 8,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    gap: 20,
-  },
-  statItem: {
-    flex: 1,
-    backgroundColor: '#1A1A1A',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    gap: 8,
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFF',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'center',
-  },
-  mostUsedContainer: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 12,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
-  },
-  mostUsedText: {
-    color: '#007AFF',
-    fontSize: 14,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFF',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: '#999',
-    textAlign: 'center',
-    paddingHorizontal: 40,
-  },
-  daySection: {
-    marginBottom: 24,
-  },
-  dayHeader: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginHorizontal: 20,
-    marginBottom: 12,
-  },
-  languagePairSection: {
-    backgroundColor: '#1A1A1A',
-    marginHorizontal: 20,
-    marginBottom: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#333',
-    overflow: 'hidden',
-  },
-  languagePairHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  languagePairTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
-    flex: 1,
-  },
-  languagePairInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  entryCount: {
-    fontSize: 12,
-    color: '#999',
-  },
-  translationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
     padding: 12,
     borderTopWidth: 1,
     borderTopColor: '#333',
@@ -1335,5 +885,44 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    gap: 20,
+  },
+  statItem: {
+    flex: 1,
+    backgroundColor: '#1A1A1A',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    gap: 8,
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFF',
+  },
+  statLabel: {
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+  },
+  mostUsedContainer: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 12,
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 122, 255, 0.3)',
+  },
+  mostUsedText: {
+    color: '#007AFF',
+    fontSize: 14,
+    textAlign: 'center',
+    fontWeight: '500',
   },
 });
