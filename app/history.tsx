@@ -168,6 +168,14 @@ export default function HistoryScreen() {
       });
     }
   };
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
   const getTotalTranslations = () => {
     return Object.values(filteredTranslationsByDay).reduce((total, dayData) => {
       return total + Object.values(dayData).reduce((dayTotal, { entries }) => dayTotal + entries.length, 0);
@@ -335,7 +343,6 @@ export default function HistoryScreen() {
                     </View>
                   );
                 })}
-                </View>
               </View>
             ))
         )}
@@ -566,27 +573,6 @@ const styles = StyleSheet.create({
   },
   arrowText: {
     fontSize: 16,
-    color: '#666',
-    fontWeight: 'bold',
-  },
-  footer: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
-  },
-  footerText: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-});
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  arrowText: {
-    fontSize: 18,
     color: '#666',
     fontWeight: 'bold',
   },
