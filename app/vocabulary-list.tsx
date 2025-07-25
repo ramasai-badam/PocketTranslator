@@ -90,15 +90,34 @@ export default function VocabularyListScreen() {
 
   const handleSpellWord = async (word: string, languageCode: string) => {
     try {
-      // Clean the word of punctuation for better pronunciation
-      const cleanWord = word.replace(/[^\w\s]/gi, '').trim();
+      // Only trim whitespace, preserve all characters for proper pronunciation
+      const cleanWord = word.trim();
       if (!cleanWord) return;
 
-      // Speak the word slowly for spelling practice
+      // Check if TTS voice is available for this language
+      const isVoiceAvailable = await TTSVoiceManager.canSpeakLanguage(languageCode);
+      
+      if (!isVoiceAvailable) {
+        const languageName = getLanguageDisplayName(languageCode);
+        Alert.alert(
+          'TTS Voice Not Available',
+          `Text-to-speech voice for ${languageName} is not available. Would you like to enable it?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Enable',
+              onPress: () => router.push('/settings')
+            }
+          ]
+        );
+        return;
+      }
+
+      // Speak the word at natural pace for better pronunciation
       Speech.speak(cleanWord, {
         language: languageCode,
         pitch: 1.0,
-        rate: 0.4, // Slower rate for better pronunciation practice
+        rate: 0.8, // Natural rate for better pronunciation
       });
     } catch (error) {
       console.error('Failed to spell word:', error);
