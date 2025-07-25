@@ -90,15 +90,20 @@ export default function VocabularyListScreen() {
 
   const handleSpellWord = async (word: string, languageCode: string) => {
     try {
-      // Clean the word of punctuation for better pronunciation
-      const cleanWord = word.replace(/[^\w\s]/gi, '').trim();
+      // Just trim whitespace, don't remove special characters or accents
+      const cleanWord = word.trim();
       if (!cleanWord) return;
 
-      // Speak the word slowly for spelling practice
+      // For Japanese, Chinese, Korean - speak at normal rate
+      // For other languages - speak slower for spelling practice
+      const isAsianLanguage = ['ja', 'ja-JP', 'zh', 'zh-CN', 'zh-TW', 'ko', 'ko-KR'].includes(languageCode);
+      const speechRate = isAsianLanguage ? 1.0 : 0.8;
+
+      // Speak the word
       Speech.speak(cleanWord, {
         language: languageCode,
         pitch: 1.0,
-        rate: 0.8, // Slower rate for better pronunciation practice
+        rate: speechRate,
       });
     } catch (error) {
       console.error('Failed to spell word:', error);
