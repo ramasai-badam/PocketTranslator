@@ -91,8 +91,21 @@ export default function LinguisticBreakdownScreen() {
   };
 
   const getOriginalLanguageKey = () => {
-    // Return the actual language code as the key since the prompt now uses ${fromLanguage} directly
-    return originalLanguage;
+    // Map language codes to the key used in the mock data
+    const keyMap: { [key: string]: string } = {
+      'ja': 'japanese',
+      'es': 'spanish',
+      'fr': 'french',
+      'de': 'german',
+      'it': 'italian',
+      'pt': 'portuguese',
+      'ru': 'russian',
+      'ko': 'korean',
+      'zh': 'chinese',
+      'ar': 'arabic',
+      'hi': 'hindi',
+    };
+    return keyMap[originalLanguage] || 'original';
   };
 
   if (isLoading) {
@@ -177,10 +190,10 @@ export default function LinguisticBreakdownScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Translation</Text>
           <View style={styles.sentenceContainer}>
-            <Text style={styles.translationText}>{translatedText}</Text>
+            <Text style={styles.translationText}>{analysis.english_translation}</Text>
             <TouchableOpacity
               style={styles.pronounceButton}
-              onPress={() => handlePronounceToken(translatedText, translatedLanguage)}
+              onPress={() => handlePronounceToken(analysis.english_translation, 'en')}
             >
               <Volume2 size={20} color="#007AFF" />
             </TouchableOpacity>
@@ -227,16 +240,16 @@ export default function LinguisticBreakdownScreen() {
                 {selectedTokenIndex === index && (
                   <View style={styles.tokenDetails}>
                     <View style={styles.tokenDetailRow}>
-                      <Text style={styles.tokenDetailLabel}>{getLanguageDisplayName(translatedLanguage)}:</Text>
-                      <Text style={styles.tokenDetailValue}>{token[translatedLanguage]}</Text>
+                      <Text style={styles.tokenDetailLabel}>English:</Text>
+                      <Text style={styles.tokenDetailValue}>{token.english}</Text>
                     </View>
                     <View style={styles.tokenDetailRow}>
                       <Text style={styles.tokenDetailLabel}>Part of Speech:</Text>
                       <Text style={styles.tokenDetailValue}>{token.part_of_speech}</Text>
                     </View>
                     <View style={styles.tokenDetailRow}>
-                      <Text style={styles.tokenDetailLabel}>Grammar Role:</Text>
-                      <Text style={styles.tokenDetailValue}>{token.grammatical_relation}</Text>
+                      <Text style={styles.tokenDetailLabel}>Relation:</Text>
+                      <Text style={styles.tokenDetailValue}>{token.relation}</Text>
                     </View>
                   </View>
                 )}
@@ -247,8 +260,8 @@ export default function LinguisticBreakdownScreen() {
 
         {/* Grammatical Explanation */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Grammar Structure</Text>
-          <Text style={styles.explanationText}>{analysis.grammatical_explanation}</Text>
+          <Text style={styles.sectionTitle}>Grammatical Relations</Text>
+          <Text style={styles.explanationText}>{analysis.explanation}</Text>
         </View>
       </ScrollView>
 

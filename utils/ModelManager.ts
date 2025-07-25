@@ -400,6 +400,12 @@ Provide the analysis in strict JSON format with these exact fields:
 
 IMPORTANT:
 - Break down EVERY word/token in the sentence
+- Fill ALL fields including english_translation, sentence_meaning, and explanation
+- sentence_meaning should explain the context and nuance of the sentence
+- explanation should describe the grammatical structure and relationships
+- Each token must have translations to both English and ${toLanguage}
+- Ensure the JSON object is complete and properly closed
+- Return ONLY the complete JSON object
 <end_of_turn>
 <start_of_turn>model
 `;
