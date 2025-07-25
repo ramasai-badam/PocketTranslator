@@ -362,22 +362,21 @@ Give only the ${toLang} translation.<end_of_turn>
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
-}
 
- // Mock linguistic analysis for UI testing
- static async getLinguisticAnalysisWithLlama(
-   originalText: string,
-   fromLanguage: string,
-   translatedText: string,
-   toLanguage: string
- ): Promise<any> {
-   // Simulate LLM processing time
-   await new Promise(resolve => setTimeout(resolve, 2000));
-   
-   // Mock data based on the language pair
-   if (fromLanguage === 'ja' && toLanguage === 'en') {
-     return {
-       sentence: originalText,
+  // Mock linguistic analysis for UI testing
+  static async getLinguisticAnalysisWithLlama(
+    originalText: string,
+    fromLanguage: string,
+    translatedText: string,
+    toLanguage: string
+  ): Promise<any> {
+    // Simulate LLM processing time
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Mock data based on the language pair
+    if (fromLanguage === 'ja' && toLanguage === 'en') {
+      return {
+        sentence: originalText,
        tokens: [
          {
            japanese: "あなた",
@@ -471,4 +470,5 @@ Give only the ${toLang} translation.<end_of_turn>
        explanation: "This is a mock analysis showing how words relate to each other in the sentence structure."
      };
    }
- }
+  }
+}
