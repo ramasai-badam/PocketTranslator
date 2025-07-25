@@ -363,3 +363,112 @@ Give only the ${toLang} translation.<end_of_turn>
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   }
 }
+
+ // Mock linguistic analysis for UI testing
+ static async getLinguisticAnalysisWithLlama(
+   originalText: string,
+   fromLanguage: string,
+   translatedText: string,
+   toLanguage: string
+ ): Promise<any> {
+   // Simulate LLM processing time
+   await new Promise(resolve => setTimeout(resolve, 2000));
+   
+   // Mock data based on the language pair
+   if (fromLanguage === 'ja' && toLanguage === 'en') {
+     return {
+       sentence: originalText,
+       tokens: [
+         {
+           japanese: "あなた",
+           english: "you",
+           part_of_speech: "pronoun",
+           relation: "subject"
+         },
+         {
+           japanese: "の",
+           english: "possessive particle",
+           part_of_speech: "particle",
+           relation: "possessive link to '名前'"
+         },
+         {
+           japanese: "名前",
+           english: "name",
+           part_of_speech: "noun",
+           relation: "object of the possessive particle 'の'"
+         },
+         {
+           japanese: "は",
+           english: "topic marker",
+           part_of_speech: "particle",
+           relation: "topic of the question"
+         },
+         {
+           japanese: "何",
+           english: "what",
+           part_of_speech: "pronoun",
+           relation: "question word"
+         },
+         {
+           japanese: "です",
+           english: "is",
+           part_of_speech: "copula",
+           relation: "verb, indicates a state of being"
+         },
+         {
+           japanese: "か",
+           english: "question marker",
+           part_of_speech: "particle",
+           relation: "marks the sentence as a question"
+         }
+       ],
+       english_translation: translatedText,
+       sentence_meaning: "This sentence asks the listener for their name.",
+       explanation: "Subject-Object: 'あなた' (you) is the subject and '名前' (name) is the object of the possessive.\n\nPossessive Link: 'の' (possessive particle) links 'あなた' (you) to '名前' (name), indicating that 'name' belongs to 'you'.\n\nTopic Marker: 'は' (topic marker) indicates that '名前' (name) is the topic of the sentence.\n\nQuestion Word: '何' (what) is the question word.\n\nCopula: 'です' (is) is the copula, which connects the subject and predicate in a declarative sentence.\n\nQuestion Marker: 'か' (question marker) transforms the sentence into a question."
+     };
+   } else if (fromLanguage === 'es' && toLanguage === 'en') {
+     return {
+       sentence: originalText,
+       tokens: [
+         {
+           spanish: "Hola",
+           english: "hello",
+           part_of_speech: "interjection",
+           relation: "greeting"
+         },
+         {
+           spanish: "¿cómo",
+           english: "how",
+           part_of_speech: "adverb",
+           relation: "question word asking about manner"
+         },
+         {
+           spanish: "estás?",
+           english: "are you",
+           part_of_speech: "verb",
+           relation: "second person singular present tense of 'estar'"
+         }
+       ],
+       english_translation: translatedText,
+       sentence_meaning: "This is a casual greeting asking about someone's current state or well-being.",
+       explanation: "Greeting: 'Hola' is a standard informal greeting in Spanish.\n\nQuestion Formation: '¿cómo estás?' uses the interrogative word 'cómo' (how) with the verb 'estar' (to be) in the second person singular form.\n\nVerb Choice: Spanish uses 'estar' (temporary state) rather than 'ser' (permanent state) when asking about someone's current condition or feelings."
+     };
+   } else {
+     // Generic mock for other language pairs
+     const words = originalText.split(/\s+/).filter(w => w.length > 0);
+     const translatedWords = translatedText.split(/\s+/).filter(w => w.length > 0);
+     
+     return {
+       sentence: originalText,
+       tokens: words.map((word, index) => ({
+         original: word,
+         english: translatedWords[index] || "translation",
+         part_of_speech: "word",
+         relation: `word ${index + 1} in the sentence`
+       })),
+       english_translation: translatedText,
+       sentence_meaning: "This sentence demonstrates the linguistic breakdown feature.",
+       explanation: "This is a mock analysis showing how words relate to each other in the sentence structure."
+     };
+   }
+ }

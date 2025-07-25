@@ -9,7 +9,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, Volume2, Trash2, BookOpen } from 'lucide-react-native';
+import { ArrowLeft, Volume2, Trash2, BookOpen, GraduationCap } from 'lucide-react-native';
 import { router } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { VocabularyManager, VocabularyEntry } from '../utils/VocabularyManager';
@@ -227,6 +227,20 @@ export default function VocabularyListScreen() {
                   >
                     <Volume2 size={16} color="#007AFF" />
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.breakdownButton}
+                    onPress={() => router.push({
+                      pathname: '/linguistic-breakdown',
+                      params: {
+                        originalText: word.originalText,
+                        translatedText: word.translatedText,
+                        originalLanguage: word.originalLanguage,
+                        translatedLanguage: word.translatedLanguage,
+                      }
+                    })}
+                  >
+                    <GraduationCap size={16} color="#34C759" />
+                  </TouchableOpacity>
                 </View>
                 {renderInteractiveText(word.originalText, word.originalLanguage)}
               </View>
@@ -397,6 +411,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   speakButton: {
+    padding: 4,
+  },
+  breakdownButton: {
     padding: 4,
   },
   interactiveTextContainer: {
