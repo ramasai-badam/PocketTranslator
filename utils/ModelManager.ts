@@ -416,9 +416,9 @@ IMPORTANT:
       const result = await llamaContext.completion({
         prompt,
         n_predict: 1500, // Further increase token limit to avoid truncation
-        temperature: 0.1,
-        top_p: 0.9,
-        top_k: 40,
+        temperature: 0.0,
+        top_p: 0.1,
+        top_k: 1,
         stop: ['<end_of_turn>', '<start_of_turn>'],
         seed: 42,
       });
