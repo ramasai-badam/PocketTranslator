@@ -116,7 +116,8 @@ export default function VocabularyListScreen() {
     return (
       <View style={styles.interactiveTextContainer}>
         {words.map((part, index) => {
-          const isWord = /\S/.test(part); // Check if it's not just whitespace
+          // Better word detection that works with all languages including Asian characters
+          const isWord = part.trim().length > 0 && !/^\s+$/.test(part);
           
           if (isWord) {
             return (
