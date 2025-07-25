@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
   },
   tokenText: {
     fontSize: 20,
-    color: '#FFF',
+    color: '#FFFFFF',
     fontWeight: '500',
     flex: 1,
   },
