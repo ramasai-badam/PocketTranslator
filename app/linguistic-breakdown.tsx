@@ -15,6 +15,11 @@ import * as Speech from 'expo-speech';
 import { ModelManager } from '../utils/ModelManager';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
 
+// Extend global type for caching
+declare global {
+  var lastBreakdownData: { cacheKey: string; data: any } | null;
+}
+
 interface TokenData {
   [key: string]: string; // Dynamic key based on language (e.g., "japanese", "spanish", "original")
   english: string;
@@ -36,6 +41,7 @@ export default function LinguisticBreakdownScreen() {
   const translatedText = params.translatedText as string;
   const originalLanguage = params.originalLanguage as string;
   const translatedLanguage = params.translatedLanguage as string;
+  const cachedData = params.cachedData as string;
 
   const [analysis, setAnalysis] = useState<LinguisticAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,12 +50,25 @@ export default function LinguisticBreakdownScreen() {
   const [hasStartedAnalysis, setHasStartedAnalysis] = useState(false);
 
   useEffect(() => {
-    // Prevent multiple calls
+    // Check if we have cached data first
+    if (cachedData) {
+      try {
+        const parsedData = JSON.parse(cachedData);
+        setAnalysis(parsedData);
+        setIsLoading(false);
+        console.log('Using cached breakdown data');
+        return;
+      } catch (error) {
+        console.error('Error parsing cached data:', error);
+      }
+    }
+
+    // Prevent multiple calls for fresh analysis
     if (!hasStartedAnalysis) {
       setHasStartedAnalysis(true);
       performLinguisticAnalysis();
     }
-  }, [hasStartedAnalysis]);
+  }, [hasStartedAnalysis, cachedData]);
 
   const performLinguisticAnalysis = async () => {
     try {
@@ -66,6 +85,14 @@ export default function LinguisticBreakdownScreen() {
       
       setAnalysis(result);
       console.log('Linguistic analysis completed:', result);
+
+      // Save the result for caching when user navigates back
+      const cacheKey = `${originalText}_${originalLanguage}_${translatedLanguage}`;
+      global.lastBreakdownData = {
+        cacheKey,
+        data: result
+      };
+      
     } catch (err) {
       console.error('Failed to perform linguistic analysis:', err);
       setError('Failed to analyze sentence structure. Please try again.');

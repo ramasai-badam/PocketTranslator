@@ -11,18 +11,78 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, Volume2, Trash2, BookOpen, GraduationCap } from 'lucide-react-native';
 import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Speech from 'expo-speech';
 import { VocabularyManager, VocabularyEntry } from '../utils/VocabularyManager';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
+
+// Extend global type for caching
+declare global {
+  var lastBreakdownData: { cacheKey: string; data: any } | null;
+}
+
 
 export default function VocabularyListScreen() {
   const [vocabularyWords, setVocabularyWords] = useState<VocabularyEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [breakdownCache, setBreakdownCache] = useState<{ [key: string]: any }>({});
+
+  // Key for AsyncStorage
+  const BREAKDOWN_CACHE_KEY = 'linguisticBreakdownCache';
 
   useEffect(() => {
     loadVocabularyWords();
+    restoreBreakdownCache();
   }, []);
+
+  // Restore breakdown cache from AsyncStorage
+  const restoreBreakdownCache = async () => {
+    try {
+      const cacheString = await AsyncStorage.getItem(BREAKDOWN_CACHE_KEY);
+      if (cacheString) {
+        setBreakdownCache(JSON.parse(cacheString));
+      }
+    } catch (error) {
+      console.error('Failed to restore breakdown cache:', error);
+    }
+  };
+
+  // Save breakdown cache to AsyncStorage
+  const persistBreakdownCache = async (cache: { [key: string]: any }) => {
+    try {
+      await AsyncStorage.setItem(BREAKDOWN_CACHE_KEY, JSON.stringify(cache));
+    } catch (error) {
+      console.error('Failed to persist breakdown cache:', error);
+    }
+  };
+
+  // Handle caching breakdown data when returning from linguistic breakdown screen
+  useFocusEffect(
+    React.useCallback(() => {
+      // Check if we have breakdown data in the route params (when returning from breakdown)
+      const checkForBreakdownData = async () => {
+        try {
+          // This would be set by the linguistic breakdown screen when user returns
+          const savedBreakdown = global.lastBreakdownData;
+          if (savedBreakdown) {
+            const { cacheKey, data } = savedBreakdown;
+            setBreakdownCache(prev => {
+              const updated = { ...prev, [cacheKey]: data };
+              persistBreakdownCache(updated);
+              return updated;
+            });
+            // Clear the global data after caching
+            global.lastBreakdownData = null;
+          }
+        } catch (error) {
+          console.error('Error checking breakdown data:', error);
+        }
+      };
+      checkForBreakdownData();
+    }, [])
+  );
 
   const loadVocabularyWords = async () => {
     try {
@@ -108,6 +168,44 @@ export default function VocabularyListScreen() {
     } catch (error) {
       console.error('Failed to spell word:', error);
     }
+  };
+
+  const handleLinguisticBreakdown = (word: VocabularyEntry) => {
+    // Create a unique cache key for this translation pair
+    const cacheKey = `${word.originalText}_${word.originalLanguage}_${word.translatedLanguage}`;
+    
+    // Check if we have cached breakdown data
+    const cachedBreakdown = breakdownCache[cacheKey];
+    
+    if (cachedBreakdown) {
+      // Use cached data - navigate directly with the cached breakdown
+      router.push({
+        pathname: '/linguistic-breakdown',
+        params: {
+          originalText: word.originalText,
+          translatedText: word.translatedText,
+          originalLanguage: word.originalLanguage,
+          translatedLanguage: word.translatedLanguage,
+          cachedData: JSON.stringify(cachedBreakdown),
+        }
+      });
+    } else {
+      // No cached data - navigate normally (will trigger API call)
+      router.push({
+        pathname: '/linguistic-breakdown',
+        params: {
+          originalText: word.originalText,
+          translatedText: word.translatedText,
+          originalLanguage: word.originalLanguage,
+          translatedLanguage: word.translatedLanguage,
+        }
+      });
+    }
+  };
+
+  const isBreakdownCached = (word: VocabularyEntry) => {
+    const cacheKey = `${word.originalText}_${word.originalLanguage}_${word.translatedLanguage}`;
+    return !!breakdownCache[cacheKey];
   };
 
   const renderInteractiveText = (text: string, languageCode: string) => {
@@ -229,17 +327,12 @@ export default function VocabularyListScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.breakdownButton}
-                    onPress={() => router.push({
-                      pathname: '/linguistic-breakdown',
-                      params: {
-                        originalText: word.originalText,
-                        translatedText: word.translatedText,
-                        originalLanguage: word.originalLanguage,
-                        translatedLanguage: word.translatedLanguage,
-                      }
-                    })}
+                    onPress={() => handleLinguisticBreakdown(word)}
                   >
-                    <GraduationCap size={16} color="#34C759" />
+                    <GraduationCap 
+                      size={16} 
+                      color={isBreakdownCached(word) ? "#FFD700" : "#34C759"} 
+                    />
                   </TouchableOpacity>
                 </View>
                 {renderInteractiveText(word.originalText, word.originalLanguage)}
@@ -266,7 +359,7 @@ export default function VocabularyListScreen() {
       {vocabularyWords.length > 0 && (
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            💡 Tap on any word to hear its pronunciation
+            💡 Tap words to hear pronunciation • 🎓 Green: fresh analysis, Gold: cached analysis
           </Text>
         </View>
       )}
@@ -422,17 +515,20 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   wordButton: {
-    paddingHorizontal: 1,
-    paddingVertical: 0,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-    marginHorizontal: 0.5,
-    marginVertical: 0.5,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    marginHorizontal: 1,
+    marginVertical: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   interactiveWord: {
     fontSize: 16,
     color: '#FFF',
     lineHeight: 20,
+    fontWeight: '500',
   },
   wordSpace: {
     fontSize: 16,
