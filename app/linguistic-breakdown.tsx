@@ -41,10 +41,15 @@ export default function LinguisticBreakdownScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTokenIndex, setSelectedTokenIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hasStartedAnalysis, setHasStartedAnalysis] = useState(false);
 
   useEffect(() => {
-    performLinguisticAnalysis();
-  }, []);
+    // Prevent multiple calls
+    if (!hasStartedAnalysis) {
+      setHasStartedAnalysis(true);
+      performLinguisticAnalysis();
+    }
+  }, [hasStartedAnalysis]);
 
   const performLinguisticAnalysis = async () => {
     try {

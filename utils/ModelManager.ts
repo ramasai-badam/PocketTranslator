@@ -403,7 +403,6 @@ IMPORTANT:
 - Provide part_of_speech and relation explanations in ${fromLanguage}
 - Provide sentence_meaning and explanation in ${fromLanguage}
 - Each token must have translations to both English and ${toLanguage}
-- Return ONLY valid JSON, no markdown formatting
 <end_of_turn>
 <start_of_turn>model
 `;
@@ -413,7 +412,7 @@ IMPORTANT:
     try {
       const result = await llamaContext.completion({
         prompt,
-        n_predict: 512,
+        n_predict: 800, // Increase token limit to avoid truncation
         temperature: 0.1,
         top_p: 0.9,
         top_k: 40,
@@ -426,11 +425,23 @@ IMPORTANT:
       // Parse the JSON response
       let jsonText = result.text?.trim() || '';
       
+      // Check if response was truncated
+      if (!jsonText.includes('}') || jsonText.endsWith('part')) {
+        console.error('⚠️ Response appears to be truncated:', jsonText.slice(-50));
+        throw new Error('LLM response was truncated. Please try again.');
+      }
+      
       // Remove markdown code fences if present
       jsonText = jsonText.replace(/^```json\s*/, '').replace(/\s*```$/, '');
       jsonText = jsonText.replace(/^```\s*/, '').replace(/\s*```$/, '');
       
       console.log('🔧 Cleaned JSON text:', jsonText);
+      
+      // Additional validation - ensure JSON ends properly
+      if (!jsonText.trim().endsWith('}')) {
+        console.error('⚠️ JSON does not end properly:', jsonText.slice(-100));
+        throw new Error('Incomplete JSON response. Please try again.');
+      }
       
       const analysis = JSON.parse(jsonText);
       console.log('✅ Parsed analysis:', analysis);
