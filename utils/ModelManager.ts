@@ -412,7 +412,7 @@ IMPORTANT:
     try {
       const result = await llamaContext.completion({
         prompt,
-        n_predict: 800, // Increase token limit to avoid truncation
+        n_predict: 1500, // Further increase token limit to avoid truncation
         temperature: 0.1,
         top_p: 0.9,
         top_k: 40,
