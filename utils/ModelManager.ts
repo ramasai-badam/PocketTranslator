@@ -393,16 +393,19 @@ Provide the analysis in strict JSON format with these exact fields:
       "relation": "grammatical_relation_in_${fromLanguage}"
     }
   ],
-  "english_translation": "${translatedText}",
-  "sentence_meaning": "meaning_explanation_in_${fromLanguage}",
-  "explanation": "detailed_grammar_explanation_in_${fromLanguage}"
+  "english_translation": "complete_english_translation_here",
+  "sentence_meaning": "detailed_meaning_and_context_explanation",
+  "explanation": "comprehensive_grammatical_structure_explanation"
 }
 
 IMPORTANT:
 - Break down EVERY word/token in the sentence
-- Provide part_of_speech and relation explanations in ${fromLanguage}
-- Provide sentence_meaning and explanation in ${fromLanguage}
+- Fill ALL fields including english_translation, sentence_meaning, and explanation
+- sentence_meaning should explain the context and nuance of the sentence
+- explanation should describe the grammatical structure and relationships
 - Each token must have translations to both English and ${toLanguage}
+- Ensure the JSON object is complete and properly closed
+- Return ONLY the complete JSON object
 <end_of_turn>
 <start_of_turn>model
 `;
