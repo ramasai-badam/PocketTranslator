@@ -98,7 +98,7 @@ export default function VocabularyListScreen() {
       Speech.speak(cleanWord, {
         language: languageCode,
         pitch: 1.0,
-        rate: 0.4, // Slower rate for better pronunciation practice
+        rate: 0.8, // Slower rate for better pronunciation practice
       });
     } catch (error) {
       console.error('Failed to spell word:', error);
