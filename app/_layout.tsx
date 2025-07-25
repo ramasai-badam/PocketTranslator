@@ -1,5 +1,11 @@
-import { Stack } from 'expo-router';
+import { Stack } from 'expo-router'
+import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 
 export default function RootLayout() {
-  return <Stack screenOptions={{ headerShown: false }} />;
+  useFrameworkReady();
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="linguistic-breakdown" />
+    </Stack>
+  );
 }
