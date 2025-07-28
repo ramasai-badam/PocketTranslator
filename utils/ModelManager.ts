@@ -372,7 +372,21 @@ Give only the ${toLang} translation.<end_of_turn>
   ): Promise<any> {
     console.log('🔍 Starting real linguistic analysis...');
     console.log('📝 Input:', { originalText, fromLanguage, translatedText, toLanguage });
+    console.log('🔧 Llama context status:', llamaContext ? 'Available' : 'Not available');
     
+    // Check if context is available, if not try to reinitialize
+    if (!llamaContext) {
+      console.log('⚠️ Llama context not available, attempting to reinitialize...');
+      try {
+        await this.initializeLlama();
+        console.log('✅ Llama context reinitialized successfully');
+      } catch (error) {
+        console.error('❌ Failed to reinitialize Llama context:', error);
+        throw new Error('Llama context not initialized and failed to reinitialize');
+      }
+    }
+    
+    // Double-check context is available
     if (!llamaContext) {
       throw new Error('Llama context not initialized');
     }
@@ -408,16 +422,12 @@ Provide the analysis in strict JSON format with these exact fields:
       "relation": "grammatical_relation_in_${fromLanguageName}"
     }
   ],
-  "explanation": "comprehensive_grammatical_analysis_in_${fromLanguageName}"
 }
 
 CRITICAL REQUIREMENTS:
-- Break down EVERY word in the sentence
-- explanation: Write a comprehensive grammatical analysis IN ${fromLanguageName}
+- Break down EVERY word/token in the sentence
 - For each token's "${toLanguage}" field: Provide the direct translation or closest equivalent in ${toLanguageName}
 - For each token's "part_of_speech" and "relation": Write these IN ${fromLanguageName}
-- Ensure the JSON object is complete and properly closed
-- Return ONLY the complete JSON object
 <end_of_turn>
 <start_of_turn>model
 `;
@@ -425,6 +435,11 @@ CRITICAL REQUIREMENTS:
     console.log('🚀 Sending linguistic analysis prompt...');
     
     try {
+      // Verify context is still valid before making the call
+      if (!llamaContext) {
+        throw new Error('Llama context lost during analysis preparation');
+      }
+      
       const result = await llamaContext.completion({
         prompt,
         n_predict: 1500, // Further increase token limit to avoid truncation
@@ -436,6 +451,11 @@ CRITICAL REQUIREMENTS:
       });
 
       console.log('📥 Raw LLM response:', result.text);
+      
+      // Verify context is still valid after the call
+      if (!llamaContext) {
+        console.warn('⚠️ Llama context lost after completion call');
+      }
       
       // Parse the JSON response
       let jsonText = result.text?.trim() || '';
@@ -460,11 +480,13 @@ CRITICAL REQUIREMENTS:
       
       const analysis = JSON.parse(jsonText);
       console.log('✅ Parsed analysis:', analysis);
+      console.log('🔧 Final context status:', llamaContext ? 'Still available' : 'Lost');
       
       return analysis;
       
     } catch (error) {
       console.error('❌ Linguistic analysis failed:', error);
+      console.log('🔧 Context status after error:', llamaContext ? 'Still available' : 'Lost');
       throw new Error(`Failed to analyze sentence structure: ${error}`);
     }
   }
