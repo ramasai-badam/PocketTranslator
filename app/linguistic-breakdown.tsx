@@ -118,14 +118,18 @@ export default function LinguisticBreakdownScreen() {
   };
 
   const getOriginalLanguageKey = () => {
-    // Return the language code directly as that's the key used in the token data
     return originalLanguage;
   };
 
   const getTranslatedLanguageKey = () => {
-    // Return the translated language code for the token data
     return translatedLanguage;
   };
+
+  const getTokenDisplayText = (token: TokenData, languageKey: string) => {
+    // Always use the specific language key, fallback to english if not available
+    return token[languageKey] || token.english || token.original || '';
+  };
+
   if (isLoading) {
     return (
       <View style={styles.container}>
@@ -239,11 +243,11 @@ export default function LinguisticBreakdownScreen() {
                     styles.tokenText,
                     selectedTokenIndex === index && styles.selectedTokenText
                   ]}>
-                    {token[getTranslatedLanguageKey()]}
+                    {getTokenDisplayText(token, getOriginalLanguageKey())}
                   </Text>
                   <TouchableOpacity
                     style={styles.tokenPronounceButton}
-                    onPress={() => handlePronounceToken(token[getTranslatedLanguageKey()], translatedLanguage)}
+                    onPress={() => handlePronounceToken(getTokenDisplayText(token, getOriginalLanguageKey()), originalLanguage)}
                   >
                     <Volume2 size={14} color="#007AFF" />
                   </TouchableOpacity>
@@ -252,15 +256,21 @@ export default function LinguisticBreakdownScreen() {
                 {selectedTokenIndex === index && (
                   <View style={styles.tokenDetails}>
                     <View style={styles.tokenDetailRow}>
-                      <Text style={styles.tokenDetailLabel}>{getLanguageDisplayName(originalLanguage)}:</Text>
-                      <Text style={styles.tokenDetailValue}>{token[originalLanguageKey]}</Text>
+                      <Text style={styles.tokenDetailLabel}>{getLanguageDisplayName(translatedLanguage)}:</Text>
+                      <Text style={styles.tokenDetailValue}>{getTokenDisplayText(token, getTranslatedLanguageKey())}</Text>
                       <TouchableOpacity
                         style={styles.tokenPronounceButton}
-                        onPress={() => handlePronounceToken(token[originalLanguageKey], originalLanguage)}
+                        onPress={() => handlePronounceToken(getTokenDisplayText(token, getTranslatedLanguageKey()), translatedLanguage)}
                       >
                         <Volume2 size={14} color="#007AFF" />
                       </TouchableOpacity>
                     </View>
+                    {token.english && (
+                      <View style={styles.tokenDetailRow}>
+                        <Text style={styles.tokenDetailLabel}>English:</Text>
+                        <Text style={styles.tokenDetailValue}>{token.english}</Text>
+                      </View>
+                    )}
                     <View style={styles.tokenDetailRow}>
                       <Text style={styles.tokenDetailLabel}>Part of Speech:</Text>
                       <Text style={styles.tokenDetailValue}>{token.part_of_speech}</Text>
@@ -277,10 +287,19 @@ export default function LinguisticBreakdownScreen() {
         </View>
 
         {/* Grammatical Explanation */}
-        <View style={styles.section}>
+        {analysis.explanation && (
+          <View style={styles.section}>
           <Text style={styles.sectionTitle}>Grammatical Relations</Text>
           <Text style={styles.explanationText}>{analysis.explanation}</Text>
-        </View>
+          </View>
+        )}
+
+        {analysis.sentence_meaning && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Sentence Meaning</Text>
+            <Text style={styles.explanationText}>{analysis.sentence_meaning}</Text>
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>

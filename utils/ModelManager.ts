@@ -417,17 +417,24 @@ Provide the analysis in strict JSON format with these exact fields:
   "tokens": [
     {
       "${fromLanguage}": "original_word",
-      "${toLanguage}": "translated_word_equivalent_or_closest_match",
-      "part_of_speech": "part_of_speech_in_${fromLanguageName}",
-      "relation": "grammatical_relation_in_${fromLanguageName}"
+      "${toLanguage}": "translated_word_equivalent_or_closest_match", 
+      "english": "english_meaning_for_reference",
+      "part_of_speech": "part_of_speech_category",
+      "relation": "grammatical_relation_or_function"
     }
   ],
+  "english_translation": "${translatedText}",
+  "sentence_meaning": "Brief explanation of the sentence meaning",
+  "explanation": "Explanation of grammatical structure and relationships"
 }
 
 CRITICAL REQUIREMENTS:
 - Break down EVERY word/token in the sentence
-- For each token's "${toLanguage}" field: Provide the direct translation or closest equivalent in ${toLanguageName}
-- For each token's "part_of_speech" and "relation": Write these IN ${fromLanguageName}
+- For each token's "${fromLanguage}" field: Use the original word from the ${fromLanguageName} sentence
+- For each token's "${toLanguage}" field: Provide the direct translation equivalent in ${toLanguageName}
+- For each token's "english" field: Provide English meaning for reference (even if one language is already English)
+- Use standard grammatical terms for "part_of_speech" and "relation" fields
+- Provide clear explanations in English
 <end_of_turn>
 <start_of_turn>model
 `;
