@@ -392,9 +392,10 @@ Give only the ${toLang} translation.<end_of_turn>
     const fromLanguageName = getLanguageName(fromLanguage);
     const toLanguageName = getLanguageName(toLanguage);
 
-    // Construct the LLM prompt for linguistic analysis with native language explanations
+    // Construct the LLM prompt for linguistic analysis focusing on source and target languages
     const prompt = `<start_of_turn>user
 Perform a detailed linguistic analysis of this ${fromLanguageName} sentence: "${originalText}"
+Translation: "${translatedText}" (${toLanguageName})
 
 Provide the analysis in strict JSON format with these exact fields:
 {
@@ -402,13 +403,13 @@ Provide the analysis in strict JSON format with these exact fields:
   "tokens": [
     {
       "${fromLanguage}": "original_word",
-      "english": "english_translation_of_word",
+      "${toLanguage}": "translated_word_equivalent_or_closest_match",
       "part_of_speech": "part_of_speech_in_${fromLanguageName}",
       "relation": "grammatical_relation_in_${fromLanguageName}"
     }
   ],
-  "english_translation": "complete_english_translation_here",
   "sentence_meaning": "detailed_meaning_and_context_explanation_in_${fromLanguageName}",
+  "explanation": "comprehensive_grammatical_analysis_in_${fromLanguageName}"
 }
 
 CRITICAL REQUIREMENTS:
@@ -417,6 +418,7 @@ CRITICAL REQUIREMENTS:
 - explanation: Write a comprehensive grammatical analysis IN ${fromLanguageName}
 - english_translation: Keep this in English (this is the English translation of the sentence)
 - For each token's "english" field: Keep this in English (word-level translation)
+- For each token's "${toLanguage}" field: Provide the direct translation or closest equivalent in ${toLanguageName}
 - For each token's "part_of_speech" and "relation": Write these IN ${fromLanguageName}
 - Ensure the JSON object is complete and properly closed
 - Return ONLY the complete JSON object

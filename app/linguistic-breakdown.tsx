@@ -64,6 +64,7 @@ export default function LinguisticBreakdownScreen() {
     }
 
     // Prevent multiple calls for fresh analysis
+    const translatedLanguageKey = getTranslatedLanguageKey();
     if (!hasStartedAnalysis) {
       setHasStartedAnalysis(true);
       performLinguisticAnalysis();
@@ -122,6 +123,10 @@ export default function LinguisticBreakdownScreen() {
     return originalLanguage;
   };
 
+  const getTranslatedLanguageKey = () => {
+    // Return the translated language code for the token data
+    return translatedLanguage;
+  };
   if (isLoading) {
     return (
       <View style={styles.container}>
@@ -235,11 +240,11 @@ export default function LinguisticBreakdownScreen() {
                     styles.tokenText,
                     selectedTokenIndex === index && styles.selectedTokenText
                   ]}>
-                    {token.english}
+                    {token[translatedLanguageKey]}
                   </Text>
                   <TouchableOpacity
                     style={styles.tokenPronounceButton}
-                    onPress={() => handlePronounceToken(token.english, translatedLanguage)}
+                    onPress={() => handlePronounceToken(token[translatedLanguageKey], translatedLanguage)}
                   >
                     <Volume2 size={14} color="#007AFF" />
                   </TouchableOpacity>
@@ -250,6 +255,12 @@ export default function LinguisticBreakdownScreen() {
                     <View style={styles.tokenDetailRow}>
                       <Text style={styles.tokenDetailLabel}>{getLanguageDisplayName(originalLanguage)}:</Text>
                       <Text style={styles.tokenDetailValue}>{token[originalLanguageKey]}</Text>
+                      <TouchableOpacity
+                        style={styles.tokenPronounceButton}
+                        onPress={() => handlePronounceToken(token[originalLanguageKey], originalLanguage)}
+                      >
+                        <Volume2 size={14} color="#007AFF" />
+                      </TouchableOpacity>
                     </View>
                     <View style={styles.tokenDetailRow}>
                       <Text style={styles.tokenDetailLabel}>Part of Speech:</Text>
@@ -460,6 +471,7 @@ const styles = StyleSheet.create({
   },
   tokenDetailRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 8,
   },
   tokenDetailLabel: {
