@@ -21,17 +21,13 @@ declare global {
 }
 
 interface TokenData {
-  [key: string]: string; // Dynamic key based on language (e.g., "japanese", "spanish", "original")
-  part_of_speech: string;
-  relation: string;
+  // Now tokens are arrays: [toLanguageWord, fromLanguageWord, partOfSpeech, relation]
 }
 
 interface LinguisticAnalysis {
   sentence: string;
-  tokens: TokenData[];
-  english_translation: string;
-  sentence_meaning: string;
-  explanation: string;
+  tokens: string[][]; // Array of arrays, each with 4 string elements
+  translation: string;
 }
 
 export default function LinguisticBreakdownScreen() {
@@ -124,9 +120,20 @@ export default function LinguisticBreakdownScreen() {
     return translatedLanguage;
   };
 
-  const getTokenDisplayText = (token: TokenData, languageKey: string) => {
-    // Always use the specific language key, fallback to original if not available
-    return token[languageKey] || token.original || '';
+  const getTokenDisplayText = (token: string[], isTranslatedLanguage: boolean) => {
+    // token array format: [toLanguageWord, fromLanguageWord, partOfSpeech, relation]
+    const result = isTranslatedLanguage ? token[0] : token[1];
+    
+    // Debug logging to see what we're getting
+    if (isTranslatedLanguage) {
+      console.log(`🔍 Main word for token:`, {
+        token,
+        result,
+        expectedLanguage: translatedLanguage
+      });
+    }
+    
+    return result || '';
   };
 
   if (isLoading) {
@@ -242,11 +249,11 @@ export default function LinguisticBreakdownScreen() {
                     styles.tokenText,
                     selectedTokenIndex === index && styles.selectedTokenText
                   ]}>
-                    {getTokenDisplayText(token, getTranslatedLanguageKey())}
+                    {getTokenDisplayText(token, true)}
                   </Text>
                   <TouchableOpacity
                     style={styles.tokenPronounceButton}
-                    onPress={() => handlePronounceToken(getTokenDisplayText(token, getTranslatedLanguageKey()), translatedLanguage)}
+                    onPress={() => handlePronounceToken(getTokenDisplayText(token, true), translatedLanguage)}
                   >
                     <Volume2 size={14} color="#007AFF" />
                   </TouchableOpacity>
@@ -256,15 +263,15 @@ export default function LinguisticBreakdownScreen() {
                   <View style={styles.tokenDetails}>
                     <View style={styles.tokenDetailRow}>
                       <Text style={styles.tokenDetailLabel}>{getLanguageDisplayName(originalLanguage)}:</Text>
-                      <Text style={styles.tokenDetailValue}>{getTokenDisplayText(token, getOriginalLanguageKey())}</Text>
+                      <Text style={styles.tokenDetailValue}>{getTokenDisplayText(token, false)}</Text>
                     </View>
                     <View style={styles.tokenDetailRow}>
                       <Text style={styles.tokenDetailLabel}>Part of Speech:</Text>
-                      <Text style={styles.tokenDetailValue}>{token.part_of_speech}</Text>
+                      <Text style={styles.tokenDetailValue}>{token[2]}</Text>
                     </View>
                     <View style={styles.tokenDetailRow}>
                       <Text style={styles.tokenDetailLabel}>Relation:</Text>
-                      <Text style={styles.tokenDetailValue}>{token.relation}</Text>
+                      <Text style={styles.tokenDetailValue}>{token[3]}</Text>
                     </View>
                   </View>
                 )}
@@ -273,20 +280,7 @@ export default function LinguisticBreakdownScreen() {
           </View>
         </View>
 
-        {/* Grammatical Explanation */}
-        {analysis.explanation && (
-          <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Grammatical Relations</Text>
-          <Text style={styles.explanationText}>{analysis.explanation}</Text>
-          </View>
-        )}
 
-        {analysis.sentence_meaning && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Sentence Meaning</Text>
-            <Text style={styles.explanationText}>{analysis.sentence_meaning}</Text>
-          </View>
-        )}
       </ScrollView>
 
       <View style={styles.footer}>

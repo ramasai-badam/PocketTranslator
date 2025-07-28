@@ -415,24 +415,18 @@ Provide the analysis in strict JSON format with these exact fields:
 {
   "sentence": "${originalText}",
   "tokens": [
-    {
-      "${toLanguage}": "translated_word_equivalent_or_closest_match",
-      "${fromLanguage}": "original_word",
-      "part_of_speech": "part_of_speech_category_in_${fromLanguageName}",
-      "relation": "grammatical_relation_or_function_in_${fromLanguageName}"
-    }
+    ["translated_word_from_target_sentence", "corresponding_original_word", "part_of_speech_in_${fromLanguageName}", "grammatical_relation_in_${fromLanguageName}"],
+    ["next_translated_word", "next_original_word", "part_of_speech_in_${fromLanguageName}", "grammatical_relation_in_${fromLanguageName}"]
   ],
-  "translation": "${translatedText}",
-  "explanation": "Explanation of grammatical structure and relationships in ${fromLanguageName}"
+  "translation": "${translatedText}"
 }
 
 CRITICAL REQUIREMENTS:
-- Break down EVERY word/token in the sentence
-- For each token's "${toLanguage}" field: Use the translated word from the ${toLanguageName} sentence (display this as the main word)
-- For each token's "${fromLanguage}" field: Provide the original word from the ${fromLanguageName} sentence (show this in details)
-- For "part_of_speech" and "relation" fields: Write these grammatical terms in ${fromLanguageName} language only
-- Provide clear explanations in ${fromLanguageName}
-- Ensure all grammatical terminology uses ${fromLanguageName} linguistic terms
+- Each token is an array with exactly 4 values: [${toLanguageName}_word, ${fromLanguageName}_word, part_of_speech, relation]
+- Use ONLY words that appear in the respective sentences
+- Write part_of_speech and relation in ${fromLanguageName} language only
+- Do NOT use key names inside token arrays, only values in the specified order
+- Create 1-to-1 word mapping between original and translated sentences
 <end_of_turn>
 <start_of_turn>model
 `;
@@ -485,6 +479,23 @@ CRITICAL REQUIREMENTS:
       
       const analysis = JSON.parse(jsonText);
       console.log('✅ Parsed analysis:', analysis);
+      
+      // Validate that each token is an array with 4 elements
+      if (analysis.tokens) {
+        analysis.tokens.forEach((token: any, index: number) => {
+          if (Array.isArray(token) && token.length === 4) {
+            console.log(`🔍 Token ${index}:`, {
+              toLanguageWord: token[0],
+              fromLanguageWord: token[1],
+              partOfSpeech: token[2],
+              relation: token[3]
+            });
+          } else {
+            console.warn(`⚠️ Token ${index} invalid format:`, token);
+          }
+        });
+      }
+      
       console.log('🔧 Final context status:', llamaContext ? 'Still available' : 'Lost');
       
       return analysis;
