@@ -204,10 +204,10 @@ export default function LinguisticBreakdownScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Translation</Text>
           <View style={styles.sentenceContainer}>
-            <Text style={styles.translationText}>{analysis.full_sentence_translation_in_target_language}</Text>
+            <Text style={styles.translationText}>{analysis.english_translation}</Text>
             <TouchableOpacity
               style={styles.pronounceButton}
-              onPress={() => handlePronounceToken(analysis.full_sentence_translation_in_target_language, translatedLanguage)}
+              onPress={() => handlePronounceToken(analysis.english_translation, 'en')}
             >
               <Volume2 size={20} color="#007AFF" />
             </TouchableOpacity>
