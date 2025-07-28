@@ -22,7 +22,6 @@ declare global {
 
 interface TokenData {
   [key: string]: string; // Dynamic key based on language (e.g., "japanese", "spanish", "original")
-  english: string;
   part_of_speech: string;
   relation: string;
 }
@@ -126,8 +125,8 @@ export default function LinguisticBreakdownScreen() {
   };
 
   const getTokenDisplayText = (token: TokenData, languageKey: string) => {
-    // Always use the specific language key, fallback to english if not available
-    return token[languageKey] || token.english || token.original || '';
+    // Always use the specific language key, fallback to original if not available
+    return token[languageKey] || token.original || '';
   };
 
   if (isLoading) {
@@ -265,12 +264,6 @@ export default function LinguisticBreakdownScreen() {
                         <Volume2 size={14} color="#007AFF" />
                       </TouchableOpacity>
                     </View>
-                    {token.english && (
-                      <View style={styles.tokenDetailRow}>
-                        <Text style={styles.tokenDetailLabel}>English:</Text>
-                        <Text style={styles.tokenDetailValue}>{token.english}</Text>
-                      </View>
-                    )}
                     <View style={styles.tokenDetailRow}>
                       <Text style={styles.tokenDetailLabel}>Part of Speech:</Text>
                       <Text style={styles.tokenDetailValue}>{token.part_of_speech}</Text>
