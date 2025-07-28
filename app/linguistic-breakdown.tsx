@@ -459,8 +459,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#2A2A2A',
   },
   tokenText: {
-    fontSize: 20,
-    color: '#FFFFFF',
+    fontSize: 18,
+    color: '#FFF',
     fontWeight: '500',
     flex: 1,
   },
