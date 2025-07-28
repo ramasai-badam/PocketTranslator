@@ -64,7 +64,6 @@ export default function LinguisticBreakdownScreen() {
     }
 
     // Prevent multiple calls for fresh analysis
-    const translatedLanguageKey = getTranslatedLanguageKey();
     if (!hasStartedAnalysis) {
       setHasStartedAnalysis(true);
       performLinguisticAnalysis();
@@ -244,7 +243,7 @@ export default function LinguisticBreakdownScreen() {
                   </Text>
                   <TouchableOpacity
                     style={styles.tokenPronounceButton}
-                    onPress={() => handlePronounceToken(token[translatedLanguageKey], translatedLanguage)}
+                  onPress={() => handlePronounceToken(token[getTranslatedLanguageKey()], translatedLanguage)}
                   >
                     <Volume2 size={14} color="#007AFF" />
                   </TouchableOpacity>
