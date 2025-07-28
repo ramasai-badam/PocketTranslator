@@ -416,23 +416,23 @@ Provide the analysis in strict JSON format with these exact fields:
   "sentence": "${originalText}",
   "tokens": [
     {
+      "${toLanguage}": "translated_word_equivalent_or_closest_match",
       "${fromLanguage}": "original_word",
-      "${toLanguage}": "translated_word_equivalent_or_closest_match", 
-      "part_of_speech": "part_of_speech_category",
-      "relation": "grammatical_relation_or_function"
+      "part_of_speech": "part_of_speech_category_in_${fromLanguageName}",
+      "relation": "grammatical_relation_or_function_in_${fromLanguageName}"
     }
   ],
-  "english_translation": "${translatedText}",
-  "sentence_meaning": "Brief explanation of the sentence meaning",
-  "explanation": "Explanation of grammatical structure and relationships"
+  "translation": "${translatedText}",
+  "explanation": "Explanation of grammatical structure and relationships in ${fromLanguageName}"
 }
 
 CRITICAL REQUIREMENTS:
 - Break down EVERY word/token in the sentence
-- For each token's "${fromLanguage}" field: Use the original word from the ${fromLanguageName} sentence
-- For each token's "${toLanguage}" field: Provide the direct translation equivalent in ${toLanguageName}
-- Use standard grammatical terms for "part_of_speech" and "relation" fields
-- Provide clear explanations in English
+- For each token's "${toLanguage}" field: Use the translated word from the ${toLanguageName} sentence (display this as the main word)
+- For each token's "${fromLanguage}" field: Provide the original word from the ${fromLanguageName} sentence (show this in details)
+- For "part_of_speech" and "relation" fields: Write these grammatical terms in ${fromLanguageName} language only
+- Provide clear explanations in ${fromLanguageName}
+- Ensure all grammatical terminology uses ${fromLanguageName} linguistic terms
 <end_of_turn>
 <start_of_turn>model
 `;

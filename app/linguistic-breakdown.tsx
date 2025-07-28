@@ -242,11 +242,11 @@ export default function LinguisticBreakdownScreen() {
                     styles.tokenText,
                     selectedTokenIndex === index && styles.selectedTokenText
                   ]}>
-                    {getTokenDisplayText(token, getOriginalLanguageKey())}
+                    {getTokenDisplayText(token, getTranslatedLanguageKey())}
                   </Text>
                   <TouchableOpacity
                     style={styles.tokenPronounceButton}
-                    onPress={() => handlePronounceToken(getTokenDisplayText(token, getOriginalLanguageKey()), originalLanguage)}
+                    onPress={() => handlePronounceToken(getTokenDisplayText(token, getTranslatedLanguageKey()), translatedLanguage)}
                   >
                     <Volume2 size={14} color="#007AFF" />
                   </TouchableOpacity>
@@ -255,14 +255,8 @@ export default function LinguisticBreakdownScreen() {
                 {selectedTokenIndex === index && (
                   <View style={styles.tokenDetails}>
                     <View style={styles.tokenDetailRow}>
-                      <Text style={styles.tokenDetailLabel}>{getLanguageDisplayName(translatedLanguage)}:</Text>
-                      <Text style={styles.tokenDetailValue}>{getTokenDisplayText(token, getTranslatedLanguageKey())}</Text>
-                      <TouchableOpacity
-                        style={styles.tokenPronounceButton}
-                        onPress={() => handlePronounceToken(getTokenDisplayText(token, getTranslatedLanguageKey()), translatedLanguage)}
-                      >
-                        <Volume2 size={14} color="#007AFF" />
-                      </TouchableOpacity>
+                      <Text style={styles.tokenDetailLabel}>{getLanguageDisplayName(originalLanguage)}:</Text>
+                      <Text style={styles.tokenDetailValue}>{getTokenDisplayText(token, getOriginalLanguageKey())}</Text>
                     </View>
                     <View style={styles.tokenDetailRow}>
                       <Text style={styles.tokenDetailLabel}>Part of Speech:</Text>
