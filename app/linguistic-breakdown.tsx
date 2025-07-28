@@ -235,11 +235,11 @@ export default function LinguisticBreakdownScreen() {
                     styles.tokenText,
                     selectedTokenIndex === index && styles.selectedTokenText
                   ]}>
-                    {token[originalLanguageKey]}
+                    {token.english}
                   </Text>
                   <TouchableOpacity
                     style={styles.tokenPronounceButton}
-                    onPress={() => handlePronounceToken(token[originalLanguageKey], originalLanguage)}
+                    onPress={() => handlePronounceToken(token.english, translatedLanguage)}
                   >
                     <Volume2 size={14} color="#007AFF" />
                   </TouchableOpacity>
@@ -248,8 +248,8 @@ export default function LinguisticBreakdownScreen() {
                 {selectedTokenIndex === index && (
                   <View style={styles.tokenDetails}>
                     <View style={styles.tokenDetailRow}>
-                      <Text style={styles.tokenDetailLabel}>English:</Text>
-                      <Text style={styles.tokenDetailValue}>{token.english}</Text>
+                      <Text style={styles.tokenDetailLabel}>{getLanguageDisplayName(originalLanguage)}:</Text>
+                      <Text style={styles.tokenDetailValue}>{token[originalLanguageKey]}</Text>
                     </View>
                     <View style={styles.tokenDetailRow}>
                       <Text style={styles.tokenDetailLabel}>Part of Speech:</Text>
