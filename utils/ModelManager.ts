@@ -377,9 +377,24 @@ Give only the ${toLang} translation.<end_of_turn>
       throw new Error('Llama context not initialized');
     }
 
-    // Construct the LLM prompt for linguistic analysis
+    // Get language names for better prompt clarity
+    const getLanguageName = (code: string) => {
+      const languageNames: { [key: string]: string } = {
+        'en': 'English', 'es': 'Spanish', 'fr': 'French', 'de': 'German',
+        'it': 'Italian', 'pt': 'Portuguese', 'ru': 'Russian', 'ja': 'Japanese',
+        'ko': 'Korean', 'zh': 'Chinese', 'ar': 'Arabic', 'hi': 'Hindi',
+        'th': 'Thai', 'vi': 'Vietnamese', 'nl': 'Dutch', 'pl': 'Polish',
+        'tr': 'Turkish', 'sv': 'Swedish', 'da': 'Danish', 'no': 'Norwegian'
+      };
+      return languageNames[code] || code.toUpperCase();
+    };
+
+    const fromLanguageName = getLanguageName(fromLanguage);
+    const toLanguageName = getLanguageName(toLanguage);
+
+    // Construct the LLM prompt for linguistic analysis with native language explanations
     const prompt = `<start_of_turn>user
-Perform a detailed linguistic analysis of this ${fromLanguage} sentence: "${originalText}"
+Perform a detailed linguistic analysis of this ${fromLanguageName} sentence: "${originalText}"
 
 Provide the analysis in strict JSON format with these exact fields:
 {
@@ -388,22 +403,22 @@ Provide the analysis in strict JSON format with these exact fields:
     {
       "${fromLanguage}": "original_word",
       "english": "english_translation_of_word",
-      "translated_word_to_target_lang": "translation_to_${toLanguage}",
-      "part_of_speech": "part_of_speech_in_${fromLanguage}",
-      "relation": "grammatical_relation_in_${fromLanguage}"
+      "part_of_speech": "part_of_speech_in_${fromLanguageName}",
+      "relation": "grammatical_relation_in_${fromLanguageName}"
     }
   ],
   "english_translation": "complete_english_translation_here",
-  "sentence_meaning": "detailed_meaning_and_context_explanation",
-  "explanation": "comprehensive_grammatical_structure_explanation"
+  "sentence_meaning": "detailed_meaning_and_context_explanation_in_${fromLanguageName}",
+  "explanation": "comprehensive_grammatical_structure_explanation_in_${fromLanguageName}"
 }
 
-IMPORTANT:
+CRITICAL REQUIREMENTS:
 - Break down EVERY word/token in the sentence
-- Fill ALL fields including english_translation, sentence_meaning, and explanation
-- sentence_meaning should explain the context and nuance of the sentence
-- explanation should describe the grammatical structure and relationships
-- Each token must have translations to both English and ${toLanguage}
+- sentence_meaning: Write a detailed explanation of the sentence's meaning and context IN ${fromLanguageName}
+- explanation: Write a comprehensive grammatical analysis IN ${fromLanguageName}
+- english_translation: Keep this in English (this is the English translation of the sentence)
+- For each token's "english" field: Keep this in English (word-level translation)
+- For each token's "part_of_speech" and "relation": Write these IN ${fromLanguageName}
 - Ensure the JSON object is complete and properly closed
 - Return ONLY the complete JSON object
 <end_of_turn>
