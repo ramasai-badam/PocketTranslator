@@ -118,21 +118,8 @@ export default function LinguisticBreakdownScreen() {
   };
 
   const getOriginalLanguageKey = () => {
-    // Map language codes to the key used in the mock data
-    const keyMap: { [key: string]: string } = {
-      'ja': 'japanese',
-      'es': 'spanish',
-      'fr': 'french',
-      'de': 'german',
-      'it': 'italian',
-      'pt': 'portuguese',
-      'ru': 'russian',
-      'ko': 'korean',
-      'zh': 'chinese',
-      'ar': 'arabic',
-      'hi': 'hindi',
-    };
-    return keyMap[originalLanguage] || 'original';
+    // Return the language code directly as that's the key used in the token data
+    return originalLanguage;
   };
 
   if (isLoading) {
