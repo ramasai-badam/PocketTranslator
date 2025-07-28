@@ -14,7 +14,6 @@ import { Audio } from 'expo-av';
 import LanguageSelector from '@/components/LanguageSelector';
 import RecordingIndicator from '@/components/RecordingIndicator';
 import TranslationDisplay from '@/components/TranslationDisplay';
-import { getString } from '@/utils/strings';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAudioRecording } from '@/hooks/useAudioRecording';
 
@@ -43,11 +42,7 @@ export default function TranslatorScreen() {
       
       await startRecording();
     } catch (error) {
-      const language = isTop ? topLanguage : bottomLanguage;
-      Alert.alert(
-        getString(language, 'recordingError'), 
-        getString(language, 'failedToStartRecording')
-      );
+      Alert.alert('Recording Error', 'Failed to start recording');
       setIsTopRecording(false);
       setIsBottomRecording(false);
     }
@@ -93,19 +88,15 @@ export default function TranslatorScreen() {
         }
       }
     } catch (error) {
-      const language = isTop ? topLanguage : bottomLanguage;
       setTranscriptionError('Failed to translate speech.');
       if (isTop) {
-        setTopText(getString(language, 'failedToTranslateSpeech'));
+        setTopText('Failed to translate speech.');
         setBottomText('');
       } else {
-        setBottomText(getString(language, 'failedToTranslateSpeech'));
+        setBottomText('Failed to translate speech.');
         setTopText('');
       }
-      Alert.alert(
-        getString(language, 'translationError'), 
-        getString(language, 'failedToTranslateSpeech')
-      );
+      Alert.alert('Translation Error', 'Failed to translate speech');
     } finally {
       setIsTopRecording(false);
       setIsBottomRecording(false);
@@ -138,12 +129,10 @@ export default function TranslatorScreen() {
           <LanguageSelector
             selectedLanguage={topLanguage}
             onLanguageChange={setTopLanguage}
-            displayLanguage={topLanguage}
             isRotated={true}
           />
           <TranslationDisplay
             text={topText}
-            displayLanguage={topLanguage}
             isRotated={true}
           />
           <View style={styles.controls}>
@@ -177,12 +166,10 @@ export default function TranslatorScreen() {
         <LanguageSelector
           selectedLanguage={bottomLanguage}
           onLanguageChange={setBottomLanguage}
-          displayLanguage={bottomLanguage}
           isRotated={false}
         />
         <TranslationDisplay
           text={bottomText}
-          displayLanguage={bottomLanguage}
           isRotated={false}
         />
         <View style={styles.controls}>

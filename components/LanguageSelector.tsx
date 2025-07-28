@@ -1,13 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
-import { getString } from '@/utils/strings';
 
 interface LanguageSelectorProps {
   selectedLanguage: string;
   onLanguageChange: (language: string) => void;
   isRotated?: boolean;
-  displayLanguage?: string;
 }
 
 const LANGUAGES = [
@@ -29,12 +27,10 @@ export default function LanguageSelector({
   selectedLanguage,
   onLanguageChange,
   isRotated = false,
-  displayLanguage,
 }: LanguageSelectorProps) {
   const [isExpanded, setIsExpanded] = React.useState(false);
 
   const selectedLang = LANGUAGES.find(lang => lang.code === selectedLanguage);
-  const currentDisplayLanguage = displayLanguage || selectedLanguage;
 
   return (
     <View style={styles.container}>
@@ -43,7 +39,7 @@ export default function LanguageSelector({
         onPress={() => setIsExpanded(!isExpanded)}
       >
         <Text style={styles.selectedText}>
-          {selectedLang?.name || getString(currentDisplayLanguage, 'selectLanguage')}
+          {selectedLang?.name || 'Select Language'}
         </Text>
         <ChevronDown 
           size={12} 

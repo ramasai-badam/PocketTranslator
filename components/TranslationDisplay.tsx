@@ -1,17 +1,14 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { getString } from '@/utils/strings';
 
 interface TranslationDisplayProps {
   text: string;
   isRotated?: boolean;
-  displayLanguage?: string;
 }
 
 export default function TranslationDisplay({
   text,
   isRotated = false,
-  displayLanguage = 'en',
 }: TranslationDisplayProps) {
   return (
     <View style={styles.container}>
@@ -21,7 +18,7 @@ export default function TranslationDisplay({
         showsVerticalScrollIndicator={false}
       >
         <Text style={[styles.text, isRotated && styles.rotatedText]}>
-          {text || getString(displayLanguage, 'tapToSpeak')}
+          {text || 'Tap and hold the microphone to start speaking...'}
         </Text>
       </ScrollView>
     </View>
