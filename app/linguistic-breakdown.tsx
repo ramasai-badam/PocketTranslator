@@ -214,12 +214,6 @@ export default function LinguisticBreakdownScreen() {
           </View>
         </View>
 
-        {/* Sentence Meaning */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Meaning</Text>
-          <Text style={styles.meaningText}>{analysis.sentence_meaning}</Text>
-        </View>
-
         {/* Word Breakdown */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Word-by-Word Breakdown</Text>

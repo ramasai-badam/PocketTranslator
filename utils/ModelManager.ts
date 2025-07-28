@@ -409,7 +409,6 @@ Provide the analysis in strict JSON format with these exact fields:
   ],
   "english_translation": "complete_english_translation_here",
   "sentence_meaning": "detailed_meaning_and_context_explanation_in_${fromLanguageName}",
-  "explanation": "comprehensive_grammatical_structure_explanation_in_${fromLanguageName}"
 }
 
 CRITICAL REQUIREMENTS:
