@@ -408,16 +408,12 @@ Provide the analysis in strict JSON format with these exact fields:
       "relation": "grammatical_relation_in_${fromLanguageName}"
     }
   ],
-  "sentence_meaning": "detailed_meaning_and_context_explanation_in_${fromLanguageName}",
   "explanation": "comprehensive_grammatical_analysis_in_${fromLanguageName}"
 }
 
 CRITICAL REQUIREMENTS:
-- Break down EVERY word/token in the sentence
-- sentence_meaning: Write a detailed explanation of the sentence's meaning and context IN ${fromLanguageName}
+- Break down EVERY word in the sentence
 - explanation: Write a comprehensive grammatical analysis IN ${fromLanguageName}
-- english_translation: Keep this in English (this is the English translation of the sentence)
-- For each token's "english" field: Keep this in English (word-level translation)
 - For each token's "${toLanguage}" field: Provide the direct translation or closest equivalent in ${toLanguageName}
 - For each token's "part_of_speech" and "relation": Write these IN ${fromLanguageName}
 - Ensure the JSON object is complete and properly closed

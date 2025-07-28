@@ -239,11 +239,11 @@ export default function LinguisticBreakdownScreen() {
                     styles.tokenText,
                     selectedTokenIndex === index && styles.selectedTokenText
                   ]}>
-                    {token[translatedLanguageKey]}
+                    {token[getTranslatedLanguageKey()]}
                   </Text>
                   <TouchableOpacity
                     style={styles.tokenPronounceButton}
-                  onPress={() => handlePronounceToken(token[getTranslatedLanguageKey()], translatedLanguage)}
+                    onPress={() => handlePronounceToken(token[getTranslatedLanguageKey()], translatedLanguage)}
                   >
                     <Volume2 size={14} color="#007AFF" />
                   </TouchableOpacity>
