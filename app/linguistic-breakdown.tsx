@@ -121,7 +121,7 @@ export default function LinguisticBreakdownScreen() {
   };
 
   const getTokenDisplayText = (token: string[], isTranslatedLanguage: boolean) => {
-    // token array format: [toLanguageWord, fromLanguageWord, partOfSpeech, relation]
+    // token array format: [toLanguageWord, fromLanguageWord]
     const result = isTranslatedLanguage ? token[0] : token[1];
     
     // Debug logging to see what we're getting
@@ -232,49 +232,42 @@ export default function LinguisticBreakdownScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Word-by-Word Breakdown</Text>
           <Text style={styles.sectionDescription}>
-            Tap on any word to see its details and hear pronunciation
+            Tap on any word to hear its pronunciation
           </Text>
           
-          <View style={styles.tokensContainer}>
+          <View style={styles.twoColumnContainer}>
+            <View style={styles.columnHeader}>
+              <Text style={styles.columnTitle}>{getLanguageDisplayName(translatedLanguage)}</Text>
+            </View>
+            <View style={styles.columnHeader}>
+              <Text style={styles.columnTitle}>{getLanguageDisplayName(originalLanguage)}</Text>
+            </View>
+          </View>
+          
+          <View style={styles.wordsContainer}>
             {analysis.tokens.map((token, index) => (
-              <View key={index} style={styles.tokenWrapper}>
+              <View key={index} style={styles.wordPairRow}>
                 <TouchableOpacity
-                  style={[
-                    styles.tokenButton,
-                    selectedTokenIndex === index && styles.selectedTokenButton
-                  ]}
-                  onPress={() => handleTokenPress(index)}
+                  style={styles.wordButton}
+                  onPress={() => handlePronounceToken(getTokenDisplayText(token, true), translatedLanguage)}
+                  activeOpacity={0.7}
                 >
-                  <Text style={[
-                    styles.tokenText,
-                    selectedTokenIndex === index && styles.selectedTokenText
-                  ]}>
+                  <Text style={styles.wordText}>
                     {getTokenDisplayText(token, true)}
                   </Text>
-                  <TouchableOpacity
-                    style={styles.tokenPronounceButton}
-                    onPress={() => handlePronounceToken(getTokenDisplayText(token, true), translatedLanguage)}
-                  >
-                    <Volume2 size={14} color="#007AFF" />
-                  </TouchableOpacity>
+                  <Volume2 size={16} color="#007AFF" />
                 </TouchableOpacity>
 
-                {selectedTokenIndex === index && (
-                  <View style={styles.tokenDetails}>
-                    <View style={styles.tokenDetailRow}>
-                      <Text style={styles.tokenDetailLabel}>{getLanguageDisplayName(originalLanguage)}:</Text>
-                      <Text style={styles.tokenDetailValue}>{getTokenDisplayText(token, false)}</Text>
-                    </View>
-                    <View style={styles.tokenDetailRow}>
-                      <Text style={styles.tokenDetailLabel}>Part of Speech:</Text>
-                      <Text style={styles.tokenDetailValue}>{token[2]}</Text>
-                    </View>
-                    <View style={styles.tokenDetailRow}>
-                      <Text style={styles.tokenDetailLabel}>Relation:</Text>
-                      <Text style={styles.tokenDetailValue}>{token[3]}</Text>
-                    </View>
-                  </View>
-                )}
+                <TouchableOpacity
+                  style={styles.wordButton}
+                  onPress={() => handlePronounceToken(getTokenDisplayText(token, false), originalLanguage)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.wordText}>
+                    {getTokenDisplayText(token, false)}
+                  </Text>
+                  <Volume2 size={16} color="#007AFF" />
+                </TouchableOpacity>
               </View>
             ))}
           </View>
@@ -285,7 +278,7 @@ export default function LinguisticBreakdownScreen() {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          🎓 Tap words to explore their meaning and grammatical role
+          🔊 Tap words to hear their pronunciation and practice speaking
         </Text>
       </View>
     </View>
@@ -430,60 +423,47 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
   },
-  tokensContainer: {
-    gap: 12,
+  twoColumnContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    paddingHorizontal: 4,
   },
-  tokenWrapper: {
-    backgroundColor: '#1A1A1A',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#333',
-    overflow: 'hidden',
+  columnHeader: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    backgroundColor: '#2A2A2A',
+    marginHorizontal: 4,
+    borderRadius: 8,
   },
-  tokenButton: {
+  columnTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  wordsContainer: {
+    gap: 8,
+  },
+  wordPairRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  wordButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: '#1A1A1A',
     padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#333',
   },
-  selectedTokenButton: {
-    backgroundColor: '#2A2A2A',
-  },
-  tokenText: {
+  wordText: {
     fontSize: 18,
     color: '#FFF',
     fontWeight: '500',
     flex: 1,
-  },
-  selectedTokenText: {
-    color: '#007AFF',
-  },
-  tokenPronounceButton: {
-    padding: 4,
-    marginLeft: 12,
-  },
-  tokenDetails: {
-    backgroundColor: '#2A2A2A',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#444',
-  },
-  tokenDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  tokenDetailLabel: {
-    fontSize: 14,
-    color: '#999',
-    fontWeight: '600',
-    width: 120,
-  },
-  tokenDetailValue: {
-    fontSize: 14,
-    color: '#FFF',
-    flex: 1,
-    lineHeight: 20,
   },
   explanationText: {
     fontSize: 15,

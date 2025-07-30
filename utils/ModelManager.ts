@@ -415,8 +415,8 @@ Provide the analysis in strict JSON format with these exact fields:
 {
   "sentence": "${originalText}",
   "tokens": [
-    ["translated_word_from_target_sentence", "corresponding_original_word", "part_of_speech_in_${fromLanguageName}", "grammatical_relation_in_${fromLanguageName}"],
-    ["next_translated_word", "next_original_word", "part_of_speech_in_${fromLanguageName}", "grammatical_relation_in_${fromLanguageName}"]
+    ["translated_word_from_target_sentence", "corresponding_original_word"],
+    ["next_translated_word", "next_original_word"]
   ],
   "translation": "${translatedText}"
 }
@@ -427,6 +427,11 @@ CRITICAL REQUIREMENTS:
 - Write part_of_speech and relation in ${fromLanguageName} language only (NOT English, NOT ${toLanguageName})
 - Do NOT use key names inside token arrays, only values in the specified order
 - Create 1-to-1 word mapping between original and translated sentences
+- Each token is an array with exactly 2 values: [${toLanguageName}_word, ${fromLanguageName}_word]
+- Use ONLY words that appear in the respective sentences
+- Do NOT use key names inside token arrays, only values in the specified order
+- Create 1-to-1 word mapping between original and translated sentences
+- Focus on matching corresponding words between the two languages
 <end_of_turn>
 <start_of_turn>model
 `;
@@ -483,15 +488,13 @@ CRITICAL REQUIREMENTS:
       // Validate that each token is an array with 4 elements
       if (analysis.tokens) {
         analysis.tokens.forEach((token: any, index: number) => {
-          if (Array.isArray(token) && token.length === 4) {
+          if (Array.isArray(token) && token.length === 2) {
             console.log(`🔍 Token ${index}:`, {
               toLanguageWord: token[0],
               fromLanguageWord: token[1],
-              partOfSpeech: token[2],
-              relation: token[3]
             });
           } else {
-            console.warn(`⚠️ Token ${index} invalid format:`, token);
+            console.warn(`⚠️ Token ${index} invalid format (expected 2 elements):`, token);
           }
         });
       }
