@@ -525,7 +525,7 @@ export default function ConversationDetailScreen() {
       <Modal
         visible={showDeleteModal}
         transparent={true}
-        animationType="fade"
+        animationType="slide"
         onRequestClose={cancelDelete}
       >
         <View style={styles.modalOverlay}>
@@ -774,9 +774,10 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     paddingHorizontal: 20,
+    paddingBottom: 40,
   },
   deleteModalContent: {
     backgroundColor: '#1A1A1A',
@@ -786,6 +787,14 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     borderWidth: 1,
     borderColor: '#333',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 12,
   },
   deleteModalTitle: {
     fontSize: 20,

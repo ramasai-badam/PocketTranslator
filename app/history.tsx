@@ -44,6 +44,7 @@ export default function HistoryScreen() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [calendarDate, setCalendarDate] = useState(new Date());
   const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
     if (currentView === 'history') {
@@ -214,26 +215,22 @@ export default function HistoryScreen() {
   };
 
   const handleClearAllHistory = () => {
-    Alert.alert(
-      'Clear All History',
-      'Are you sure you want to delete all translation history? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await TranslationHistoryManager.clearAllHistory();
-              setTranslationsByDay({});
-              Alert.alert('Success', 'All translation history has been cleared');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to clear history');
-            }
-          },
-        },
-      ]
-    );
+    setShowDeleteModal(true);
+  };
+
+  const confirmClearHistory = async () => {
+    try {
+      await TranslationHistoryManager.clearAllHistory();
+      setTranslationsByDay({});
+      setShowDeleteModal(false);
+    } catch (error) {
+      setShowDeleteModal(false);
+      Alert.alert('Error', 'Failed to clear history');
+    }
+  };
+
+  const cancelClearHistory = () => {
+    setShowDeleteModal(false);
   };
 
   const formatDateHeader = (dateString: string) => {
@@ -920,6 +917,37 @@ export default function HistoryScreen() {
       {/* Content based on current view */}
       {currentView === 'tiles' && renderTilesView()}
       {currentView === 'history' && renderHistoryView()}
+
+      {/* Clear History Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={cancelClearHistory}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <Text style={styles.deleteModalTitle}>Clear All History</Text>
+            <Text style={styles.deleteModalMessage}>
+              Are you sure you want to delete all translation history? This action cannot be undone.
+            </Text>
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={styles.deleteModalCancelButton}
+                onPress={cancelClearHistory}
+              >
+                <Text style={styles.deleteModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteModalConfirmButton}
+                onPress={confirmClearHistory}
+              >
+                <Text style={styles.deleteModalConfirmText}>Clear All</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1071,6 +1099,75 @@ const styles = StyleSheet.create({
     maxHeight: '80%',
     borderWidth: 1,
     borderColor: '#333',
+  },
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  deleteModalContent: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: '#333',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  deleteModalMessage: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  deleteModalCancelButton: {
+    flex: 1,
+    backgroundColor: '#333',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  deleteModalCancelText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  deleteModalConfirmButton: {
+    flex: 1,
+    backgroundColor: '#FF3B30',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  deleteModalConfirmText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   modalHeader: {
     flexDirection: 'row',

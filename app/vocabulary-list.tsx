@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, Volume2, Trash2, BookOpen, GraduationCap } from 'lucide-react-native';
@@ -35,6 +36,9 @@ export default function VocabularyListScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [breakdownCache, setBreakdownCache] = useState<{ [key: string]: any }>({});
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showClearAllModal, setShowClearAllModal] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   // Key for AsyncStorage
   const BREAKDOWN_CACHE_KEY = 'linguisticBreakdownCache';
@@ -124,49 +128,46 @@ export default function VocabularyListScreen() {
   };
 
   const handleDeleteWord = async (translationId: string) => {
-    Alert.alert(
-      'Delete Word',
-      'Are you sure you want to remove this word from your vocabulary?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await VocabularyManager.removeFromVocabulary(translationId);
-              setVocabularyItems(prev => prev.filter(item => item.vocabularyEntry.translationId !== translationId));
-              Alert.alert('Success', 'Word removed from vocabulary');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete word');
-            }
-          },
-        },
-      ]
-    );
+    setDeleteTargetId(translationId);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteWord = async () => {
+    if (!deleteTargetId) return;
+    try {
+      await VocabularyManager.removeFromVocabulary(deleteTargetId);
+      setVocabularyItems(prev => prev.filter(item => item.vocabularyEntry.translationId !== deleteTargetId));
+      setShowDeleteModal(false);
+      setDeleteTargetId(null);
+    } catch (error) {
+      setShowDeleteModal(false);
+      setDeleteTargetId(null);
+      Alert.alert('Error', 'Failed to delete word');
+    }
+  };
+
+  const cancelDeleteWord = () => {
+    setShowDeleteModal(false);
+    setDeleteTargetId(null);
   };
 
   const handleClearAllVocabulary = () => {
-    Alert.alert(
-      'Clear All Vocabulary',
-      'Are you sure you want to delete all vocabulary words? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear All',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await VocabularyManager.clearAllVocabulary();
-              setVocabularyItems([]);
-              Alert.alert('Success', 'All vocabulary words have been cleared');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to clear vocabulary');
-            }
-          },
-        },
-      ]
-    );
+    setShowClearAllModal(true);
+  };
+
+  const confirmClearAllVocabulary = async () => {
+    try {
+      await VocabularyManager.clearAllVocabulary();
+      setVocabularyItems([]);
+      setShowClearAllModal(false);
+    } catch (error) {
+      setShowClearAllModal(false);
+      Alert.alert('Error', 'Failed to clear vocabulary');
+    }
+  };
+
+  const cancelClearAllVocabulary = () => {
+    setShowClearAllModal(false);
   };
 
   const handleSpellWord = async (word: string, languageCode: string) => {
@@ -400,6 +401,68 @@ export default function VocabularyListScreen() {
           </Text>
         </View>
       )}
+
+      {/* Delete Word Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={cancelDeleteWord}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <Text style={styles.deleteModalTitle}>Delete Translation</Text>
+            <Text style={styles.deleteModalMessage}>
+              Are you sure you want to remove this translation from your vocabulary?
+            </Text>
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={styles.deleteModalCancelButton}
+                onPress={cancelDeleteWord}
+              >
+                <Text style={styles.deleteModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteModalConfirmButton}
+                onPress={confirmDeleteWord}
+              >
+                <Text style={styles.deleteModalConfirmText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Clear All Vocabulary Confirmation Modal */}
+      <Modal
+        visible={showClearAllModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={cancelClearAllVocabulary}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <Text style={styles.deleteModalTitle}>Clear All Vocabulary</Text>
+            <Text style={styles.deleteModalMessage}>
+              Are you sure you want to delete all vocabulary words? This action cannot be undone.
+            </Text>
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={styles.deleteModalCancelButton}
+                onPress={cancelClearAllVocabulary}
+              >
+                <Text style={styles.deleteModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteModalConfirmButton}
+                onPress={confirmClearAllVocabulary}
+              >
+                <Text style={styles.deleteModalConfirmText}>Clear All</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -588,5 +651,74 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  deleteModalContent: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: '#333',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 12,
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  deleteModalMessage: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  deleteModalCancelButton: {
+    flex: 1,
+    backgroundColor: '#333',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  deleteModalCancelText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  deleteModalConfirmButton: {
+    flex: 1,
+    backgroundColor: '#FF3B30',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  deleteModalConfirmText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
