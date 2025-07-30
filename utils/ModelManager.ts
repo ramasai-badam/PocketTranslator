@@ -422,11 +422,6 @@ Provide the analysis in strict JSON format with these exact fields:
 }
 
 CRITICAL REQUIREMENTS:
-- Each token is an array with exactly 4 values: [${toLanguageName}_word, ${fromLanguageName}_word, part_of_speech, relation]
-- Use ONLY words that appear in the respective sentences
-- Write part_of_speech and relation in ${fromLanguageName} language only (NOT English, NOT ${toLanguageName})
-- Do NOT use key names inside token arrays, only values in the specified order
-- Create 1-to-1 word mapping between original and translated sentences
 - Each token is an array with exactly 2 values: [${toLanguageName}_word, ${fromLanguageName}_word]
 - Use ONLY words that appear in the respective sentences
 - Do NOT use key names inside token arrays, only values in the specified order
