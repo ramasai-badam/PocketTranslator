@@ -192,38 +192,23 @@ export default function HistoryScreen() {
   };
 
   const handleConversationPress = (conversation: LanguagePairConversation) => {
+    // Create a filter summary to pass to conversation detail
+    let dateFilter = '';
+    if (dateFilterMode === 'single' && selectedDate) {
+      dateFilter = selectedDate;
+    } else if (dateFilterMode === 'range' && selectedStartDate && selectedEndDate) {
+      dateFilter = `${selectedStartDate}_to_${selectedEndDate}`;
+    }
+    
     // Navigate to conversation detail screen
     router.push({
       pathname: '/conversation-detail',
       params: {
         languagePair: conversation.languagePair,
         displayName: conversation.displayName,
-        dateFilter: selectedDateFilter,
+        dateFilter: dateFilter,
       },
     });
-  };
-
-  const handleDeleteTranslation = (translationId: string) => {
-    Alert.alert(
-      'Delete Translation',
-      'Are you sure you want to delete this translation?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await TranslationHistoryManager.deleteTranslation(translationId);
-              await loadTranslations(); // Reload data
-              Alert.alert('Success', 'Translation deleted successfully');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to delete translation');
-            }
-          },
-        },
-      ]
-    );
   };
 
   const handleClearAllHistory = () => {
@@ -860,12 +845,6 @@ export default function HistoryScreen() {
                                 {formatDate(entry.timestamp)}
                               </Text>
                             </View>
-                            <TouchableOpacity
-                              style={styles.deleteButton}
-                              onPress={() => handleDeleteTranslation(entry.id)}
-                            >
-                              <Trash2 size={16} color="#FF3B30" />
-                            </TouchableOpacity>
                           </View>
                         ))}
                         

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, Volume2, Trash2, User, BookmarkPlus, Bookmark } from 'lucide-react-native';
@@ -27,6 +28,11 @@ export default function ConversationDetailScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [savedEntries, setSavedEntries] = useState<Set<string>>(new Set());
+  const [toastMessage, setToastMessage] = useState<string>('');
+  const [toastType, setToastType] = useState<'success' | 'error' | 'warning'>('success');
+  const [toastOpacity] = useState(new Animated.Value(0));
+  const [toastTranslateY] = useState(new Animated.Value(-50));
+  const [toastTimeoutRef, setToastTimeoutRef] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadConversationEntries();
@@ -36,6 +42,15 @@ export default function ConversationDetailScreen() {
     checkSavedEntries();
   }, [entries]);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (toastTimeoutRef) {
+        clearTimeout(toastTimeoutRef);
+      }
+    };
+  }, [toastTimeoutRef]);
+
   const checkSavedEntries = async () => {
     try {
       const vocabularyWords = await VocabularyManager.getAllVocabularyWords();
@@ -44,7 +59,9 @@ export default function ConversationDetailScreen() {
       entries.forEach(entry => {
         const isAlreadySaved = vocabularyWords.some(word => 
           word.originalText === entry.originalText && 
-          word.translatedText === entry.translatedText
+          word.translatedText === entry.translatedText &&
+          word.originalLanguage === entry.fromLanguage &&
+          word.translatedLanguage === entry.toLanguage
         );
         if (isAlreadySaved) {
           savedSet.add(entry.id);
@@ -55,6 +72,53 @@ export default function ConversationDetailScreen() {
     } catch (error) {
       console.error('Failed to check saved entries:', error);
     }
+  };
+
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' = 'success') => {
+    // Clear any existing timeout to prevent overlapping animations
+    if (toastTimeoutRef) {
+      clearTimeout(toastTimeoutRef);
+      setToastTimeoutRef(null);
+    }
+
+    setToastMessage(message);
+    setToastType(type);
+    
+    // Animate in with both opacity and transform
+    Animated.parallel([
+      Animated.timing(toastOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+      Animated.timing(toastTranslateY, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      // Set timeout for fade out after animation completes
+      const timeout = setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(toastOpacity, {
+            toValue: 0,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(toastTranslateY, {
+            toValue: -50,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+        ]).start(() => {
+          // Clear message after fade out completes
+          setToastMessage('');
+          setToastTimeoutRef(null);
+        });
+      }, 2500);
+      
+      setToastTimeoutRef(timeout);
+    });
   };
 
   const loadConversationEntries = async () => {
@@ -69,25 +133,28 @@ export default function ConversationDetailScreen() {
         let filteredEntries = conversation.entries;
         
         // Apply date filter if provided
-        if (dateFilter && dateFilter !== 'all') {
-          const now = new Date();
-          let filterDate: Date;
-          
-          switch (dateFilter) {
-            case 'today':
-              filterDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-              break;
-            case 'week':
-              filterDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-              break;
-            case 'month':
-              filterDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-              break;
-            default:
-              filterDate = new Date(0); // Show all if unknown filter
+        if (dateFilter && dateFilter !== '' && dateFilter !== 'all') {
+          if (dateFilter.includes('_to_')) {
+            // Handle date range filter (e.g., "Mon Jan 27 2025_to_Tue Jan 28 2025")
+            const [startDateStr, endDateStr] = dateFilter.split('_to_');
+            const startTime = new Date(startDateStr).getTime();
+            const endTime = new Date(endDateStr).getTime();
+            
+            filteredEntries = conversation.entries.filter(entry => {
+              const entryTime = entry.timestamp;
+              return entryTime >= startTime && entryTime <= (endTime + 24 * 60 * 60 * 1000 - 1); // Include full end day
+            });
+          } else {
+            // Handle single date filter (e.g., "Mon Jan 27 2025")
+            const filterDate = new Date(dateFilter);
+            const startOfDay = new Date(filterDate.getFullYear(), filterDate.getMonth(), filterDate.getDate()).getTime();
+            const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
+            
+            filteredEntries = conversation.entries.filter(entry => {
+              const entryTime = entry.timestamp;
+              return entryTime >= startOfDay && entryTime <= endOfDay;
+            });
           }
-          
-          filteredEntries = conversation.entries.filter(entry => entry.timestamp >= filterDate.getTime());
         }
         
         // Sort entries by timestamp (newest first)
@@ -149,27 +216,78 @@ export default function ConversationDetailScreen() {
 
   const handleAddToVocabulary = async (entry: TranslationEntry) => {
     try {
-      const result = await VocabularyManager.saveVocabularyWord(
-        entry.originalText,
-        entry.translatedText,
-        entry.fromLanguage,
-        entry.toLanguage
-      );
-
-      if (result.success) {
-        // Update the saved entries state
-        setSavedEntries(prev => new Set(prev).add(entry.id));
-        Alert.alert('Success', result.message);
-      } else {
-        Alert.alert(
-          result.isDuplicate ? 'Already Added' : 'Error',
-          result.message
+      const isCurrentlySaved = savedEntries.has(entry.id);
+      
+      if (isCurrentlySaved) {
+        // Remove from vocabulary
+        const result = await VocabularyManager.removeVocabularyWordByText(
+          entry.originalText,
+          entry.translatedText,
+          entry.fromLanguage,
+          entry.toLanguage
         );
+        
+        // Always remove from savedEntries regardless of vocabulary result
+        setSavedEntries(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(entry.id);
+          return newSet;
+        });
+        
+        if (result.success) {
+          showToast(result.message, 'success');
+        } else {
+          showToast('Removed from vocabulary!', 'success'); // Show success anyway
+        }
+      } else {
+        // Add to vocabulary
+        const result = await VocabularyManager.saveVocabularyWord(
+          entry.originalText,
+          entry.translatedText,
+          entry.fromLanguage,
+          entry.toLanguage
+        );
+
+        // Always add to savedEntries regardless of vocabulary result
+        setSavedEntries(prev => new Set(prev).add(entry.id));
+        
+        if (result.success) {
+          showToast(result.message, 'success');
+        } else if (result.isDuplicate) {
+          showToast('Already in vocabulary!', 'warning');
+        } else {
+          showToast('Added to vocabulary!', 'success'); // Show success anyway
+        }
       }
     } catch (error) {
-      console.error('Failed to add word to vocabulary:', error);
-      Alert.alert('Error', 'Failed to add word to vocabulary');
+      console.error('Failed to toggle vocabulary:', error);
+      showToast('Failed to update vocabulary', 'error');
     }
+  };
+
+  const handleDeleteTranslation = (translationId: string) => {
+    Alert.alert(
+      'Delete Translation',
+      'Are you sure you want to delete this translation?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await TranslationHistoryManager.deleteTranslation(translationId);
+              // Remove the deleted entry from the current entries
+              setEntries(prevEntries => prevEntries.filter(entry => entry.id !== translationId));
+              Alert.alert('Success', 'Translation deleted successfully');
+            } catch (error) {
+              console.error('Failed to delete translation:', error);
+              Alert.alert('Error', 'Failed to delete translation');
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleClearConversation = () => {
@@ -292,6 +410,12 @@ export default function ConversationDetailScreen() {
                       <BookmarkPlus size={16} color="#34C759" />
                     )}
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => handleDeleteTranslation(entry.id)}
+                  >
+                    <Trash2 size={16} color="#FF3B30" />
+                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -340,6 +464,25 @@ export default function ConversationDetailScreen() {
           </Text>
         </View>
       )}
+
+      {/* Toast Message */}
+      {toastMessage ? (
+        <Animated.View
+          style={[
+            styles.toastContainer,
+            {
+              opacity: toastOpacity,
+              transform: [{ translateY: toastTranslateY }],
+              backgroundColor: 
+                toastType === 'success' ? '#34C759' :
+                toastType === 'warning' ? '#FF9500' : '#FF3B30',
+            },
+          ]}
+          pointerEvents="none"
+        >
+          <Text style={styles.toastText}>{toastMessage}</Text>
+        </Animated.View>
+      ) : null}
     </View>
   );
 }
@@ -492,6 +635,9 @@ const styles = StyleSheet.create({
   addToVocabButton: {
     padding: 4,
   },
+  deleteButton: {
+    padding: 4,
+  },
   originalText: {
     fontSize: 16,
     color: '#FFF',
@@ -513,5 +659,29 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  toastContainer: {
+    position: 'absolute',
+    top: 100,
+    left: 20,
+    right: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    zIndex: 1000,
+    elevation: 1000,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  toastText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

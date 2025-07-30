@@ -117,6 +117,48 @@ export class VocabularyManager {
   }
 
   /**
+   * Remove a vocabulary word by text match
+   */
+  static async removeVocabularyWordByText(
+    originalText: string,
+    translatedText: string,
+    originalLanguage: string,
+    translatedLanguage: string
+  ): Promise<{ success: boolean; message: string }> {
+    try {
+      const words = await this.loadVocabulary();
+      const wordIndex = words.findIndex(word => 
+        word.originalText.toLowerCase() === originalText.toLowerCase() &&
+        word.translatedText.toLowerCase() === translatedText.toLowerCase() &&
+        word.originalLanguage === originalLanguage &&
+        word.translatedLanguage === translatedLanguage
+      );
+
+      if (wordIndex === -1) {
+        return {
+          success: false,
+          message: 'Word not found in vocabulary'
+        };
+      }
+
+      words.splice(wordIndex, 1);
+      await this.saveVocabulary(words);
+
+      console.log('Vocabulary word removed:', { originalText, translatedText });
+      return {
+        success: true,
+        message: 'Removed from vocabulary!'
+      };
+    } catch (error) {
+      console.error('Failed to remove vocabulary word:', error);
+      return {
+        success: false,
+        message: 'Failed to remove word from vocabulary'
+      };
+    }
+  }
+
+  /**
    * Clear all vocabulary words
    */
   static async clearAllVocabulary(): Promise<void> {

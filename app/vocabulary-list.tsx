@@ -307,6 +307,15 @@ export default function VocabularyListScreen() {
                 <View style={styles.wordHeaderRight}>
                   <Text style={styles.dateAdded}>{word.dateAdded}</Text>
                   <TouchableOpacity
+                    style={styles.breakdownButton}
+                    onPress={() => handleLinguisticBreakdown(word)}
+                  >
+                    <GraduationCap 
+                      size={16} 
+                      color={isBreakdownCached(word) ? "#FFD700" : "#34C759"} 
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
                     style={styles.deleteButton}
                     onPress={() => handleDeleteWord(word.id)}
                   >
@@ -319,21 +328,14 @@ export default function VocabularyListScreen() {
               <View style={[styles.textContainer, styles.originalTextContainer]}>
                 <View style={styles.textHeader}>
                   <Text style={styles.textLabel}>Original</Text>
-                  <TouchableOpacity
-                    style={styles.speakButton}
-                    onPress={() => Speech.speak(word.originalText, { language: word.originalLanguage })}
-                  >
-                    <Volume2 size={16} color="#007AFF" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.breakdownButton}
-                    onPress={() => handleLinguisticBreakdown(word)}
-                  >
-                    <GraduationCap 
-                      size={16} 
-                      color={isBreakdownCached(word) ? "#FFD700" : "#34C759"} 
-                    />
-                  </TouchableOpacity>
+                  <View style={styles.iconGroup}>
+                    <TouchableOpacity
+                      style={styles.speakButton}
+                      onPress={() => Speech.speak(word.originalText, { language: word.originalLanguage })}
+                    >
+                      <Volume2 size={16} color="#007AFF" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 {renderInteractiveText(word.originalText, word.originalLanguage)}
               </View>
@@ -342,12 +344,14 @@ export default function VocabularyListScreen() {
               <View style={[styles.textContainer, styles.translatedTextContainer]}>
                 <View style={styles.textHeader}>
                   <Text style={styles.textLabel}>Translation</Text>
-                  <TouchableOpacity
-                    style={styles.speakButton}
-                    onPress={() => Speech.speak(word.translatedText, { language: word.translatedLanguage })}
-                  >
-                    <Volume2 size={16} color="#007AFF" />
-                  </TouchableOpacity>
+                  <View style={styles.iconGroup}>
+                    <TouchableOpacity
+                      style={styles.speakButton}
+                      onPress={() => Speech.speak(word.translatedText, { language: word.translatedLanguage })}
+                    >
+                      <Volume2 size={16} color="#007AFF" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
                 {renderInteractiveText(word.translatedText, word.translatedLanguage)}
               </View>
@@ -502,6 +506,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#999',
     fontWeight: '500',
+  },
+  iconGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   speakButton: {
     padding: 4,
