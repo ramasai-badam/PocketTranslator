@@ -21,6 +21,7 @@ export default function ConversationDetailScreen() {
   const params = useLocalSearchParams();
   const languagePair = params.languagePair as string;
   const displayName = params.displayName as string;
+  const dateFilter = params.dateFilter as string;
   
   const [entries, setEntries] = useState<TranslationEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -65,8 +66,32 @@ export default function ConversationDetailScreen() {
       const conversation = await TranslationHistoryManager.getConversation(lang1, lang2);
       
       if (conversation) {
+        let filteredEntries = conversation.entries;
+        
+        // Apply date filter if provided
+        if (dateFilter && dateFilter !== 'all') {
+          const now = new Date();
+          let filterDate: Date;
+          
+          switch (dateFilter) {
+            case 'today':
+              filterDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+              break;
+            case 'week':
+              filterDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+              break;
+            case 'month':
+              filterDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+              break;
+            default:
+              filterDate = new Date(0); // Show all if unknown filter
+          }
+          
+          filteredEntries = conversation.entries.filter(entry => entry.timestamp >= filterDate.getTime());
+        }
+        
         // Sort entries by timestamp (newest first)
-        const sortedEntries = conversation.entries.sort((a, b) => b.timestamp - a.timestamp);
+        const sortedEntries = filteredEntries.sort((a, b) => b.timestamp - a.timestamp);
         setEntries(sortedEntries);
       }
     } catch (error) {

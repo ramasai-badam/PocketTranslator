@@ -198,6 +198,7 @@ export default function HistoryScreen() {
       params: {
         languagePair: conversation.languagePair,
         displayName: conversation.displayName,
+        dateFilter: selectedDateFilter,
       },
     });
   };
