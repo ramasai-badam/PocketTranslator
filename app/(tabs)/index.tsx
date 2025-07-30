@@ -305,13 +305,13 @@ export default function TranslatorScreen() {
               style={[
                 styles.micButton, 
                 isTopRecording && styles.recordingButton,
-               (!modelsReady || isRecording) && styles.disabledButton
+                (!modelsReady || isRecording || isBottomRecording) && styles.disabledButton
               ]}
               onPressIn={() => handleStartRecording(true)}
               onPressOut={() => handleStopRecording(true)}
-             disabled={!modelsReady || isRecording}
+              disabled={!modelsReady || isRecording || isBottomRecording}
             >
-             <Mic size={32} color={(modelsReady && !isRecording) ? "white" : "#666"} />
+              <Mic size={32} color={(modelsReady && !isRecording && !isBottomRecording) ? "white" : "#666"} />
               {isTopRecording && <RecordingIndicator />}
             </TouchableOpacity>
             <TouchableOpacity
@@ -346,13 +346,13 @@ export default function TranslatorScreen() {
             style={[
               styles.micButton, 
               isBottomRecording && styles.recordingButton,
-             (!modelsReady || isRecording) && styles.disabledButton
+              (!modelsReady || isRecording || isTopRecording) && styles.disabledButton
             ]}
             onPressIn={() => handleStartRecording(false)}
             onPressOut={() => handleStopRecording(false)}
-           disabled={!modelsReady || isRecording}
+            disabled={!modelsReady || isRecording || isTopRecording}
           >
-           <Mic size={32} color={(modelsReady && !isRecording) ? "white" : "#666"} />
+            <Mic size={32} color={(modelsReady && !isRecording && !isTopRecording) ? "white" : "#666"} />
             {isBottomRecording && <RecordingIndicator />}
           </TouchableOpacity>
           <TouchableOpacity
