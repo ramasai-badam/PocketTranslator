@@ -219,12 +219,14 @@ Translate this ${fromLang} text to ${toLang}: "${text}" Strictly Provide only si
       const context = await initLlama({
         model: modelPath,
         n_ctx: 1024,
-        n_threads: 6,
+        n_threads: 4,
+        use_mlock: false,  // Turn OFF memory locking - model won't be loaded into RAM
+        use_mmap: true,    // Keep memory mapping - reads from disk as needed
         embedding: false,
       });
 
       llamaContext = context;
-      console.log('ModelManager: Llama model initialized successfully');
+      console.log('ModelManager: Llama model initialized successfully (memory-mapped mode)');
       
       notifyListeners();
       return context;
