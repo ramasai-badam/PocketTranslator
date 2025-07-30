@@ -24,6 +24,7 @@ export default function ConversationDetailScreen() {
   const displayName = params.displayName as string;
   const dateFilter = params.dateFilter as string;
   const highlightTranslationId = params.highlightTranslationId as string;
+  const searchQuery = params.searchQuery as string;
   
   const [entries, setEntries] = useState<TranslationEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -189,6 +190,15 @@ export default function ConversationDetailScreen() {
               return entryTime >= startOfDay && entryTime <= endOfDay;
             });
           }
+        }
+        
+        // Apply search filter if provided
+        if (searchQuery && searchQuery.trim() !== '') {
+          const query = searchQuery.toLowerCase();
+          filteredEntries = filteredEntries.filter(entry =>
+            entry.originalText.toLowerCase().includes(query) ||
+            entry.translatedText.toLowerCase().includes(query)
+          );
         }
         
         // Sort entries by timestamp (newest first)
@@ -384,6 +394,7 @@ export default function ConversationDetailScreen() {
           <Text style={styles.headerTitle}>{displayName}</Text>
           <Text style={styles.headerSubtitle}>
             {entries.length} translation{entries.length !== 1 ? 's' : ''}
+            {searchQuery && searchQuery.trim() !== '' && ` • Search: "${searchQuery}"`}
           </Text>
         </View>
         <TouchableOpacity

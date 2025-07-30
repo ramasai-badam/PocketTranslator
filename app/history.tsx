@@ -208,6 +208,7 @@ export default function HistoryScreen() {
         displayName: conversation.displayName,
         dateFilter: dateFilter,
         highlightTranslationId: highlightTranslationId || '',
+        searchQuery: searchQuery || '', // Pass the current search query
       },
     });
   };
