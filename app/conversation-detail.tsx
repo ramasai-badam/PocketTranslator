@@ -37,6 +37,9 @@ export default function ConversationDetailScreen() {
   const [toastTranslateY] = useState(new Animated.Value(-50));
   const [toastTimeoutRef, setToastTimeoutRef] = useState<ReturnType<typeof setTimeout> | null>(null);
   const [highlightedEntryId, setHighlightedEntryId] = useState<string | null>(null);
+  const [highlightOpacity] = useState(new Animated.Value(0));
+  const [highlightScale] = useState(new Animated.Value(1));
+  const [borderColorAnim] = useState(new Animated.Value(0));
   const scrollViewRef = useRef<ScrollView>(null);
   const entryPositions = useRef<{ [key: string]: number }>({});
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -56,6 +59,26 @@ export default function ConversationDetailScreen() {
   useEffect(() => {
     if (highlightTranslationId && entries.length > 0) {
       setHighlightedEntryId(highlightTranslationId);
+      
+      // Animate highlight in - run animations separately to avoid driver conflicts
+      Animated.timing(borderColorAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: false, // Color animations don't support native driver
+      }).start();
+      
+      Animated.sequence([
+        Animated.timing(highlightScale, {
+          toValue: 1.02,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+        Animated.timing(highlightScale, {
+          toValue: 1,
+          duration: 250,
+          useNativeDriver: true,
+        }),
+      ]).start();
       
       // Scroll to the highlighted entry after a short delay to ensure rendering is complete
       setTimeout(() => {
@@ -78,9 +101,24 @@ export default function ConversationDetailScreen() {
         }
       }, 500); // Increased delay to allow layout to complete
       
-      // Remove highlight after 3 seconds
+      // Remove highlight after 3 seconds with smooth fade out
       const timeout = setTimeout(() => {
-        setHighlightedEntryId(null);
+        Animated.timing(borderColorAnim, {
+          toValue: 0,
+          duration: 800,
+          useNativeDriver: false, // Color animations don't support native driver
+        }).start();
+        
+        Animated.timing(highlightScale, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }).start((finished) => {
+          // Only clear the highlighted entry ID after animation completes
+          if (finished) {
+            setHighlightedEntryId(null);
+          }
+        });
       }, 3000);
       return () => clearTimeout(timeout);
     }
@@ -416,7 +454,7 @@ export default function ConversationDetailScreen() {
           </View>
         ) : (
           entries.map((entry) => (
-            <View 
+            <Animated.View 
               key={entry.id} 
               onLayout={(event) => {
                 const { y } = event.nativeEvent.layout;
@@ -424,72 +462,92 @@ export default function ConversationDetailScreen() {
               }}
               style={[
                 styles.entryContainer,
-                highlightedEntryId === entry.id && styles.entryContainerHighlighted
+                {
+                  borderColor: highlightedEntryId === entry.id 
+                    ? borderColorAnim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: ['#333', '#FFFFFF'],
+                      })
+                    : '#333',
+                  borderWidth: 2, // Always 2px to avoid layout shift
+                },
               ]}
             >
-              <View style={styles.entryHeader}>
-                <View style={styles.speakerInfo}>
-                  <Text style={styles.speakerIcon}>{getSpeakerIcon(entry.speaker)}</Text>
-                  <Text style={[styles.speakerLabel, { color: getSpeakerColor(entry.speaker) }]}>
-                    {entry.speaker === 'user1' ? 'Speaker 1' : 'Speaker 2'}
-                  </Text>
+              <Animated.View
+                style={{
+                  transform: [
+                    { 
+                      scale: highlightedEntryId === entry.id 
+                        ? highlightScale 
+                        : 1
+                    }
+                  ],
+                }}
+              >
+                <View style={styles.entryHeader}>
+                  <View style={styles.speakerInfo}>
+                    <Text style={styles.speakerIcon}>{getSpeakerIcon(entry.speaker)}</Text>
+                    <Text style={[styles.speakerLabel, { color: getSpeakerColor(entry.speaker) }]}>
+                      {entry.speaker === 'user1' ? 'Speaker 1' : 'Speaker 2'}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.entryHeaderRight}>
+                    <Text style={styles.entryTime}>{formatDate(entry.timestamp)}</Text>
+                    <TouchableOpacity
+                      style={styles.addToVocabButton}
+                      onPress={() => handleAddToVocabulary(entry)}
+                    >
+                      {savedEntries.has(entry.id) ? (
+                        <Bookmark size={16} color="#34C759" />
+                      ) : (
+                        <Bookmark size={16} color="#FF3B30" />
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => handleDeleteTranslation(entry.id)}
+                    >
+                      <Trash2 size={16} color="#FF3B30" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                
-                <View style={styles.entryHeaderRight}>
-                  <Text style={styles.entryTime}>{formatDate(entry.timestamp)}</Text>
-                  <TouchableOpacity
-                    style={styles.addToVocabButton}
-                    onPress={() => handleAddToVocabulary(entry)}
-                  >
-                    {savedEntries.has(entry.id) ? (
-                      <Bookmark size={16} color="#34C759" />
-                    ) : (
-                      <Bookmark size={16} color="#FF3B30" />
-                    )}
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => handleDeleteTranslation(entry.id)}
-                  >
-                    <Trash2 size={16} color="#FF3B30" />
-                  </TouchableOpacity>
-                </View>
-              </View>
 
-              {/* Original Text */}
-              <View style={[styles.textContainer, styles.originalTextContainer]}>
-                <View style={styles.textHeader}>
-                  <Text style={styles.languageLabel}>
-                    {getLanguageDisplayName(entry.fromLanguage)}
-                  </Text>
-                  <View style={styles.textActions}>
+                {/* Original Text */}
+                <View style={[styles.textContainer, styles.originalTextContainer]}>
+                  <View style={styles.textHeader}>
+                    <Text style={styles.languageLabel}>
+                      {getLanguageDisplayName(entry.fromLanguage)}
+                    </Text>
+                    <View style={styles.textActions}>
+                      <TouchableOpacity
+                        style={styles.speakButton}
+                        onPress={() => handleSpeak(entry.originalText, entry.fromLanguage)}
+                      >
+                        <Volume2 size={16} color="#007AFF" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  <Text style={styles.originalText}>{entry.originalText}</Text>
+                </View>
+
+                {/* Translation */}
+                <View style={[styles.textContainer, styles.translatedTextContainer]}>
+                  <View style={styles.textHeader}>
+                    <Text style={styles.languageLabel}>
+                      {getLanguageDisplayName(entry.toLanguage)}
+                    </Text>
                     <TouchableOpacity
                       style={styles.speakButton}
-                      onPress={() => handleSpeak(entry.originalText, entry.fromLanguage)}
+                      onPress={() => handleSpeak(entry.translatedText, entry.toLanguage)}
                     >
                       <Volume2 size={16} color="#007AFF" />
                     </TouchableOpacity>
                   </View>
+                  <Text style={styles.translatedText}>{entry.translatedText}</Text>
                 </View>
-                <Text style={styles.originalText}>{entry.originalText}</Text>
-              </View>
-
-              {/* Translation */}
-              <View style={[styles.textContainer, styles.translatedTextContainer]}>
-                <View style={styles.textHeader}>
-                  <Text style={styles.languageLabel}>
-                    {getLanguageDisplayName(entry.toLanguage)}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.speakButton}
-                    onPress={() => handleSpeak(entry.translatedText, entry.toLanguage)}
-                  >
-                    <Volume2 size={16} color="#007AFF" />
-                  </TouchableOpacity>
-                </View>
-                <Text style={styles.translatedText}>{entry.translatedText}</Text>
-              </View>
-            </View>
+              </Animated.View>
+            </Animated.View>
           ))
         )}
       </ScrollView>
@@ -642,7 +700,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderRadius: 12,
     padding: 16,
-    borderWidth: 1,
+    borderWidth: 2, // Always 2px to match highlighted state
     borderColor: '#333',
   },
   entryContainerHighlighted: {
