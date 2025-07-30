@@ -52,8 +52,8 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
       console.log('Loading models into memory...');
       
       // Load both models using ModelManager
-      await ModelManager.initializeAll();
-      console.log('Models loaded into memory successfully');
+      // await ModelManager.initializeAll();
+      console.log('Models loaded into memory successfully - skipped');
     } catch (error) {
       console.error('Error loading models into memory:', error);
     } finally {
@@ -215,11 +215,7 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
           <Text style={styles.downloadingText}>Loading models into memory...</Text>
         )}
 
-        {allDownloaded && !isProcessing && (
-          <TouchableOpacity style={styles.continueButton} onPress={onReady}>
-            <Text style={styles.continueButtonText}>Continue to Translator</Text>
-          </TouchableOpacity>
-        )}
+        {/* Continue to Translator button removed as requested */}
 
         {showSkip && !isProcessing && (
           <TouchableOpacity style={styles.skipButton} onPress={onReady}>
