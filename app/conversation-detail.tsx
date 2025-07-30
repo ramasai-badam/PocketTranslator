@@ -8,6 +8,7 @@ import {
   Alert,
   RefreshControl,
   Animated,
+  Modal,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, Volume2, Trash2, User, BookmarkPlus, Bookmark } from 'lucide-react-native';
@@ -38,6 +39,8 @@ export default function ConversationDetailScreen() {
   const [highlightedEntryId, setHighlightedEntryId] = useState<string | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const entryPositions = useRef<{ [key: string]: number }>({});
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: 'translation' | 'conversation'; id?: string } | null>(null);
 
   useEffect(() => {
     loadConversationEntries();
@@ -301,52 +304,40 @@ export default function ConversationDetailScreen() {
   };
 
   const handleDeleteTranslation = (translationId: string) => {
-    Alert.alert(
-      'Delete Translation',
-      'Are you sure you want to delete this translation?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await TranslationHistoryManager.deleteTranslation(translationId);
-              // Remove the deleted entry from the current entries
-              setEntries(prevEntries => prevEntries.filter(entry => entry.id !== translationId));
-              Alert.alert('Success', 'Translation deleted successfully');
-            } catch (error) {
-              console.error('Failed to delete translation:', error);
-              Alert.alert('Error', 'Failed to delete translation');
-            }
-          },
-        },
-      ]
-    );
+    setDeleteTarget({ type: 'translation', id: translationId });
+    setShowDeleteModal(true);
   };
 
   const handleClearConversation = () => {
-    Alert.alert(
-      'Clear Conversation',
-      `Are you sure you want to delete all translations for ${displayName}? This action cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const [lang1, lang2] = languagePair.split('-');
-              await TranslationHistoryManager.clearConversation(lang1, lang2);
-              setEntries([]);
-              Alert.alert('Success', 'Conversation history has been cleared');
-            } catch (error) {
-              Alert.alert('Error', 'Failed to clear conversation');
-            }
-          },
-        },
-      ]
-    );
+    setDeleteTarget({ type: 'conversation' });
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+
+    try {
+      if (deleteTarget.type === 'translation' && deleteTarget.id) {
+        await TranslationHistoryManager.deleteTranslation(deleteTarget.id);
+        // Remove the deleted entry from the current entries
+        setEntries(prevEntries => prevEntries.filter(entry => entry.id !== deleteTarget.id));
+      } else if (deleteTarget.type === 'conversation') {
+        const [lang1, lang2] = languagePair.split('-');
+        await TranslationHistoryManager.clearConversation(lang1, lang2);
+        setEntries([]);
+      }
+    } catch (error) {
+      console.error('Failed to delete:', error);
+      showToast('Failed to delete', 'error');
+    } finally {
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setDeleteTarget(null);
   };
 
   const formatDate = (timestamp: number) => {
@@ -529,6 +520,44 @@ export default function ConversationDetailScreen() {
           <Text style={styles.toastText}>{toastMessage}</Text>
         </Animated.View>
       ) : null}
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={cancelDelete}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <Text style={styles.deleteModalTitle}>
+              {deleteTarget?.type === 'translation' ? 'Delete Translation' : 'Clear Conversation'}
+            </Text>
+            <Text style={styles.deleteModalMessage}>
+              {deleteTarget?.type === 'translation' 
+                ? 'Are you sure you want to delete this translation? This action cannot be undone.'
+                : `Are you sure you want to delete all translations for ${displayName}? This action cannot be undone.`
+              }
+            </Text>
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={styles.deleteModalCancelButton}
+                onPress={cancelDelete}
+              >
+                <Text style={styles.deleteModalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteModalConfirmButton}
+                onPress={confirmDelete}
+              >
+                <Text style={styles.deleteModalConfirmText}>
+                  {deleteTarget?.type === 'translation' ? 'Delete' : 'Clear All'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -741,5 +770,65 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  deleteModalContent: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFF',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  deleteModalMessage: {
+    fontSize: 16,
+    color: '#999',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  deleteModalCancelButton: {
+    flex: 1,
+    backgroundColor: '#333',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  deleteModalCancelText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  deleteModalConfirmButton: {
+    flex: 1,
+    backgroundColor: '#FF3B30',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  deleteModalConfirmText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
