@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -23,6 +23,7 @@ export default function ConversationDetailScreen() {
   const languagePair = params.languagePair as string;
   const displayName = params.displayName as string;
   const dateFilter = params.dateFilter as string;
+  const highlightTranslationId = params.highlightTranslationId as string;
   
   const [entries, setEntries] = useState<TranslationEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,14 +34,53 @@ export default function ConversationDetailScreen() {
   const [toastOpacity] = useState(new Animated.Value(0));
   const [toastTranslateY] = useState(new Animated.Value(-50));
   const [toastTimeoutRef, setToastTimeoutRef] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [highlightedEntryId, setHighlightedEntryId] = useState<string | null>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+  const entryPositions = useRef<{ [key: string]: number }>({});
 
   useEffect(() => {
     loadConversationEntries();
   }, [languagePair]);
 
   useEffect(() => {
-    checkSavedEntries();
+    if (entries.length > 0) {
+      checkSavedEntries();
+    }
   }, [entries]);
+
+  // Handle highlighting specific translation
+  useEffect(() => {
+    if (highlightTranslationId && entries.length > 0) {
+      setHighlightedEntryId(highlightTranslationId);
+      
+      // Scroll to the highlighted entry after a short delay to ensure rendering is complete
+      setTimeout(() => {
+        const entryY = entryPositions.current[highlightTranslationId];
+        if (entryY !== undefined && scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ 
+            y: Math.max(0, entryY - 100), // Offset by 100px to show some context above
+            animated: true 
+          });
+        } else {
+          // Fallback: scroll to estimated position based on entry index
+          const entryIndex = entries.findIndex(entry => entry.id === highlightTranslationId);
+          if (entryIndex !== -1) {
+            const estimatedY = entryIndex * 200; // Estimate 200px per entry
+            scrollViewRef.current?.scrollTo({ 
+              y: Math.max(0, estimatedY - 100), 
+              animated: true 
+            });
+          }
+        }
+      }, 500); // Increased delay to allow layout to complete
+      
+      // Remove highlight after 3 seconds
+      const timeout = setTimeout(() => {
+        setHighlightedEntryId(null);
+      }, 3000);
+      return () => clearTimeout(timeout);
+    }
+  }, [highlightTranslationId, entries]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -53,17 +93,11 @@ export default function ConversationDetailScreen() {
 
   const checkSavedEntries = async () => {
     try {
-      const vocabularyWords = await VocabularyManager.getAllVocabularyWords();
+      const vocabularyIds = await VocabularyManager.getVocabularyTranslationIds();
       const savedSet = new Set<string>();
       
       entries.forEach(entry => {
-        const isAlreadySaved = vocabularyWords.some(word => 
-          word.originalText === entry.originalText && 
-          word.translatedText === entry.translatedText &&
-          word.originalLanguage === entry.fromLanguage &&
-          word.translatedLanguage === entry.toLanguage
-        );
-        if (isAlreadySaved) {
+        if (vocabularyIds.includes(entry.id)) {
           savedSet.add(entry.id);
         }
       });
@@ -220,14 +254,9 @@ export default function ConversationDetailScreen() {
       
       if (isCurrentlySaved) {
         // Remove from vocabulary
-        const result = await VocabularyManager.removeVocabularyWordByText(
-          entry.originalText,
-          entry.translatedText,
-          entry.fromLanguage,
-          entry.toLanguage
-        );
+        const result = await VocabularyManager.removeFromVocabulary(entry.id);
         
-        // Always remove from savedEntries regardless of vocabulary result
+        // Update UI state immediately
         setSavedEntries(prev => {
           const newSet = new Set(prev);
           newSet.delete(entry.id);
@@ -235,28 +264,24 @@ export default function ConversationDetailScreen() {
         });
         
         if (result.success) {
-          showToast(result.message, 'success');
+          showToast('Removed from vocabulary!', 'error');
         } else {
-          showToast('Removed from vocabulary!', 'success'); // Show success anyway
+          showToast('Removed from vocabulary!', 'error'); // Show error anyway for UI consistency
         }
       } else {
         // Add to vocabulary
-        const result = await VocabularyManager.saveVocabularyWord(
-          entry.originalText,
-          entry.translatedText,
-          entry.fromLanguage,
-          entry.toLanguage
-        );
+        const result = await VocabularyManager.addToVocabulary(entry.id);
 
-        // Always add to savedEntries regardless of vocabulary result
-        setSavedEntries(prev => new Set(prev).add(entry.id));
-        
         if (result.success) {
-          showToast(result.message, 'success');
+          // Only update UI state if successfully saved
+          setSavedEntries(prev => new Set(prev).add(entry.id));
+          showToast('Added to vocabulary!', 'success');
         } else if (result.isDuplicate) {
+          // If it's a duplicate, mark as saved in UI
+          setSavedEntries(prev => new Set(prev).add(entry.id));
           showToast('Already in vocabulary!', 'warning');
         } else {
-          showToast('Added to vocabulary!', 'success'); // Show success anyway
+          showToast('Failed to add to vocabulary', 'error');
         }
       }
     } catch (error) {
@@ -372,6 +397,7 @@ export default function ConversationDetailScreen() {
 
       {/* Conversation Entries */}
       <ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />
@@ -388,7 +414,17 @@ export default function ConversationDetailScreen() {
           </View>
         ) : (
           entries.map((entry) => (
-            <View key={entry.id} style={styles.entryContainer}>
+            <View 
+              key={entry.id} 
+              onLayout={(event) => {
+                const { y } = event.nativeEvent.layout;
+                entryPositions.current[entry.id] = y;
+              }}
+              style={[
+                styles.entryContainer,
+                highlightedEntryId === entry.id && styles.entryContainerHighlighted
+              ]}
+            >
               <View style={styles.entryHeader}>
                 <View style={styles.speakerInfo}>
                   <Text style={styles.speakerIcon}>{getSpeakerIcon(entry.speaker)}</Text>
@@ -402,12 +438,11 @@ export default function ConversationDetailScreen() {
                   <TouchableOpacity
                     style={styles.addToVocabButton}
                     onPress={() => handleAddToVocabulary(entry)}
-                    disabled={savedEntries.has(entry.id)}
                   >
                     {savedEntries.has(entry.id) ? (
                       <Bookmark size={16} color="#34C759" />
                     ) : (
-                      <BookmarkPlus size={16} color="#34C759" />
+                      <Bookmark size={16} color="#FF3B30" />
                     )}
                   </TouchableOpacity>
                   <TouchableOpacity
@@ -569,6 +604,18 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#333',
+  },
+  entryContainerHighlighted: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderColor: '#FFF',
+    borderWidth: 2,
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   entryHeader: {
     flexDirection: 'row',

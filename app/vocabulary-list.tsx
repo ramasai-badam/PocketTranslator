@@ -14,6 +14,7 @@ import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Speech from 'expo-speech';
 import { VocabularyManager, VocabularyEntry } from '../utils/VocabularyManager';
+import { TranslationHistoryManager, TranslationEntry } from '../utils/TranslationHistory';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
 
@@ -22,9 +23,15 @@ declare global {
   var lastBreakdownData: { cacheKey: string; data: any } | null;
 }
 
+// Combined interface for vocabulary items with translation data
+interface VocabularyItem {
+  vocabularyEntry: VocabularyEntry;
+  translationEntry: TranslationEntry | null;
+}
+
 
 export default function VocabularyListScreen() {
-  const [vocabularyWords, setVocabularyWords] = useState<VocabularyEntry[]>([]);
+  const [vocabularyItems, setVocabularyItems] = useState<VocabularyItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [breakdownCache, setBreakdownCache] = useState<{ [key: string]: any }>({});
@@ -33,7 +40,7 @@ export default function VocabularyListScreen() {
   const BREAKDOWN_CACHE_KEY = 'linguisticBreakdownCache';
 
   useEffect(() => {
-    loadVocabularyWords();
+    loadVocabularyItems();
     restoreBreakdownCache();
   }, []);
 
@@ -84,13 +91,27 @@ export default function VocabularyListScreen() {
     }, [])
   );
 
-  const loadVocabularyWords = async () => {
+  const loadVocabularyItems = async () => {
     try {
-      const words = await VocabularyManager.getAllVocabularyWords();
-      setVocabularyWords(words);
+      // Get vocabulary entries (which contain translation IDs)
+      const vocabularyEntries = await VocabularyManager.getAllVocabularyEntries();
+      
+      // Get all translation entries to match against vocabulary
+      const allTranslations = await TranslationHistoryManager.getAllTranslations();
+      
+      // Combine vocabulary entries with their corresponding translation data
+      const items: VocabularyItem[] = vocabularyEntries.map(vocabEntry => {
+        const translationEntry = allTranslations.find(trans => trans.id === vocabEntry.translationId);
+        return {
+          vocabularyEntry: vocabEntry,
+          translationEntry: translationEntry || null
+        };
+      }).filter(item => item.translationEntry !== null); // Only show items with valid translation data
+
+      setVocabularyItems(items);
     } catch (error) {
-      console.error('Failed to load vocabulary words:', error);
-      Alert.alert('Error', 'Failed to load vocabulary words');
+      console.error('Failed to load vocabulary items:', error);
+      Alert.alert('Error', 'Failed to load vocabulary items');
     } finally {
       setIsLoading(false);
       setRefreshing(false);
@@ -99,10 +120,10 @@ export default function VocabularyListScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadVocabularyWords();
+    loadVocabularyItems();
   };
 
-  const handleDeleteWord = async (wordId: string) => {
+  const handleDeleteWord = async (translationId: string) => {
     Alert.alert(
       'Delete Word',
       'Are you sure you want to remove this word from your vocabulary?',
@@ -113,8 +134,8 @@ export default function VocabularyListScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await VocabularyManager.deleteVocabularyWord(wordId);
-              setVocabularyWords(prev => prev.filter(word => word.id !== wordId));
+              await VocabularyManager.removeFromVocabulary(translationId);
+              setVocabularyItems(prev => prev.filter(item => item.vocabularyEntry.translationId !== translationId));
               Alert.alert('Success', 'Word removed from vocabulary');
             } catch (error) {
               Alert.alert('Error', 'Failed to delete word');
@@ -137,7 +158,7 @@ export default function VocabularyListScreen() {
           onPress: async () => {
             try {
               await VocabularyManager.clearAllVocabulary();
-              setVocabularyWords([]);
+              setVocabularyItems([]);
               Alert.alert('Success', 'All vocabulary words have been cleared');
             } catch (error) {
               Alert.alert('Error', 'Failed to clear vocabulary');
@@ -170,9 +191,12 @@ export default function VocabularyListScreen() {
     }
   };
 
-  const handleLinguisticBreakdown = (word: VocabularyEntry) => {
+  const handleLinguisticBreakdown = (item: VocabularyItem) => {
+    if (!item.translationEntry) return;
+    
+    const { translationEntry } = item;
     // Create a unique cache key for this translation pair
-    const cacheKey = `${word.originalText}_${word.originalLanguage}_${word.translatedLanguage}`;
+    const cacheKey = `${translationEntry.originalText}_${translationEntry.fromLanguage}_${translationEntry.toLanguage}`;
     
     // Check if we have cached breakdown data
     const cachedBreakdown = breakdownCache[cacheKey];
@@ -182,10 +206,10 @@ export default function VocabularyListScreen() {
       router.push({
         pathname: '/linguistic-breakdown',
         params: {
-          originalText: word.originalText,
-          translatedText: word.translatedText,
-          originalLanguage: word.originalLanguage,
-          translatedLanguage: word.translatedLanguage,
+          originalText: translationEntry.originalText,
+          translatedText: translationEntry.translatedText,
+          originalLanguage: translationEntry.fromLanguage,
+          translatedLanguage: translationEntry.toLanguage,
           cachedData: JSON.stringify(cachedBreakdown),
         }
       });
@@ -194,17 +218,20 @@ export default function VocabularyListScreen() {
       router.push({
         pathname: '/linguistic-breakdown',
         params: {
-          originalText: word.originalText,
-          translatedText: word.translatedText,
-          originalLanguage: word.originalLanguage,
-          translatedLanguage: word.translatedLanguage,
+          originalText: translationEntry.originalText,
+          translatedText: translationEntry.translatedText,
+          originalLanguage: translationEntry.fromLanguage,
+          translatedLanguage: translationEntry.toLanguage,
         }
       });
     }
   };
 
-  const isBreakdownCached = (word: VocabularyEntry) => {
-    const cacheKey = `${word.originalText}_${word.originalLanguage}_${word.translatedLanguage}`;
+  const isBreakdownCached = (item: VocabularyItem) => {
+    if (!item.translationEntry) return false;
+    
+    const { translationEntry } = item;
+    const cacheKey = `${translationEntry.originalText}_${translationEntry.fromLanguage}_${translationEntry.toLanguage}`;
     return !!breakdownCache[cacheKey];
   };
 
@@ -266,15 +293,15 @@ export default function VocabularyListScreen() {
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>My Vocabulary</Text>
           <Text style={styles.headerSubtitle}>
-            {vocabularyWords.length} word{vocabularyWords.length !== 1 ? 's' : ''}
+            {vocabularyItems.length} word{vocabularyItems.length !== 1 ? 's' : ''}
           </Text>
         </View>
         <TouchableOpacity
           style={styles.clearAllButton}
           onPress={handleClearAllVocabulary}
-          disabled={vocabularyWords.length === 0}
+          disabled={vocabularyItems.length === 0}
         >
-          <Trash2 size={20} color={vocabularyWords.length > 0 ? "#FF3B30" : "#666"} />
+          <Trash2 size={20} color={vocabularyItems.length > 0 ? "#FF3B30" : "#666"} />
         </TouchableOpacity>
       </View>
 
@@ -286,7 +313,7 @@ export default function VocabularyListScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {vocabularyWords.length === 0 ? (
+        {vocabularyItems.length === 0 ? (
           <View style={styles.emptyContainer}>
             <BookOpen size={48} color="#666" />
             <Text style={styles.emptyTitle}>No Vocabulary Words Yet</Text>
@@ -295,72 +322,78 @@ export default function VocabularyListScreen() {
             </Text>
           </View>
         ) : (
-          vocabularyWords.map((word) => (
-            <View key={word.id} style={styles.wordContainer}>
-              <View style={styles.wordHeader}>
-                <View style={styles.languageInfo}>
-                  <Text style={styles.languageLabel}>
-                    {getLanguageDisplayName(word.originalLanguage)} → {getLanguageDisplayName(word.translatedLanguage)}
-                  </Text>
-                </View>
-                
-                <View style={styles.wordHeaderRight}>
-                  <Text style={styles.dateAdded}>{word.dateAdded}</Text>
-                  <TouchableOpacity
-                    style={styles.breakdownButton}
-                    onPress={() => handleLinguisticBreakdown(word)}
-                  >
-                    <GraduationCap 
-                      size={16} 
-                      color={isBreakdownCached(word) ? "#FFD700" : "#34C759"} 
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => handleDeleteWord(word.id)}
-                  >
-                    <Trash2 size={16} color="#FF3B30" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Original Text - Interactive */}
-              <View style={[styles.textContainer, styles.originalTextContainer]}>
-                <View style={styles.textHeader}>
-                  <Text style={styles.textLabel}>Original</Text>
-                  <View style={styles.iconGroup}>
+          vocabularyItems.map((item) => {
+            if (!item.translationEntry) return null;
+            
+            const { vocabularyEntry, translationEntry } = item;
+            
+            return (
+              <View key={vocabularyEntry.translationId} style={styles.wordContainer}>
+                <View style={styles.wordHeader}>
+                  <View style={styles.languageInfo}>
+                    <Text style={styles.languageLabel}>
+                      {getLanguageDisplayName(translationEntry.fromLanguage)} → {getLanguageDisplayName(translationEntry.toLanguage)}
+                    </Text>
+                  </View>
+                  
+                  <View style={styles.wordHeaderRight}>
+                    <Text style={styles.dateAdded}>{vocabularyEntry.dateAdded}</Text>
                     <TouchableOpacity
-                      style={styles.speakButton}
-                      onPress={() => Speech.speak(word.originalText, { language: word.originalLanguage })}
+                      style={styles.breakdownButton}
+                      onPress={() => handleLinguisticBreakdown(item)}
                     >
-                      <Volume2 size={16} color="#007AFF" />
+                      <GraduationCap 
+                        size={16} 
+                        color={isBreakdownCached(item) ? "#FFD700" : "#34C759"} 
+                      />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.deleteButton}
+                      onPress={() => handleDeleteWord(vocabularyEntry.translationId)}
+                    >
+                      <Trash2 size={16} color="#FF3B30" />
                     </TouchableOpacity>
                   </View>
                 </View>
-                {renderInteractiveText(word.originalText, word.originalLanguage)}
-              </View>
 
-              {/* Translation - Interactive */}
-              <View style={[styles.textContainer, styles.translatedTextContainer]}>
-                <View style={styles.textHeader}>
-                  <Text style={styles.textLabel}>Translation</Text>
-                  <View style={styles.iconGroup}>
-                    <TouchableOpacity
-                      style={styles.speakButton}
-                      onPress={() => Speech.speak(word.translatedText, { language: word.translatedLanguage })}
-                    >
-                      <Volume2 size={16} color="#007AFF" />
-                    </TouchableOpacity>
+                {/* Original Text - Interactive */}
+                <View style={[styles.textContainer, styles.originalTextContainer]}>
+                  <View style={styles.textHeader}>
+                    <Text style={styles.textLabel}>Original</Text>
+                    <View style={styles.iconGroup}>
+                      <TouchableOpacity
+                        style={styles.speakButton}
+                        onPress={() => Speech.speak(translationEntry.originalText, { language: translationEntry.fromLanguage })}
+                      >
+                        <Volume2 size={16} color="#007AFF" />
+                      </TouchableOpacity>
+                    </View>
                   </View>
+                  {renderInteractiveText(translationEntry.originalText, translationEntry.fromLanguage)}
                 </View>
-                {renderInteractiveText(word.translatedText, word.translatedLanguage)}
+
+                {/* Translation - Interactive */}
+                <View style={[styles.textContainer, styles.translatedTextContainer]}>
+                  <View style={styles.textHeader}>
+                    <Text style={styles.textLabel}>Translation</Text>
+                    <View style={styles.iconGroup}>
+                      <TouchableOpacity
+                        style={styles.speakButton}
+                        onPress={() => Speech.speak(translationEntry.translatedText, { language: translationEntry.toLanguage })}
+                      >
+                        <Volume2 size={16} color="#007AFF" />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  {renderInteractiveText(translationEntry.translatedText, translationEntry.toLanguage)}
+                </View>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
 
-      {vocabularyWords.length > 0 && (
+      {vocabularyItems.length > 0 && (
         <View style={styles.footer}>
           <Text style={styles.footerText}>
             💡 Tap words to hear pronunciation • 🎓 Green: fresh analysis, Gold: cached analysis

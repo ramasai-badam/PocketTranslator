@@ -1,81 +1,118 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getLanguageDisplayName } from './LanguageConfig';
 
 const VOCABULARY_STORAGE_KEY = 'vocabularyWords';
 
+// Simple vocabulary tracking - just store translation entry IDs
 export interface VocabularyEntry {
-  id: string;
-  originalText: string;
-  translatedText: string;
-  originalLanguage: string;
-  translatedLanguage: string;
-  timestamp: number;
+  translationId: string; // ID of the translation entry
+  timestamp: number; // When it was added to vocabulary
   dateAdded: string; // Human-readable date
 }
 
 export class VocabularyManager {
   /**
-   * Save a new vocabulary word
+   * Add a translation to vocabulary by its ID
    */
-  static async saveVocabularyWord(
-    originalText: string,
-    translatedText: string,
-    originalLanguage: string,
-    translatedLanguage: string
-  ): Promise<{ success: boolean; message: string; isDuplicate?: boolean }> {
+  static async addToVocabulary(translationId: string): Promise<{ success: boolean; message: string; isDuplicate?: boolean }> {
     try {
-      // Check for duplicates first
-      const existingWords = await this.loadVocabulary();
-      const duplicate = existingWords.find(word => 
-        word.originalText.toLowerCase() === originalText.toLowerCase() &&
-        word.originalLanguage === originalLanguage &&
-        word.translatedLanguage === translatedLanguage
-      );
-
-      if (duplicate) {
+      const existingEntries = await this.loadVocabulary();
+      
+      // Check if already in vocabulary
+      const isDuplicate = existingEntries.some(entry => entry.translationId === translationId);
+      if (isDuplicate) {
         return {
           success: false,
-          message: 'This word is already in your vocabulary',
+          message: 'Already in vocabulary!',
           isDuplicate: true
         };
       }
 
       const entry: VocabularyEntry = {
-        id: `vocab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        originalText: originalText.trim(),
-        translatedText: translatedText.trim(),
-        originalLanguage,
-        translatedLanguage,
+        translationId,
         timestamp: Date.now(),
         dateAdded: new Date().toLocaleDateString(),
       };
 
-      existingWords.push(entry);
-      await this.saveVocabulary(existingWords);
+      existingEntries.push(entry);
+      await this.saveVocabulary(existingEntries);
 
-      console.log('Vocabulary word saved:', entry);
       return {
         success: true,
-        message: 'Word added to vocabulary!'
+        message: 'Added to vocabulary!'
       };
     } catch (error) {
-      console.error('Failed to save vocabulary word:', error);
+      console.error('Failed to add to vocabulary:', error);
       return {
         success: false,
-        message: 'Failed to save word to vocabulary'
+        message: 'Failed to add to vocabulary'
       };
     }
   }
 
   /**
-   * Load all vocabulary words from storage
+   * Remove a translation from vocabulary by its ID
+   */
+  static async removeFromVocabulary(translationId: string): Promise<{ success: boolean; message: string }> {
+    try {
+      const entries = await this.loadVocabulary();
+      const filteredEntries = entries.filter(entry => entry.translationId !== translationId);
+      
+      if (filteredEntries.length === entries.length) {
+        return {
+          success: false,
+          message: 'Not found in vocabulary'
+        };
+      }
+
+      await this.saveVocabulary(filteredEntries);
+      return {
+        success: true,
+        message: 'Removed from vocabulary!'
+      };
+    } catch (error) {
+      console.error('Failed to remove from vocabulary:', error);
+      return {
+        success: false,
+        message: 'Failed to remove from vocabulary'
+      };
+    }
+  }
+
+  /**
+   * Check if a translation is in vocabulary
+   */
+  static async isInVocabulary(translationId: string): Promise<boolean> {
+    try {
+      const entries = await this.loadVocabulary();
+      return entries.some(entry => entry.translationId === translationId);
+    } catch (error) {
+      console.error('Failed to check vocabulary:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Get all vocabulary translation IDs
+   */
+  static async getVocabularyTranslationIds(): Promise<string[]> {
+    try {
+      const entries = await this.loadVocabulary();
+      return entries.map(entry => entry.translationId);
+    } catch (error) {
+      console.error('Failed to get vocabulary IDs:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Load all vocabulary entries from storage
    */
   private static async loadVocabulary(): Promise<VocabularyEntry[]> {
     try {
       const stored = await AsyncStorage.getItem(VOCABULARY_STORAGE_KEY);
-      const words = stored ? JSON.parse(stored) : [];
+      const entries = stored ? JSON.parse(stored) : [];
       // Sort by timestamp (newest first)
-      return words.sort((a: VocabularyEntry, b: VocabularyEntry) => b.timestamp - a.timestamp);
+      return entries.sort((a: VocabularyEntry, b: VocabularyEntry) => b.timestamp - a.timestamp);
     } catch (error) {
       console.error('Failed to load vocabulary:', error);
       return [];
@@ -83,11 +120,11 @@ export class VocabularyManager {
   }
 
   /**
-   * Save vocabulary words to storage
+   * Save vocabulary entries to storage
    */
-  private static async saveVocabulary(words: VocabularyEntry[]): Promise<void> {
+  private static async saveVocabulary(entries: VocabularyEntry[]): Promise<void> {
     try {
-      await AsyncStorage.setItem(VOCABULARY_STORAGE_KEY, JSON.stringify(words));
+      await AsyncStorage.setItem(VOCABULARY_STORAGE_KEY, JSON.stringify(entries));
     } catch (error) {
       console.error('Failed to save vocabulary:', error);
       throw error;
@@ -95,76 +132,19 @@ export class VocabularyManager {
   }
 
   /**
-   * Get all vocabulary words
+   * Get all vocabulary entries
    */
-  static async getAllVocabularyWords(): Promise<VocabularyEntry[]> {
+  static async getAllVocabularyEntries(): Promise<VocabularyEntry[]> {
     return await this.loadVocabulary();
   }
 
   /**
-   * Delete a specific vocabulary word
-   */
-  static async deleteVocabularyWord(wordId: string): Promise<void> {
-    try {
-      const words = await this.loadVocabulary();
-      const filteredWords = words.filter(word => word.id !== wordId);
-      await this.saveVocabulary(filteredWords);
-      console.log(`Vocabulary word ${wordId} deleted`);
-    } catch (error) {
-      console.error('Failed to delete vocabulary word:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Remove a vocabulary word by text match
-   */
-  static async removeVocabularyWordByText(
-    originalText: string,
-    translatedText: string,
-    originalLanguage: string,
-    translatedLanguage: string
-  ): Promise<{ success: boolean; message: string }> {
-    try {
-      const words = await this.loadVocabulary();
-      const wordIndex = words.findIndex(word => 
-        word.originalText.toLowerCase() === originalText.toLowerCase() &&
-        word.translatedText.toLowerCase() === translatedText.toLowerCase() &&
-        word.originalLanguage === originalLanguage &&
-        word.translatedLanguage === translatedLanguage
-      );
-
-      if (wordIndex === -1) {
-        return {
-          success: false,
-          message: 'Word not found in vocabulary'
-        };
-      }
-
-      words.splice(wordIndex, 1);
-      await this.saveVocabulary(words);
-
-      console.log('Vocabulary word removed:', { originalText, translatedText });
-      return {
-        success: true,
-        message: 'Removed from vocabulary!'
-      };
-    } catch (error) {
-      console.error('Failed to remove vocabulary word:', error);
-      return {
-        success: false,
-        message: 'Failed to remove word from vocabulary'
-      };
-    }
-  }
-
-  /**
-   * Clear all vocabulary words
+   * Clear all vocabulary entries
    */
   static async clearAllVocabulary(): Promise<void> {
     try {
       await AsyncStorage.removeItem(VOCABULARY_STORAGE_KEY);
-      console.log('All vocabulary words cleared');
+      console.log('All vocabulary entries cleared');
     } catch (error) {
       console.error('Failed to clear vocabulary:', error);
       throw error;
@@ -176,58 +156,26 @@ export class VocabularyManager {
    */
   static async getVocabularyStats(): Promise<{
     totalWords: number;
-    languagePairs: { [key: string]: number };
     recentlyAdded: number; // Words added in last 7 days
   }> {
     try {
-      const words = await this.loadVocabulary();
-      const totalWords = words.length;
+      const entries = await this.loadVocabulary();
+      const totalWords = entries.length;
       
-      // Count language pairs
-      const languagePairs: { [key: string]: number } = {};
-      words.forEach(word => {
-        const pairKey = `${getLanguageDisplayName(word.originalLanguage)} → ${getLanguageDisplayName(word.translatedLanguage)}`;
-        languagePairs[pairKey] = (languagePairs[pairKey] || 0) + 1;
-      });
-
       // Count recently added (last 7 days)
       const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
-      const recentlyAdded = words.filter(word => word.timestamp > sevenDaysAgo).length;
+      const recentlyAdded = entries.filter(entry => entry.timestamp > sevenDaysAgo).length;
 
       return {
         totalWords,
-        languagePairs,
         recentlyAdded
       };
     } catch (error) {
       console.error('Failed to get vocabulary stats:', error);
       return {
         totalWords: 0,
-        languagePairs: {},
         recentlyAdded: 0
       };
-    }
-  }
-
-  /**
-   * Search vocabulary words
-   */
-  static async searchVocabulary(query: string): Promise<VocabularyEntry[]> {
-    try {
-      const words = await this.loadVocabulary();
-      const searchTerm = query.toLowerCase().trim();
-      
-      if (!searchTerm) return words;
-
-      return words.filter(word =>
-        word.originalText.toLowerCase().includes(searchTerm) ||
-        word.translatedText.toLowerCase().includes(searchTerm) ||
-        getLanguageDisplayName(word.originalLanguage).toLowerCase().includes(searchTerm) ||
-        getLanguageDisplayName(word.translatedLanguage).toLowerCase().includes(searchTerm)
-      );
-    } catch (error) {
-      console.error('Failed to search vocabulary:', error);
-      return [];
     }
   }
 }

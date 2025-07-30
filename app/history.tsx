@@ -191,7 +191,7 @@ export default function HistoryScreen() {
     loadTranslations();
   };
 
-  const handleConversationPress = (conversation: LanguagePairConversation) => {
+  const handleConversationPress = (conversation: LanguagePairConversation, highlightTranslationId?: string) => {
     // Create a filter summary to pass to conversation detail
     let dateFilter = '';
     if (dateFilterMode === 'single' && selectedDate) {
@@ -207,6 +207,7 @@ export default function HistoryScreen() {
         languagePair: conversation.languagePair,
         displayName: conversation.displayName,
         dateFilter: dateFilter,
+        highlightTranslationId: highlightTranslationId || '',
       },
     });
   };
@@ -833,7 +834,12 @@ export default function HistoryScreen() {
                         
                         {/* Individual Translations */}
                         {entries.slice(0, 3).map((entry) => (
-                          <View key={entry.id} style={styles.translationItem}>
+                          <TouchableOpacity
+                            key={entry.id}
+                            style={styles.translationItem}
+                            onPress={() => handleConversationPress(conversation, entry.id)}
+                            activeOpacity={0.7}
+                          >
                             <View style={styles.translationContent}>
                               <Text style={styles.originalText} numberOfLines={1}>
                                 {entry.originalText}
@@ -845,7 +851,7 @@ export default function HistoryScreen() {
                                 {formatDate(entry.timestamp)}
                               </Text>
                             </View>
-                          </View>
+                          </TouchableOpacity>
                         ))}
                         
                         {entries.length > 3 && (

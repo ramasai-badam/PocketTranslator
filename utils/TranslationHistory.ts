@@ -219,6 +219,26 @@ export class TranslationHistoryManager {
   }
 
   /**
+   * Get all translation entries from all conversations
+   */
+  static async getAllTranslations(): Promise<TranslationEntry[]> {
+    try {
+      const conversations = await this.getAllConversations();
+      const allTranslations: TranslationEntry[] = [];
+      
+      conversations.forEach(conversation => {
+        allTranslations.push(...conversation.entries);
+      });
+      
+      // Sort by timestamp (newest first)
+      return allTranslations.sort((a, b) => b.timestamp - a.timestamp);
+    } catch (error) {
+      console.error('Failed to get all translations:', error);
+      return [];
+    }
+  }
+
+  /**
    * Generate a consistent language pair key (bidirectional)
    */
   private static getLanguagePairKey(lang1: string, lang2: string): string {
