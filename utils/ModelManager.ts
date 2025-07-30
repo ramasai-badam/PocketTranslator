@@ -408,7 +408,7 @@ Translate this ${fromLang} text to ${toLang}: "${text}" Strictly Provide only si
 
     // Construct the LLM prompt for linguistic analysis focusing on source and target languages
     const prompt = `<start_of_turn>user
-Match phrases between the following sentences:
+Align phrases between:
 
 ${fromLanguageName}: "${originalText}"  
 ${toLanguageName}: "${translatedText}"
@@ -421,10 +421,8 @@ Return strict JSON:
 }
 
 Rules:
-- Use only phrases found in the input sentences
-- Each pair must preserve meaning
-- No duplicates or overlapping
-- Each array must have exactly two strings
+- Cover all phrases from input
+- Pairs must preserve meaning
 
 <end_of_turn>
 <start_of_turn>model
