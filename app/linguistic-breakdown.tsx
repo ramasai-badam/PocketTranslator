@@ -26,7 +26,7 @@ interface TokenData {
 
 interface LinguisticAnalysis {
   sentence: string;
-  tokens: string[][]; // Array of arrays, each with 4 string elements
+  phrases: string[][]; // Array of arrays, each with 2 string elements: [fromLanguagePhrase, toLanguagePhrase]
   translation: string;
 }
 
@@ -121,8 +121,8 @@ export default function LinguisticBreakdownScreen() {
   };
 
   const getTokenDisplayText = (token: string[], isTranslatedLanguage: boolean) => {
-    // token array format: [toLanguageWord, fromLanguageWord]
-    const result = isTranslatedLanguage ? token[0] : token[1];
+    // token array format: [fromLanguageWord, toLanguageWord]
+    const result = isTranslatedLanguage ? token[1] : token[0];
     
     // Debug logging to see what we're getting
     if (isTranslatedLanguage) {
@@ -191,7 +191,7 @@ export default function LinguisticBreakdownScreen() {
           <ArrowLeft size={24} color="#FFF" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Linguistic Breakdown</Text>
+          <Text style={styles.headerTitle}>Breakdown</Text>
           <Text style={styles.headerSubtitle}>
             {getLanguageDisplayName(originalLanguage)} → {getLanguageDisplayName(translatedLanguage)}
           </Text>
@@ -200,39 +200,10 @@ export default function LinguisticBreakdownScreen() {
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Original Sentence */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Original Sentence</Text>
-          <View style={styles.sentenceContainer}>
-            <Text style={styles.sentenceText}>{analysis.sentence}</Text>
-            <TouchableOpacity
-              style={styles.pronounceButton}
-              onPress={() => handlePronounceToken(analysis.sentence, originalLanguage)}
-            >
-              <Volume2 size={20} color="#007AFF" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Translation */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Translation</Text>
-          <View style={styles.sentenceContainer}>
-            <Text style={styles.translationText}>{translatedText}</Text>
-            <TouchableOpacity
-              style={styles.pronounceButton}
-              onPress={() => handlePronounceToken(translatedText, translatedLanguage)}
-            >
-              <Volume2 size={20} color="#007AFF" />
-            </TouchableOpacity>
-          </View>
-        </View>
-
         {/* Word Breakdown */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Word-by-Word Breakdown</Text>
           <Text style={styles.sectionDescription}>
-            Tap on any word to hear its pronunciation
+            Tap on any phrase to hear its pronunciation
           </Text>
           
           <View style={styles.twoColumnContainer}>
@@ -245,26 +216,26 @@ export default function LinguisticBreakdownScreen() {
           </View>
           
           <View style={styles.wordsContainer}>
-            {analysis.tokens.map((token, index) => (
+            {analysis.phrases.map((phrase, index) => (
               <View key={index} style={styles.wordPairRow}>
                 <TouchableOpacity
                   style={styles.wordButton}
-                  onPress={() => handlePronounceToken(getTokenDisplayText(token, true), translatedLanguage)}
+                  onPress={() => handlePronounceToken(getTokenDisplayText(phrase, true), translatedLanguage)}
                   activeOpacity={0.7}
                 >
                   <Text style={styles.wordText}>
-                    {getTokenDisplayText(token, true)}
+                    {getTokenDisplayText(phrase, true)}
                   </Text>
                   <Volume2 size={16} color="#007AFF" />
                 </TouchableOpacity>
 
                 <TouchableOpacity
                   style={styles.wordButton}
-                  onPress={() => handlePronounceToken(getTokenDisplayText(token, false), originalLanguage)}
+                  onPress={() => handlePronounceToken(getTokenDisplayText(phrase, false), originalLanguage)}
                   activeOpacity={0.7}
                 >
                   <Text style={styles.wordText}>
-                    {getTokenDisplayText(token, false)}
+                    {getTokenDisplayText(phrase, false)}
                   </Text>
                   <Volume2 size={16} color="#007AFF" />
                 </TouchableOpacity>
