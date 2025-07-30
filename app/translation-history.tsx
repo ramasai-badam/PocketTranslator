@@ -13,17 +13,15 @@ import {
   BackHandler,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, ChevronLeft, ChevronRight, BookOpen, History } from 'lucide-react-native';
+import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '../utils/LanguageConfig';
-import { VocabularyManager } from '../utils/VocabularyManager';
 
 const { width } = Dimensions.get('window');
 
-export default function HistoryScreen() {
-  const [currentView, setCurrentView] = useState<'tiles' | 'history'>('tiles');
+export default function TranslationHistoryScreen() {
   const [translationsByDay, setTranslationsByDay] = useState<{ [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } }>({});
   const [filteredTranslationsByDay, setFilteredTranslationsByDay] = useState<{ [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } }>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -47,10 +45,8 @@ export default function HistoryScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   useEffect(() => {
-    if (currentView === 'history') {
-      loadTranslations();
-    }
-  }, [currentView]);
+    loadTranslations();
+  }, []);
 
   // Update available dates when translations change
   useEffect(() => {
@@ -58,27 +54,9 @@ export default function HistoryScreen() {
     setAvailableDates(dates);
   }, [translationsByDay]);
 
-  // Handle hardware back button and navigation gestures
-  useFocusEffect(
-    React.useCallback(() => {
-      const onBackPress = () => {
-        if (currentView === 'history') {
-          setCurrentView('tiles');
-          return true; // Prevent default back behavior
-        }
-        return false; // Allow default back behavior (go to previous screen)
-      };
-
-      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => subscription.remove();
-    }, [currentView])
-  );
-
   // Filter translations when search query, selected date, or language pair changes
   useEffect(() => {
-    if (currentView === 'history') {
-      filterTranslations();
-    }
+    filterTranslations();
   }, [searchQuery, selectedDate, selectedStartDate, selectedEndDate, dateFilterMode, selectedFromLanguage, selectedToLanguage, translationsByDay]);
 
   const filterTranslations = () => {
@@ -287,12 +265,6 @@ export default function HistoryScreen() {
     return selectedDate || (selectedStartDate && selectedEndDate) || (selectedFromLanguage && selectedToLanguage);
   };
 
-  const getTotalTranslations = () => {
-    return Object.values(filteredTranslationsByDay).reduce((total, dayData) => {
-      return total + Object.values(dayData).reduce((dayTotal, { entries }) => dayTotal + entries.length, 0);
-    }, 0);
-  };
-
   const getFilterSummary = () => {
     const parts = [];
     if (dateFilterMode === 'single' && selectedDate) {
@@ -327,23 +299,6 @@ export default function HistoryScreen() {
     return days;
   };
 
-  const isDateInRange = (date: Date) => {
-    if (!selectedStartDate || !selectedEndDate) return false;
-    const dateTime = date.getTime();
-    const startTime = new Date(selectedStartDate).getTime();
-    const endTime = new Date(selectedEndDate).getTime();
-    return dateTime >= startTime && dateTime <= endTime;
-  };
-
-  const isDateSelected = (date: Date) => {
-    const dateString = date.toDateString();
-    if (dateFilterMode === 'single') {
-      return selectedDate === dateString;
-    } else {
-      return dateString === selectedStartDate || dateString === selectedEndDate;
-    }
-  };
-
   const hasTranslationsOnDate = (date: Date) => {
     return availableDates.includes(date.toDateString());
   };
@@ -374,512 +329,16 @@ export default function HistoryScreen() {
     }
   };
 
-  const renderTilesView = () => (
-    <View style={styles.tilesContainer}>
-      <View style={styles.tilesRow}>
-        <TouchableOpacity
-          style={styles.tile}
-          onPress={() => router.push('/translation-history')}
-          activeOpacity={0.7}
-        >
-          <History size={49} color="#34C759" />
-          <Text style={styles.tileTitle}>History</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.tile}
-          onPress={() => router.push('/vocabulary-list')}
-          activeOpacity={0.7}
-        >
-          <BookOpen size={49} color="#34C759" />
-          <Text style={styles.tileTitle}>My Vocabulary</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
-
-  const renderHistoryView = () => {
-    if (isLoading) {
-      return (
+  if (isLoading) {
+    return (
+      <View style={styles.container}>
+        <StatusBar style="light" />
         <View style={styles.loadingContainer}>
           <Text style={styles.loadingText}>Loading history...</Text>
         </View>
-      );
-    }
-
-    return (
-      <>
-        {/* Search */}
-        <View style={styles.searchContainer}>
-          <View style={styles.searchInputContainer}>
-            <Search size={20} color="#999" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search translations..."
-              placeholderTextColor="#999"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity
-                style={styles.clearSearchButton}
-                onPress={clearFilters}
-              >
-                <X size={16} color="#999" />
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity
-              style={[styles.filterButton, hasActiveFilters() && styles.filterButtonActive]}
-              onPress={() => setShowFilterModal(true)}
-            >
-              <Filter size={16} color={hasActiveFilters() ? "#007AFF" : "#999"} />
-            </TouchableOpacity>
-          </View>
-          
-          {/* Active Filters Indicator */}
-          {hasActiveFilters() && (
-            <View style={styles.activeFiltersContainer}>
-              <Text style={styles.activeFiltersText}>
-                Filters: {getFilterSummary()}
-              </Text>
-              <TouchableOpacity
-                style={styles.clearFiltersButton}
-                onPress={clearFilters}
-              >
-                <X size={14} color="#007AFF" />
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        {/* Filter Modal */}
-        <Modal
-          visible={showFilterModal}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowFilterModal(false)}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalHeader}>
-                <Text style={styles.modalTitle}>Filter Translations</Text>
-                <TouchableOpacity
-                  style={styles.modalCloseButton}
-                  onPress={() => setShowFilterModal(false)}
-                >
-                  <X size={24} color="#FFF" />
-                </TouchableOpacity>
-              </View>
-
-              <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
-                {/* Date Filter Section */}
-                <View style={styles.filterSection}>
-                  <Text style={styles.filterSectionTitle}>Filter by Date</Text>
-                  
-                  {/* Date Filter Mode Toggle */}
-                  <View style={styles.dateFilterModeContainer}>
-                    <TouchableOpacity
-                      style={[
-                        styles.dateFilterModeButton,
-                        dateFilterMode === 'single' && styles.dateFilterModeButtonActive
-                      ]}
-                      onPress={() => {
-                        setDateFilterMode('single');
-                        setSelectedStartDate(null);
-                        setSelectedEndDate(null);
-                      }}
-                    >
-                      <Text style={[
-                        styles.dateFilterModeText,
-                        dateFilterMode === 'single' && styles.dateFilterModeTextActive
-                      ]}>
-                        Single Date
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.dateFilterModeButton,
-                        dateFilterMode === 'range' && styles.dateFilterModeButtonActive
-                      ]}
-                      onPress={() => {
-                        setDateFilterMode('range');
-                        setSelectedDate(null);
-                      }}
-                    >
-                      <Text style={[
-                        styles.dateFilterModeText,
-                        dateFilterMode === 'range' && styles.dateFilterModeTextActive
-                      ]}>
-                        Date Range
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Calendar Toggle Button */}
-                  <TouchableOpacity
-                    style={styles.calendarToggleBanner}
-                    onPress={() => setShowCalendar(!showCalendar)}
-                  >
-                    <View style={styles.calendarBannerContent}>
-                      <Calendar size={20} color="#007AFF" />
-                      <Text style={styles.calendarBannerText}>
-                        {showCalendar ? 'Hide Calendar' : 'Show Calendar'}
-                      </Text>
-                    </View>
-                    <Text style={styles.calendarBannerArrow}>
-                      {showCalendar ? '▲' : '▼'}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {/* Calendar */}
-                  {showCalendar && (
-                    <View style={styles.calendarContainer}>
-                      <View style={styles.calendarHeader}>
-                        <TouchableOpacity
-                          style={styles.calendarNavButton}
-                          onPress={() => {
-                            const newDate = new Date(calendarDate);
-                            newDate.setMonth(newDate.getMonth() - 1);
-                            setCalendarDate(newDate);
-                          }}
-                        >
-                          <ChevronLeft size={20} color="#007AFF" />
-                        </TouchableOpacity>
-                        <Text style={styles.calendarHeaderText}>
-                          {calendarDate.toLocaleDateString([], { month: 'long', year: 'numeric' })}
-                        </Text>
-                        <TouchableOpacity
-                          style={styles.calendarNavButton}
-                          onPress={() => {
-                            const newDate = new Date(calendarDate);
-                            newDate.setMonth(newDate.getMonth() + 1);
-                            setCalendarDate(newDate);
-                          }}
-                        >
-                          <ChevronRight size={20} color="#007AFF" />
-                        </TouchableOpacity>
-                      </View>
-                      
-                      <View style={styles.calendarWeekDays}>
-                        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                          <Text key={day} style={styles.calendarWeekDay}>{day}</Text>
-                        ))}
-                      </View>
-                      
-                      <View style={styles.calendarGrid}>
-                        {generateCalendarDays(calendarDate).map((date, index) => {
-                          const isCurrentMonth = date.getMonth() === calendarDate.getMonth();
-                          const isSelected = dateFilterMode === 'single' 
-                            ? tempSelectedDate === date.toDateString()
-                            : tempSelectedStartDate === date.toDateString() || tempSelectedEndDate === date.toDateString();
-                          const isInRange = dateFilterMode === 'range' && tempSelectedStartDate && tempSelectedEndDate
-                            ? date.getTime() >= new Date(tempSelectedStartDate).getTime() && date.getTime() <= new Date(tempSelectedEndDate).getTime()
-                            : false;
-                          const hasTranslations = hasTranslationsOnDate(date);
-                          
-                          return (
-                            <TouchableOpacity
-                              key={index}
-                              style={[
-                                styles.calendarDay,
-                                !isCurrentMonth && styles.calendarDayOtherMonth,
-                                isSelected && styles.calendarDaySelected,
-                                isInRange && styles.calendarDayInRange,
-                                hasTranslations && styles.calendarDayWithTranslations,
-                              ]}
-                              onPress={() => handleCalendarDatePress(date)}
-                              disabled={!isCurrentMonth}
-                            >
-                              <Text style={[
-                                styles.calendarDayText,
-                                !isCurrentMonth && styles.calendarDayTextOtherMonth,
-                                isSelected && styles.calendarDayTextSelected,
-                                hasTranslations && styles.calendarDayTextWithTranslations,
-                              ]}>
-                                {date.getDate()}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                      
-                      {dateFilterMode === 'range' && (
-                        <View style={styles.dateRangeInfo}>
-                          <Text style={styles.dateRangeInfoText}>
-                            {tempSelectedStartDate && !tempSelectedEndDate && 'Select end date'}
-                            {tempSelectedStartDate && tempSelectedEndDate && 
-                              `Range: ${formatDateHeader(tempSelectedStartDate)} - ${formatDateHeader(tempSelectedEndDate)}`
-                            }
-                            {!tempSelectedStartDate && 'Select start date'}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  )}
-
-                  <ScrollView 
-                    horizontal 
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.dateScrollView}
-                  >
-                    {availableDates.map((date) => (
-                      <TouchableOpacity
-                        key={date}
-                        style={[
-                          styles.dateChip,
-                          ((dateFilterMode === 'single' && selectedDate === date) ||
-                           (dateFilterMode === 'range' && (selectedStartDate === date || selectedEndDate === date))) && styles.dateChipSelected
-                        ]}
-                        onPress={() => {
-                          if (dateFilterMode === 'single') {
-                            setTempSelectedDate(date);
-                          } else {
-                            const dateString = new Date(date).toDateString();
-                            if (!tempSelectedStartDate || (tempSelectedStartDate && tempSelectedEndDate)) {
-                              setTempSelectedStartDate(dateString);
-                              setTempSelectedEndDate(null);
-                            } else {
-                              const startTime = new Date(tempSelectedStartDate).getTime();
-                              const endTime = new Date(date).getTime();
-                              if (endTime >= startTime) {
-                                setTempSelectedEndDate(dateString);
-                              } else {
-                                setTempSelectedStartDate(dateString);
-                                setTempSelectedEndDate(tempSelectedStartDate);
-                              }
-                            }
-                          }
-                        }}
-                      >
-                        <Text style={[
-                          styles.dateChipText,
-                          ((dateFilterMode === 'single' && selectedDate === date) ||
-                           (dateFilterMode === 'range' && (selectedStartDate === date || selectedEndDate === date))) && styles.dateChipTextSelected
-                        ]}>
-                          {formatDateHeader(date)}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                </View>
-
-                {/* Language Pair Filter Section */}
-                <View style={styles.filterSection}>
-                  <Text style={styles.filterSectionTitle}>Filter by Language Pair</Text>
-                  <Text style={styles.filterSectionDescription}>
-                    Select two languages to show translations between them (in both directions)
-                  </Text>
-                  
-                  <View style={styles.languagePairContainer}>
-                    {/* From Language */}
-                    <View style={styles.languageSelectContainer}>
-                      <Text style={styles.languageSelectLabel}>From Language</Text>
-                      <ScrollView 
-                        style={styles.languageSelectScroll} 
-                        showsVerticalScrollIndicator={true}
-                        nestedScrollEnabled={true}
-                      >
-                        <TouchableOpacity
-                          style={[
-                            styles.languageOption,
-                            !tempSelectedFromLanguage && styles.languageOptionSelected
-                          ]}
-                          onPress={() => setTempSelectedFromLanguage(null)}
-                        >
-                          <Text style={[
-                            styles.languageOptionText,
-                            !tempSelectedFromLanguage && styles.languageOptionTextSelected
-                          ]}>
-                            Any Language
-                          </Text>
-                        </TouchableOpacity>
-                        {SUPPORTED_LANGUAGES.map((language) => (
-                          <TouchableOpacity
-                            key={language.code}
-                            style={[
-                              styles.languageOption,
-                              tempSelectedFromLanguage === language.code && styles.languageOptionSelected
-                            ]}
-                            onPress={() => setTempSelectedFromLanguage(language.code)}
-                          >
-                            <Text style={[
-                              styles.languageOptionText,
-                              tempSelectedFromLanguage === language.code && styles.languageOptionTextSelected
-                            ]}>
-                              {language.nativeName}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
-
-                    {/* Arrow */}
-                    <View style={styles.languageArrowContainer}>
-                      <Text style={styles.languageArrow}>↔</Text>
-                    </View>
-
-                    {/* To Language */}
-                    <View style={styles.languageSelectContainer}>
-                      <Text style={styles.languageSelectLabel}>To Language</Text>
-                      <ScrollView 
-                        style={styles.languageSelectScroll} 
-                        showsVerticalScrollIndicator={true}
-                        nestedScrollEnabled={true}
-                      >
-                        <TouchableOpacity
-                          style={[
-                            styles.languageOption,
-                            !tempSelectedToLanguage && styles.languageOptionSelected
-                          ]}
-                          onPress={() => setTempSelectedToLanguage(null)}
-                        >
-                          <Text style={[
-                            styles.languageOptionText,
-                            !tempSelectedToLanguage && styles.languageOptionTextSelected
-                          ]}>
-                            Any Language
-                          </Text>
-                        </TouchableOpacity>
-                        {SUPPORTED_LANGUAGES.map((language) => (
-                          <TouchableOpacity
-                            key={language.code}
-                            style={[
-                              styles.languageOption,
-                              tempSelectedToLanguage === language.code && styles.languageOptionSelected
-                            ]}
-                            onPress={() => setTempSelectedToLanguage(language.code)}
-                          >
-                            <Text style={[
-                              styles.languageOptionText,
-                              tempSelectedToLanguage === language.code && styles.languageOptionTextSelected
-                            ]}>
-                              {language.nativeName}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </ScrollView>
-                    </View>
-                  </View>
-                </View>
-              </ScrollView>
-
-              {/* Modal Footer */}
-              <View style={styles.modalFooter}>
-                <TouchableOpacity
-                  style={styles.clearAllButton}
-                  onPress={clearFilters}
-                >
-                  <Text style={styles.clearAllButtonText}>Clear All</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.applyButton}
-                  onPress={applyFilters}
-                >
-                  <Text style={styles.applyButtonText}>Apply Filters</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Translations by Day */}
-        <ScrollView
-          style={styles.scrollView}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />
-          }
-          showsVerticalScrollIndicator={false}
-        >
-          {Object.keys(filteredTranslationsByDay).length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <MessageCircle size={48} color="#666" />
-              <Text style={styles.emptyTitle}>
-                {hasActiveFilters() ? 'No matching translations' : searchQuery ? 'No matching translations' : 'No Translation History'}
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                {hasActiveFilters() ? 'Try adjusting your filters or clear them to see more results' : searchQuery ? 'Try a different search term' : 'Start translating to build your learning history'}
-              </Text>
-            </View>
-          ) : (
-            // Sort dates (newest first)
-            Object.keys(filteredTranslationsByDay)
-              .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-              .map((dateKey) => (
-                <View key={dateKey} style={styles.daySection}>
-                  {/* Day Header */}
-                  <Text style={styles.dayHeader}>{formatDateHeader(dateKey)}</Text>
-                  
-                  {/* Language Pairs for this day */}
-                  {Object.keys(filteredTranslationsByDay[dateKey]).map((languagePair) => {
-                    const { conversation, entries } = filteredTranslationsByDay[dateKey][languagePair];
-                    return (
-                      <View key={`${dateKey}-${languagePair}`} style={styles.languagePairSection}>
-                        {/* Language Pair Header */}
-                        <TouchableOpacity
-                          style={styles.languagePairHeader}
-                          onPress={() => handleConversationPress(conversation)}
-                        >
-                          <Text style={styles.languagePairTitle}>
-                            {conversation.displayName}
-                          </Text>
-                          <View style={styles.languagePairInfo}>
-                            <Text style={styles.entryCount}>
-                              {entries.length} translation{entries.length !== 1 ? 's' : ''}
-                            </Text>
-                            <Text style={styles.arrowText}>›</Text>
-                          </View>
-                        </TouchableOpacity>
-                        
-                        {/* Individual Translations */}
-                        {entries.slice(0, 3).map((entry) => (
-                          <TouchableOpacity
-                            key={entry.id}
-                            style={styles.translationItem}
-                            onPress={() => handleConversationPress(conversation, entry.id)}
-                            activeOpacity={0.7}
-                          >
-                            <View style={styles.translationContent}>
-                              <Text style={styles.originalText} numberOfLines={1}>
-                                {entry.originalText}
-                              </Text>
-                              <Text style={styles.translatedText} numberOfLines={1}>
-                                {entry.translatedText}
-                              </Text>
-                              <Text style={styles.translationTime}>
-                                {formatDate(entry.timestamp)}
-                              </Text>
-                            </View>
-                          </TouchableOpacity>
-                        ))}
-                        
-                        {entries.length > 3 && (
-                          <TouchableOpacity
-                            style={styles.viewMoreButton}
-                            onPress={() => handleConversationPress(conversation)}
-                          >
-                            <Text style={styles.viewMoreText}>
-                              View {entries.length - 3} more translation{entries.length - 3 !== 1 ? 's' : ''}
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    );
-                  })}
-                </View>
-              ))
-          )}
-        </ScrollView>
-
-        {Object.keys(filteredTranslationsByDay).length > 0 && (
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>
-              💡 Tip: Tap any conversation to review and practice your translations
-            </Text>
-          </View>
-        )}
-      </>
+      </View>
     );
-  };
+  }
 
   return (
     <View style={styles.container}>
@@ -889,34 +348,488 @@ export default function HistoryScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => {
-            if (currentView === 'tiles') {
-              router.back();
-            } else {
-              setCurrentView('tiles');
-            }
-          }}
+          onPress={() => router.back()}
         >
           <ArrowLeft size={24} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>
-          {currentView === 'tiles' ? 'Learning Hub' : 'Translation History'}
-        </Text>
-        {currentView === 'history' && (
-          <TouchableOpacity
-            style={styles.clearButton}
-            onPress={handleClearAllHistory}
-            disabled={Object.keys(translationsByDay).length === 0}
-          >
-            <Trash2 size={20} color={Object.keys(translationsByDay).length > 0 ? "#FF3B30" : "#666"} />
-          </TouchableOpacity>
-        )}
-        {currentView !== 'history' && <View style={styles.headerSpacer} />}
+        <Text style={styles.headerTitle}>Translation History</Text>
+        <TouchableOpacity
+          style={styles.clearButton}
+          onPress={handleClearAllHistory}
+          disabled={Object.keys(translationsByDay).length === 0}
+        >
+          <Trash2 size={20} color={Object.keys(translationsByDay).length > 0 ? "#FF3B30" : "#666"} />
+        </TouchableOpacity>
       </View>
 
-      {/* Content based on current view */}
-      {currentView === 'tiles' && renderTilesView()}
-      {currentView === 'history' && renderHistoryView()}
+      {/* Search */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchInputContainer}>
+          <Search size={20} color="#999" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search translations..."
+            placeholderTextColor="#999"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity
+              style={styles.clearSearchButton}
+              onPress={clearFilters}
+            >
+              <X size={16} color="#999" />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={[styles.filterButton, hasActiveFilters() && styles.filterButtonActive]}
+            onPress={() => setShowFilterModal(true)}
+          >
+            <Filter size={16} color={hasActiveFilters() ? "#007AFF" : "#999"} />
+          </TouchableOpacity>
+        </View>
+        
+        {/* Active Filters Indicator */}
+        {hasActiveFilters() && (
+          <View style={styles.activeFiltersContainer}>
+            <Text style={styles.activeFiltersText}>
+              Filters: {getFilterSummary()}
+            </Text>
+            <TouchableOpacity
+              style={styles.clearFiltersButton}
+              onPress={clearFilters}
+            >
+              <X size={14} color="#007AFF" />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      {/* Filter Modal */}
+      <Modal
+        visible={showFilterModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowFilterModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Filter Translations</Text>
+              <TouchableOpacity
+                style={styles.modalCloseButton}
+                onPress={() => setShowFilterModal(false)}
+              >
+                <X size={24} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+              {/* Date Filter Section */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Filter by Date</Text>
+                
+                {/* Date Filter Mode Toggle */}
+                <View style={styles.dateFilterModeContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateFilterModeButton,
+                      dateFilterMode === 'single' && styles.dateFilterModeButtonActive
+                    ]}
+                    onPress={() => {
+                      setDateFilterMode('single');
+                      setSelectedStartDate(null);
+                      setSelectedEndDate(null);
+                    }}
+                  >
+                    <Text style={[
+                      styles.dateFilterModeText,
+                      dateFilterMode === 'single' && styles.dateFilterModeTextActive
+                    ]}>
+                      Single Date
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.dateFilterModeButton,
+                      dateFilterMode === 'range' && styles.dateFilterModeButtonActive
+                    ]}
+                    onPress={() => {
+                      setDateFilterMode('range');
+                      setSelectedDate(null);
+                    }}
+                  >
+                    <Text style={[
+                      styles.dateFilterModeText,
+                      dateFilterMode === 'range' && styles.dateFilterModeTextActive
+                    ]}>
+                      Date Range
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Calendar Toggle Button */}
+                <TouchableOpacity
+                  style={styles.calendarToggleBanner}
+                  onPress={() => setShowCalendar(!showCalendar)}
+                >
+                  <View style={styles.calendarBannerContent}>
+                    <Calendar size={20} color="#007AFF" />
+                    <Text style={styles.calendarBannerText}>
+                      {showCalendar ? 'Hide Calendar' : 'Show Calendar'}
+                    </Text>
+                  </View>
+                  <Text style={styles.calendarBannerArrow}>
+                    {showCalendar ? '▲' : '▼'}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Calendar */}
+                {showCalendar && (
+                  <View style={styles.calendarContainer}>
+                    <View style={styles.calendarHeader}>
+                      <TouchableOpacity
+                        style={styles.calendarNavButton}
+                        onPress={() => {
+                          const newDate = new Date(calendarDate);
+                          newDate.setMonth(newDate.getMonth() - 1);
+                          setCalendarDate(newDate);
+                        }}
+                      >
+                        <ChevronLeft size={20} color="#007AFF" />
+                      </TouchableOpacity>
+                      <Text style={styles.calendarHeaderText}>
+                        {calendarDate.toLocaleDateString([], { month: 'long', year: 'numeric' })}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.calendarNavButton}
+                        onPress={() => {
+                          const newDate = new Date(calendarDate);
+                          newDate.setMonth(newDate.getMonth() + 1);
+                          setCalendarDate(newDate);
+                        }}
+                      >
+                        <ChevronRight size={20} color="#007AFF" />
+                      </TouchableOpacity>
+                    </View>
+                    
+                    <View style={styles.calendarWeekDays}>
+                      {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                        <Text key={day} style={styles.calendarWeekDay}>{day}</Text>
+                      ))}
+                    </View>
+                    
+                    <View style={styles.calendarGrid}>
+                      {generateCalendarDays(calendarDate).map((date, index) => {
+                        const isCurrentMonth = date.getMonth() === calendarDate.getMonth();
+                        const isSelected = dateFilterMode === 'single' 
+                          ? tempSelectedDate === date.toDateString()
+                          : tempSelectedStartDate === date.toDateString() || tempSelectedEndDate === date.toDateString();
+                        const isInRange = dateFilterMode === 'range' && tempSelectedStartDate && tempSelectedEndDate
+                          ? date.getTime() >= new Date(tempSelectedStartDate).getTime() && date.getTime() <= new Date(tempSelectedEndDate).getTime()
+                          : false;
+                        const hasTranslations = hasTranslationsOnDate(date);
+                        
+                        return (
+                          <TouchableOpacity
+                            key={index}
+                            style={[
+                              styles.calendarDay,
+                              !isCurrentMonth && styles.calendarDayOtherMonth,
+                              isSelected && styles.calendarDaySelected,
+                              isInRange && styles.calendarDayInRange,
+                              hasTranslations && styles.calendarDayWithTranslations,
+                            ]}
+                            onPress={() => handleCalendarDatePress(date)}
+                            disabled={!isCurrentMonth}
+                          >
+                            <Text style={[
+                              styles.calendarDayText,
+                              !isCurrentMonth && styles.calendarDayTextOtherMonth,
+                              isSelected && styles.calendarDayTextSelected,
+                              hasTranslations && styles.calendarDayTextWithTranslations,
+                            ]}>
+                              {date.getDate()}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                    
+                    {dateFilterMode === 'range' && (
+                      <View style={styles.dateRangeInfo}>
+                        <Text style={styles.dateRangeInfoText}>
+                          {tempSelectedStartDate && !tempSelectedEndDate && 'Select end date'}
+                          {tempSelectedStartDate && tempSelectedEndDate && 
+                            `Range: ${formatDateHeader(tempSelectedStartDate)} - ${formatDateHeader(tempSelectedEndDate)}`
+                          }
+                          {!tempSelectedStartDate && 'Select start date'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                <ScrollView 
+                  horizontal 
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.dateScrollView}
+                >
+                  {availableDates.map((date) => (
+                    <TouchableOpacity
+                      key={date}
+                      style={[
+                        styles.dateChip,
+                        ((dateFilterMode === 'single' && selectedDate === date) ||
+                         (dateFilterMode === 'range' && (selectedStartDate === date || selectedEndDate === date))) && styles.dateChipSelected
+                      ]}
+                      onPress={() => {
+                        if (dateFilterMode === 'single') {
+                          setTempSelectedDate(date);
+                        } else {
+                          const dateString = new Date(date).toDateString();
+                          if (!tempSelectedStartDate || (tempSelectedStartDate && tempSelectedEndDate)) {
+                            setTempSelectedStartDate(dateString);
+                            setTempSelectedEndDate(null);
+                          } else {
+                            const startTime = new Date(tempSelectedStartDate).getTime();
+                            const endTime = new Date(date).getTime();
+                            if (endTime >= startTime) {
+                              setTempSelectedEndDate(dateString);
+                            } else {
+                              setTempSelectedStartDate(dateString);
+                              setTempSelectedEndDate(tempSelectedStartDate);
+                            }
+                          }
+                        }
+                      }}
+                    >
+                      <Text style={[
+                        styles.dateChipText,
+                        ((dateFilterMode === 'single' && selectedDate === date) ||
+                         (dateFilterMode === 'range' && (selectedStartDate === date || selectedEndDate === date))) && styles.dateChipTextSelected
+                      ]}>
+                        {formatDateHeader(date)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Language Pair Filter Section */}
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Filter by Language Pair</Text>
+                <Text style={styles.filterSectionDescription}>
+                  Select two languages to show translations between them (in both directions)
+                </Text>
+                
+                <View style={styles.languagePairContainer}>
+                  {/* From Language */}
+                  <View style={styles.languageSelectContainer}>
+                    <Text style={styles.languageSelectLabel}>From Language</Text>
+                    <ScrollView 
+                      style={styles.languageSelectScroll} 
+                      showsVerticalScrollIndicator={true}
+                      nestedScrollEnabled={true}
+                    >
+                      <TouchableOpacity
+                        style={[
+                          styles.languageOption,
+                          !tempSelectedFromLanguage && styles.languageOptionSelected
+                        ]}
+                        onPress={() => setTempSelectedFromLanguage(null)}
+                      >
+                        <Text style={[
+                          styles.languageOptionText,
+                          !tempSelectedFromLanguage && styles.languageOptionTextSelected
+                        ]}>
+                          Any Language
+                        </Text>
+                      </TouchableOpacity>
+                      {SUPPORTED_LANGUAGES.map((language) => (
+                        <TouchableOpacity
+                          key={language.code}
+                          style={[
+                            styles.languageOption,
+                            tempSelectedFromLanguage === language.code && styles.languageOptionSelected
+                          ]}
+                          onPress={() => setTempSelectedFromLanguage(language.code)}
+                        >
+                          <Text style={[
+                            styles.languageOptionText,
+                            tempSelectedFromLanguage === language.code && styles.languageOptionTextSelected
+                          ]}>
+                            {language.nativeName}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+
+                  {/* Arrow */}
+                  <View style={styles.languageArrowContainer}>
+                    <Text style={styles.languageArrow}>↔</Text>
+                  </View>
+
+                  {/* To Language */}
+                  <View style={styles.languageSelectContainer}>
+                    <Text style={styles.languageSelectLabel}>To Language</Text>
+                    <ScrollView 
+                      style={styles.languageSelectScroll} 
+                      showsVerticalScrollIndicator={true}
+                      nestedScrollEnabled={true}
+                    >
+                      <TouchableOpacity
+                        style={[
+                          styles.languageOption,
+                          !tempSelectedToLanguage && styles.languageOptionSelected
+                        ]}
+                        onPress={() => setTempSelectedToLanguage(null)}
+                      >
+                        <Text style={[
+                          styles.languageOptionText,
+                          !tempSelectedToLanguage && styles.languageOptionTextSelected
+                        ]}>
+                          Any Language
+                        </Text>
+                      </TouchableOpacity>
+                      {SUPPORTED_LANGUAGES.map((language) => (
+                        <TouchableOpacity
+                          key={language.code}
+                          style={[
+                            styles.languageOption,
+                            tempSelectedToLanguage === language.code && styles.languageOptionSelected
+                          ]}
+                          onPress={() => setTempSelectedToLanguage(language.code)}
+                        >
+                          <Text style={[
+                            styles.languageOptionText,
+                            tempSelectedToLanguage === language.code && styles.languageOptionTextSelected
+                          ]}>
+                            {language.nativeName}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                </View>
+              </View>
+            </ScrollView>
+
+            {/* Modal Footer */}
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={styles.clearAllButton}
+                onPress={clearFilters}
+              >
+                <Text style={styles.clearAllButtonText}>Clear All</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.applyButton}
+                onPress={applyFilters}
+              >
+                <Text style={styles.applyButtonText}>Apply Filters</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Translations by Day */}
+      <ScrollView
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />
+        }
+        showsVerticalScrollIndicator={false}
+      >
+        {Object.keys(filteredTranslationsByDay).length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <MessageCircle size={48} color="#666" />
+            <Text style={styles.emptyTitle}>
+              {hasActiveFilters() ? 'No matching translations' : searchQuery ? 'No matching translations' : 'No Translation History'}
+            </Text>
+            <Text style={styles.emptySubtitle}>
+              {hasActiveFilters() ? 'Try adjusting your filters or clear them to see more results' : searchQuery ? 'Try a different search term' : 'Start translating to build your learning history'}
+            </Text>
+          </View>
+        ) : (
+          // Sort dates (newest first)
+          Object.keys(filteredTranslationsByDay)
+            .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+            .map((dateKey) => (
+              <View key={dateKey} style={styles.daySection}>
+                {/* Day Header */}
+                <Text style={styles.dayHeader}>{formatDateHeader(dateKey)}</Text>
+                
+                {/* Language Pairs for this day */}
+                {Object.keys(filteredTranslationsByDay[dateKey]).map((languagePair) => {
+                  const { conversation, entries } = filteredTranslationsByDay[dateKey][languagePair];
+                  return (
+                    <View key={`${dateKey}-${languagePair}`} style={styles.languagePairSection}>
+                      {/* Language Pair Header */}
+                      <TouchableOpacity
+                        style={styles.languagePairHeader}
+                        onPress={() => handleConversationPress(conversation)}
+                      >
+                        <Text style={styles.languagePairTitle}>
+                          {conversation.displayName}
+                        </Text>
+                        <View style={styles.languagePairInfo}>
+                          <Text style={styles.entryCount}>
+                            {entries.length} translation{entries.length !== 1 ? 's' : ''}
+                          </Text>
+                          <Text style={styles.arrowText}>›</Text>
+                        </View>
+                      </TouchableOpacity>
+                      
+                      {/* Individual Translations */}
+                      {entries.slice(0, 3).map((entry) => (
+                        <TouchableOpacity
+                          key={entry.id}
+                          style={styles.translationItem}
+                          onPress={() => handleConversationPress(conversation, entry.id)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.translationContent}>
+                            <Text style={styles.originalText} numberOfLines={1}>
+                              {entry.originalText}
+                            </Text>
+                            <Text style={styles.translatedText} numberOfLines={1}>
+                              {entry.translatedText}
+                            </Text>
+                            <Text style={styles.translationTime}>
+                              {formatDate(entry.timestamp)}
+                            </Text>
+                          </View>
+                        </TouchableOpacity>
+                      ))}
+                      
+                      {entries.length > 3 && (
+                        <TouchableOpacity
+                          style={styles.viewMoreButton}
+                          onPress={() => handleConversationPress(conversation)}
+                        >
+                          <Text style={styles.viewMoreText}>
+                            View {entries.length - 3} more translation{entries.length - 3 !== 1 ? 's' : ''}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            ))
+        )}
+      </ScrollView>
+
+      {Object.keys(filteredTranslationsByDay).length > 0 && (
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>
+            💡 Tip: Tap any conversation to review and practice your translations
+          </Text>
+        </View>
+      )}
 
       {/* Clear History Confirmation Modal */}
       <Modal
@@ -975,61 +888,27 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   backButton: {
-    padding: 8,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
     color: '#FFF',
     flex: 1,
     textAlign: 'center',
-    marginHorizontal: 16,
-  },
-  headerSpacer: {
-    width: 32,
   },
   clearButton: {
-    padding: 8,
-  },
-  tilesContainer: {
-    flex: 1,
-    // paddingHorizontal: 20,
-    margin: 20,
-    // paddingTop: 20,
-    justifyContent: 'flex-start',
-  },
-  tilesRow: {
-    flexDirection: 'row',
-    gap: 15,
-  },
-  tile: {
-    flex: 1,
-    aspectRatio: 1,
-    backgroundColor: '#1A1A1A',
-    borderRadius: 16,
-    padding: 20,
-    alignItems: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  tileIcon: {
-    fontSize: 40,
-    marginBottom: 12,
-  },
-  tileTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginTop: 12,
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  tileSubtitle: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'center',
-    lineHeight: 16,
+    alignItems: 'center',
   },
   searchContainer: {
     paddingHorizontal: 20,
@@ -1447,45 +1326,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  statsContainer: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-    gap: 20,
-  },
-  statItem: {
-    flex: 1,
-    backgroundColor: '#1A1A1A',
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
-    gap: 8,
-  },
-  statNumber: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFF',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#999',
-    textAlign: 'center',
-  },
-  mostUsedContainer: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    padding: 12,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
-  },
-  mostUsedText: {
-    color: '#007AFF',
-    fontSize: 14,
-    textAlign: 'center',
-    fontWeight: '500',
-  },
   scrollView: {
     flex: 1,
   },
@@ -1573,10 +1413,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#666',
   },
-  deleteButton: {
-    padding: 8,
-    marginLeft: 12,
-  },
   viewMoreButton: {
     padding: 12,
     borderTopWidth: 1,
@@ -1604,24 +1440,5 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     lineHeight: 20,
-  },
-  vocabularyItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1A1A1A',
-    marginHorizontal: 20,
-    marginBottom: 12,
-    borderRadius: 12,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#333',
-  },
-  vocabularyContent: {
-    flex: 1,
-  },
-  vocabularyDate: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
   },
 });
