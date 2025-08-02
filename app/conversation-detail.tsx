@@ -1,17 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, memo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
   Alert,
   RefreshControl,
   Animated,
   Modal,
+  ListRenderItem,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ArrowLeft, Volume2, Trash2, User, BookmarkPlus, Bookmark } from 'lucide-react-native';
+import { ArrowLeft, Volume2, Trash2, User, Bookmark } from 'lucide-react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { TranslationHistoryManager, TranslationEntry } from '../utils/TranslationHistory';
@@ -28,7 +29,12 @@ export default function ConversationDetailScreen() {
   const searchQuery = params.searchQuery as string;
   
   const [entries, setEntries] = useState<TranslationEntry[]>([]);
+  const [allEntries, setAllEntries] = useState<TranslationEntry[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  const ITEMS_PER_PAGE = 20;
   const [refreshing, setRefreshing] = useState(false);
   const [savedEntries, setSavedEntries] = useState<Set<string>>(new Set());
   const [toastMessage, setToastMessage] = useState<string>('');
@@ -40,7 +46,7 @@ export default function ConversationDetailScreen() {
   const [highlightOpacity] = useState(new Animated.Value(0));
   const [highlightScale] = useState(new Animated.Value(1));
   const [borderColorAnim] = useState(new Animated.Value(0));
-  const scrollViewRef = useRef<ScrollView>(null);
+  const flatListRef = useRef<FlatList>(null);
   const entryPositions = useRef<{ [key: string]: number }>({});
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'translation' | 'conversation'; id?: string } | null>(null);
@@ -83,19 +89,19 @@ export default function ConversationDetailScreen() {
       // Scroll to the highlighted entry after a short delay to ensure rendering is complete
       setTimeout(() => {
         const entryY = entryPositions.current[highlightTranslationId];
-        if (entryY !== undefined && scrollViewRef.current) {
-          scrollViewRef.current.scrollTo({ 
-            y: Math.max(0, entryY - 100), // Offset by 100px to show some context above
+        if (entryY !== undefined && flatListRef.current) {
+          flatListRef.current.scrollToOffset({ 
+            offset: Math.max(0, entryY - 100), // Offset by 100px to show some context above
             animated: true 
           });
         } else {
           // Fallback: scroll to estimated position based on entry index
           const entryIndex = entries.findIndex(entry => entry.id === highlightTranslationId);
           if (entryIndex !== -1) {
-            const estimatedY = entryIndex * 200; // Estimate 200px per entry
-            scrollViewRef.current?.scrollTo({ 
-              y: Math.max(0, estimatedY - 100), 
-              animated: true 
+            flatListRef.current?.scrollToIndex({ 
+              index: entryIndex,
+              animated: true,
+              viewOffset: 100
             });
           }
         }
@@ -244,7 +250,11 @@ export default function ConversationDetailScreen() {
         
         // Sort entries by timestamp (newest first)
         const sortedEntries = filteredEntries.sort((a, b) => b.timestamp - a.timestamp);
-        setEntries(sortedEntries);
+        
+        // Store all entries and display first page
+        setAllEntries(sortedEntries);
+        setEntries(sortedEntries.slice(0, ITEMS_PER_PAGE));
+        setCurrentPage(1);
       }
     } catch (error) {
       console.error('Failed to load conversation entries:', error);
@@ -255,8 +265,26 @@ export default function ConversationDetailScreen() {
     }
   };
 
+  const loadMore = () => {
+    if (loadingMore || entries.length >= allEntries.length) return;
+    
+    setLoadingMore(true);
+    
+    setTimeout(() => {
+      const nextPage = currentPage + 1;
+      const startIndex = 0;
+      const endIndex = nextPage * ITEMS_PER_PAGE;
+      const newEntries = allEntries.slice(startIndex, endIndex);
+      
+      setEntries(newEntries);
+      setCurrentPage(nextPage);
+      setLoadingMore(false);
+    }, 300);
+  };
+
   const onRefresh = () => {
     setRefreshing(true);
+    setCurrentPage(1);
     loadConversationEntries();
   };
 
@@ -378,6 +406,120 @@ export default function ConversationDetailScreen() {
     setDeleteTarget(null);
   };
 
+  // Memoized render item for FlatList
+  const renderItem: ListRenderItem<TranslationEntry> = useCallback(({ item: entry }) => (
+    <Animated.View 
+      key={entry.id} 
+      onLayout={(event) => {
+        const { y } = event.nativeEvent.layout;
+        entryPositions.current[entry.id] = y;
+      }}
+      style={[
+        styles.entryContainer,
+        {
+          borderColor: highlightedEntryId === entry.id 
+            ? borderColorAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['#333', '#FFFFFF'],
+              })
+            : '#333',
+          borderWidth: 2,
+        },
+      ]}
+    >
+      <Animated.View
+        style={{
+          opacity: highlightedEntryId === entry.id 
+            ? borderColorAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [1, 0.95],
+              })
+            : 1,
+        }}
+      >
+        <View style={styles.entryHeader}>
+          <Text style={styles.timestamp}>
+            {new Date(entry.timestamp).toLocaleString()}
+          </Text>
+          <View style={styles.entryActions}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => handleAddToVocabulary(entry)}
+            >
+              <Bookmark size={16} color={savedEntries.has(entry.id) ? "#34C759" : "#FF3B30"} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => handleDeleteTranslation(entry.id)}
+            >
+              <Trash2 size={16} color="#FF3B30" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={[styles.textContainer, styles.originalTextContainer]}>
+          <View style={styles.textHeader}>
+            <Text style={styles.languageLabel}>
+              {getLanguageDisplayName(entry.fromLanguage)}
+            </Text>
+            <View style={styles.textActions}>
+              <TouchableOpacity
+                style={styles.speakButton}
+                onPress={() => handleSpeak(entry.originalText, entry.fromLanguage)}
+              >
+                <Volume2 size={16} color="#007AFF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+          <Text style={styles.originalText}>{entry.originalText}</Text>
+        </View>
+
+        <View style={[styles.textContainer, styles.translatedTextContainer]}>
+          <View style={styles.textHeader}>
+            <Text style={styles.languageLabel}>
+              {getLanguageDisplayName(entry.toLanguage)}
+            </Text>
+            <TouchableOpacity
+              style={styles.speakButton}
+              onPress={() => handleSpeak(entry.translatedText, entry.toLanguage)}
+            >
+              <Volume2 size={16} color="#007AFF" />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.translatedText}>{entry.translatedText}</Text>
+        </View>
+      </Animated.View>
+    </Animated.View>
+  ), [highlightedEntryId, borderColorAnim, savedEntries, handleAddToVocabulary, handleDeleteTranslation, handleSpeak]);
+
+  // Memoized footer component
+  const renderFooter = useCallback(() => {
+    if (entries.length >= allEntries.length) {
+      return entries.length > 0 ? (
+        <View style={styles.endFooter}>
+          <Text style={styles.endText}>• • •</Text>
+        </View>
+      ) : null;
+    }
+
+    return loadingMore ? (
+      <View style={styles.loadingFooter}>
+        <Text style={styles.loadingText}>Loading more translations...</Text>
+      </View>
+    ) : null;
+  }, [loadingMore, entries.length, allEntries.length]);
+
+  // Memoized empty component
+  const renderEmpty = useCallback(() => (
+    <View style={styles.emptyContainer}>
+      <User size={48} color="#666" />
+      <Text style={styles.emptyTitle}>No Translations Yet</Text>
+      <Text style={styles.emptySubtitle}>
+        Start using the translator to build your conversation history
+      </Text>
+    </View>
+  ), []);
+
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
     return date.toLocaleDateString([], { 
@@ -436,122 +578,27 @@ export default function ConversationDetailScreen() {
       </View>
 
       {/* Conversation Entries */}
-      <ScrollView
-        ref={scrollViewRef}
+      <FlatList
+        ref={flatListRef}
+        data={entries}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
         style={styles.scrollView}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />
         }
         showsVerticalScrollIndicator={false}
-      >
-        {entries.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <User size={48} color="#666" />
-            <Text style={styles.emptyTitle}>No Translations Yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Start using the translator to build your conversation history
-            </Text>
-          </View>
-        ) : (
-          entries.map((entry) => (
-            <Animated.View 
-              key={entry.id} 
-              onLayout={(event) => {
-                const { y } = event.nativeEvent.layout;
-                entryPositions.current[entry.id] = y;
-              }}
-              style={[
-                styles.entryContainer,
-                {
-                  borderColor: highlightedEntryId === entry.id 
-                    ? borderColorAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: ['#333', '#FFFFFF'],
-                      })
-                    : '#333',
-                  borderWidth: 2, // Always 2px to avoid layout shift
-                },
-              ]}
-            >
-              <Animated.View
-                style={{
-                  transform: [
-                    { 
-                      scale: highlightedEntryId === entry.id 
-                        ? highlightScale 
-                        : 1
-                    }
-                  ],
-                }}
-              >
-                <View style={styles.entryHeader}>
-                  <View style={styles.speakerInfo}>
-                    <Text style={styles.speakerIcon}>{getSpeakerIcon(entry.speaker)}</Text>
-                    <Text style={[styles.speakerLabel, { color: getSpeakerColor(entry.speaker) }]}>
-                      {entry.speaker === 'user1' ? 'Speaker 1' : 'Speaker 2'}
-                    </Text>
-                  </View>
-                  
-                  <View style={styles.entryHeaderRight}>
-                    <Text style={styles.entryTime}>{formatDate(entry.timestamp)}</Text>
-                    <TouchableOpacity
-                      style={styles.addToVocabButton}
-                      onPress={() => handleAddToVocabulary(entry)}
-                    >
-                      {savedEntries.has(entry.id) ? (
-                        <Bookmark size={16} color="#34C759" />
-                      ) : (
-                        <Bookmark size={16} color="#FF3B30" />
-                      )}
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.deleteButton}
-                      onPress={() => handleDeleteTranslation(entry.id)}
-                    >
-                      <Trash2 size={16} color="#FF3B30" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* Original Text */}
-                <View style={[styles.textContainer, styles.originalTextContainer]}>
-                  <View style={styles.textHeader}>
-                    <Text style={styles.languageLabel}>
-                      {getLanguageDisplayName(entry.fromLanguage)}
-                    </Text>
-                    <View style={styles.textActions}>
-                      <TouchableOpacity
-                        style={styles.speakButton}
-                        onPress={() => handleSpeak(entry.originalText, entry.fromLanguage)}
-                      >
-                        <Volume2 size={16} color="#007AFF" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  <Text style={styles.originalText}>{entry.originalText}</Text>
-                </View>
-
-                {/* Translation */}
-                <View style={[styles.textContainer, styles.translatedTextContainer]}>
-                  <View style={styles.textHeader}>
-                    <Text style={styles.languageLabel}>
-                      {getLanguageDisplayName(entry.toLanguage)}
-                    </Text>
-                    <TouchableOpacity
-                      style={styles.speakButton}
-                      onPress={() => handleSpeak(entry.translatedText, entry.toLanguage)}
-                    >
-                      <Volume2 size={16} color="#007AFF" />
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={styles.translatedText}>{entry.translatedText}</Text>
-                </View>
-              </Animated.View>
-            </Animated.View>
-          ))
-        )}
-      </ScrollView>
-
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.3}
+        ListEmptyComponent={renderEmpty}
+        ListFooterComponent={renderFooter}
+        removeClippedSubviews={true}
+        maxToRenderPerBatch={10}
+        windowSize={10}
+        initialNumToRender={10}
+        getItemLayout={undefined}
+      />
+        
       {entries.length > 0 && (
         <View style={styles.footer}>
           <Text style={styles.footerText}>
@@ -897,5 +944,38 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Additional styles for pagination
+  timestamp: {
+    color: '#999',
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  entryActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  saveButton: {
+    padding: 6,
+    borderRadius: 6,
+    backgroundColor: '#333',
+  },
+  savedButton: {
+    backgroundColor: '#007AFF',
+  },
+  loadingFooter: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  endFooter: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  endText: {
+    color: '#666',
+    fontSize: 14,
+  },
+  iconButton: {
+    padding: 4,
   },
 });
