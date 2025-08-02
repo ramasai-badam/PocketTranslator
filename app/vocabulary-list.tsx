@@ -1,9 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   Alert,
   RefreshControl,
@@ -31,6 +30,95 @@ interface VocabularyItem {
   translationEntry: TranslationEntry | null;
 }
 
+// Memoized vocabulary item component
+const VocabularyItem = memo(({ item, onDelete, onBreakdown, isBreakdownCached }: {
+  item: VocabularyItem;
+  onDelete: (id: string) => void;
+  onBreakdown: (item: VocabularyItem) => void;
+  isBreakdownCached: (item: VocabularyItem) => boolean;
+}) => {
+  if (!item.translationEntry) return null;
+  
+  const { vocabularyEntry, translationEntry } = item;
+  
+  return (
+    <View style={styles.wordContainer}>
+      <View style={styles.wordHeader}>
+        <View style={styles.languageInfo}>
+          <Text style={styles.languageLabel}>
+            {getLanguageDisplayName(translationEntry.fromLanguage)} → {getLanguageDisplayName(translationEntry.toLanguage)}
+          </Text>
+        </View>
+        
+        <View style={styles.wordHeaderRight}>
+          <Text style={styles.dateAdded}>{vocabularyEntry.dateAdded}</Text>
+          <TouchableOpacity
+            style={styles.breakdownButton}
+            onPress={() => onBreakdown(item)}
+          >
+            <GraduationCap 
+              size={16} 
+              color={isBreakdownCached(item) ? "#FFD700" : "#34C759"} 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => onDelete(vocabularyEntry.translationId)}
+          >
+            <Trash2 size={16} color="#FF3B30" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Original Text */}
+      <View style={[styles.textContainer, styles.originalTextContainer]}>
+        <View style={styles.textHeader}>
+          <Text style={styles.textLabel}>Original</Text>
+          <TouchableOpacity
+            style={styles.speakButton}
+            onPress={() => Speech.speak(translationEntry.originalText, { language: translationEntry.fromLanguage })}
+          >
+            <Volume2 size={16} color="#007AFF" />
+          </TouchableOpacity>
+        </View>
+        <Text style={{ fontSize: 16, color: '#FFF', lineHeight: 24 }}>{translationEntry.originalText}</Text>
+      </View>
+
+      {/* Translation */}
+      <View style={[styles.textContainer, styles.translatedTextContainer]}>
+        <View style={styles.textHeader}>
+          <Text style={styles.textLabel}>Translation</Text>
+          <TouchableOpacity
+            style={styles.speakButton}
+            onPress={() => Speech.speak(translationEntry.translatedText, { language: translationEntry.toLanguage })}
+          >
+            <Volume2 size={16} color="#007AFF" />
+          </TouchableOpacity>
+        </View>
+        <Text style={{ fontSize: 16, color: '#FFF', lineHeight: 24 }}>{translationEntry.translatedText}</Text>
+      </View>
+    </View>
+  );
+});
+
+// Empty state component
+const EmptyComponent = memo(() => (
+  <View style={styles.emptyContainer}>
+    <BookOpen size={48} color="#666" />
+    <Text style={styles.emptyTitle}>No Vocabulary Words Yet</Text>
+    <Text style={styles.emptySubtitle}>
+      Add words from your translation history to start building your vocabulary
+    </Text>
+  </View>
+));
+
+// Loading footer component
+const LoadingFooter = memo(() => (
+  <View style={{ padding: 20, alignItems: 'center' }}>
+    <Text style={styles.loadingText}>Loading more...</Text>
+  </View>
+));
+
 
 export default function VocabularyListScreen() {
   const [vocabularyItems, setVocabularyItems] = useState<VocabularyItem[]>([]);
@@ -40,6 +128,11 @@ export default function VocabularyListScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showClearAllModal, setShowClearAllModal] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+
+  // Simple pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const ITEMS_PER_PAGE = 10;
 
   // Key for AsyncStorage
   const BREAKDOWN_CACHE_KEY = 'linguisticBreakdownCache';
@@ -123,10 +216,30 @@ export default function VocabularyListScreen() {
     }
   };
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
+    setCurrentPage(1); // Reset to first page
     loadVocabularyItems();
-  };
+  }, []);
+
+  // Simple pagination: load more items
+  const loadMore = useCallback(() => {
+    if (loadingMore) return;
+    
+    const maxItems = vocabularyItems.length;
+    const currentItems = currentPage * ITEMS_PER_PAGE;
+    
+    if (currentItems >= maxItems) return; // No more items
+    
+    setLoadingMore(true);
+    setTimeout(() => {
+      setCurrentPage(prev => prev + 1);
+      setLoadingMore(false);
+    }, 200);
+  }, [loadingMore, currentPage, vocabularyItems.length, ITEMS_PER_PAGE]);
+
+  // Get items to display (paginated)
+  const displayedItems = vocabularyItems.slice(0, currentPage * ITEMS_PER_PAGE);
 
   const handleDeleteWord = async (translationId: string) => {
     setDeleteTargetId(translationId);
@@ -309,90 +422,25 @@ export default function VocabularyListScreen() {
 
       {/* Vocabulary Words */}
       <FlatList
-        data={vocabularyItems}
-        keyExtractor={(item) => item.vocabularyEntry.translationId}
-        renderItem={({ item }) => {
-          if (!item.translationEntry) return null;
-          
-          const { vocabularyEntry, translationEntry } = item;
-          
-          return (
-            <View style={styles.wordContainer}>
-              <View style={styles.wordHeader}>
-                <View style={styles.languageInfo}>
-                  <Text style={styles.languageLabel}>
-                    {getLanguageDisplayName(translationEntry.fromLanguage)} → {getLanguageDisplayName(translationEntry.toLanguage)}
-                  </Text>
-                </View>
-                
-                <View style={styles.wordHeaderRight}>
-                  <Text style={styles.dateAdded}>{vocabularyEntry.dateAdded}</Text>
-                  <TouchableOpacity
-                    style={styles.breakdownButton}
-                    onPress={() => handleLinguisticBreakdown(item)}
-                  >
-                    <GraduationCap 
-                      size={16} 
-                      color={isBreakdownCached(item) ? "#FFD700" : "#34C759"} 
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => handleDeleteWord(vocabularyEntry.translationId)}
-                  >
-                    <Trash2 size={16} color="#FF3B30" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Original Text - Interactive */}
-              <View style={[styles.textContainer, styles.originalTextContainer]}>
-                <View style={styles.textHeader}>
-                  <Text style={styles.textLabel}>Original</Text>
-                  <View style={styles.iconGroup}>
-                    <TouchableOpacity
-                      style={styles.speakButton}
-                      onPress={() => Speech.speak(translationEntry.originalText, { language: translationEntry.fromLanguage })}
-                    >
-                      <Volume2 size={16} color="#007AFF" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                {renderInteractiveText(translationEntry.originalText, translationEntry.fromLanguage)}
-              </View>
-
-              {/* Translation - Interactive */}
-              <View style={[styles.textContainer, styles.translatedTextContainer]}>
-                <View style={styles.textHeader}>
-                  <Text style={styles.textLabel}>Translation</Text>
-                  <View style={styles.iconGroup}>
-                    <TouchableOpacity
-                      style={styles.speakButton}
-                      onPress={() => Speech.speak(translationEntry.translatedText, { language: translationEntry.toLanguage })}
-                    >
-                      <Volume2 size={16} color="#007AFF" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-                {renderInteractiveText(translationEntry.translatedText, translationEntry.toLanguage)}
-              </View>
-            </View>
-          );
-        }}
+        data={displayedItems}
+        keyExtractor={(item: VocabularyItem) => item.vocabularyEntry.translationId}
+        renderItem={({ item }: { item: VocabularyItem }) => (
+          <VocabularyItem 
+            item={item}
+            onDelete={handleDeleteWord}
+            onBreakdown={handleLinguisticBreakdown}
+            isBreakdownCached={isBreakdownCached}
+          />
+        )}
         style={styles.scrollView}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />
         }
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={() => (
-          <View style={styles.emptyContainer}>
-            <BookOpen size={48} color="#666" />
-            <Text style={styles.emptyTitle}>No Vocabulary Words Yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Add words from your translation history to start building your vocabulary
-            </Text>
-          </View>
-        )}
+        ListEmptyComponent={<EmptyComponent />}
+        ListFooterComponent={loadingMore ? <LoadingFooter /> : null}
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
         initialNumToRender={10}
         maxToRenderPerBatch={5}
         windowSize={10}
