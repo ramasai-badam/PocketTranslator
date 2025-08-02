@@ -12,6 +12,7 @@ import {
   Modal,
   Dimensions,
   BackHandler,
+  ScrollView,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { ArrowLeft, MessageCircle, Trash2, Search, X, Filter, Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native';
