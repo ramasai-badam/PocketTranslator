@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Linking,
   Platform,
+  NativeModules,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Download, Check, X, ArrowLeft } from 'lucide-react-native';
@@ -16,6 +17,9 @@ import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { TTSVoiceManager, AVAILABLE_TTS_VOICES, TTSVoice } from '../utils/LanguagePackManager';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
+
+// Get the native module
+const { SettingsModule } = NativeModules;
 
 export default function SettingsScreen() {
   const [ttsVoices, setTTSVoices] = useState<TTSVoice[]>([]);
@@ -73,7 +77,7 @@ export default function SettingsScreen() {
       // Show alert explaining the download process
       Alert.alert(
         'Enable TTS Voice',
-        `To enable text-to-speech for ${languageName}, follow these exact steps:\n\n1. We'll open your device Settings\n2. Search for "Text-to-speech" or navigate to:\n   • Settings > System > Languages & input > Text-to-speech output\n   • OR Settings > General management > Language and input > Text-to-speech\n3. Select your TTS engine (Google Text-to-speech recommended)\n4. Tap the settings/gear icon next to the engine\n5. Find and download the voice pack for ${languageName}\n6. Return here and confirm\n\nNote: Path may vary by device manufacturer.`,
+        `To enable text-to-speech for ${languageName}:\n\n1. We'll open TTS Settings\n2. Press ⚙️ button \n3. Select Install voice data\n4. Find and download the voice pack for ${languageName}\n6. Return here and confirm\n\nNote: Path may vary by device manufacturer.`,
         [
           {
             text: 'Cancel',
@@ -92,11 +96,29 @@ export default function SettingsScreen() {
             text: 'Open Settings',
             onPress: async () => {
               try {
-                // Open device settings with fallback
-                // Note: Direct TTS settings require native module (android.settings.TTS_SETTINGS)
-                // For now, open general settings with clear navigation instructions
-                await Linking.openSettings();
-                console.log('Opened device settings');
+                // Try to open TTS settings directly on Android using native module
+                if (Platform.OS === 'android') {
+                  try {
+                    // Check if native module is available
+                    if (SettingsModule && SettingsModule.openSettings) {
+                      // ✅ USE THE NATIVE MODULE HERE
+                      await SettingsModule.openSettings('com.android.settings.TTS_SETTINGS');
+                      console.log('Opened TTS settings directly via Native Module');
+                    } else {
+                      console.log('SettingsModule not available, using fallback');
+                      throw new Error('Native module not available');
+                    }
+                  } catch (androidError) {
+                    console.log('Direct TTS settings failed, trying general settings:', androidError);
+                    // Fallback to general app settings if the specific one fails
+                    await Linking.openSettings();
+                    console.log('Opened general settings as fallback');
+                  }
+                } else {
+                  // iOS - open general settings
+                  await Linking.openSettings();
+                  console.log('Opened device settings (iOS)');
+                }
               } catch (error) {
                 console.error('Failed to open settings:', error);
                 Alert.alert(
