@@ -65,6 +65,11 @@ export class ModelManager {
     return llamaContext;
   }
 
+  // Public method to check if any analysis is currently in progress
+  static isAnalysisInProgress(): boolean {
+    return isProcessingAnalysis;
+  }
+
   static getWhisperContext(): any {
     return whisperContext;
   }

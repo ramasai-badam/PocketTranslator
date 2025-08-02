@@ -204,6 +204,31 @@ export default function VocabularyListScreen() {
     restoreBreakdownCache();
     // Restore ongoing analyses state
     setOngoingAnalyses(new Set(global.ongoingAnalyses));
+    
+    // Set up periodic check for completed background analyses
+    const checkInterval = setInterval(() => {
+      // Check if we have completed analysis data
+      if (global.lastBreakdownData) {
+        const { cacheKey, data } = global.lastBreakdownData;
+        console.log('Found completed background analysis:', cacheKey);
+        setBreakdownCache(prev => {
+          const updated = { ...prev, [cacheKey]: data };
+          persistBreakdownCache(updated);
+          return updated;
+        });
+        // Clear the global data after caching
+        global.lastBreakdownData = null;
+        
+        // Remove from ongoing analyses since it's completed
+        global.ongoingAnalyses.delete(cacheKey);
+        setOngoingAnalyses(new Set(global.ongoingAnalyses));
+      }
+      
+      // Update ongoing analyses state to reflect current status
+      setOngoingAnalyses(new Set(global.ongoingAnalyses));
+    }, 2000); // Check every 2 seconds
+    
+    return () => clearInterval(checkInterval);
   }, []);
 
   // Restore breakdown cache from AsyncStorage
@@ -237,6 +262,7 @@ export default function VocabularyListScreen() {
           const savedBreakdown = global.lastBreakdownData;
           if (savedBreakdown) {
             const { cacheKey, data } = savedBreakdown;
+            console.log('Caching completed background analysis:', cacheKey);
             setBreakdownCache(prev => {
               const updated = { ...prev, [cacheKey]: data };
               persistBreakdownCache(updated);
@@ -244,12 +270,19 @@ export default function VocabularyListScreen() {
             });
             // Clear the global data after caching
             global.lastBreakdownData = null;
+            
+            // Also remove from ongoing analyses since it's completed
+            global.ongoingAnalyses.delete(cacheKey);
+            setOngoingAnalyses(new Set(global.ongoingAnalyses));
           }
         } catch (error) {
           console.error('Error checking breakdown data:', error);
         }
       };
+
       checkForBreakdownData();
+      // Also update the ongoing analyses state when screen regains focus
+      setOngoingAnalyses(new Set(global.ongoingAnalyses));
     }, [])
   );
 
@@ -351,15 +384,34 @@ export default function VocabularyListScreen() {
   const handleLinguisticBreakdown = (item: VocabularyItem) => {
     if (!item.translationEntry) return;
     
-    const { translationEntry } = item;
-    // Create a unique cache key for this translation pair
-    const cacheKey = `${translationEntry.originalText}_${translationEntry.fromLanguage}_${translationEntry.toLanguage}`;
+    const { vocabularyEntry, translationEntry } = item;
+    // Use translationId as cache key instead of text-based key
+    const cacheKey = vocabularyEntry.translationId;
     
     console.log('Breakdown requested for cache key:', cacheKey);
     console.log('Current ongoing analyses:', Array.from(global.ongoingAnalyses));
     console.log('Cache status:', !!breakdownCache[cacheKey]);
+    console.log('Any analysis in progress:', ModelManager.isAnalysisInProgress());
     
-    // Check if analysis is already in progress
+    // Check if ANY analysis is already in progress (not just this specific translation)
+    if (ModelManager.isAnalysisInProgress()) {
+      console.log('Another analysis is in progress, user will wait for it to complete');
+      // Navigate to analyzing screen with waiting state
+      router.push({
+        pathname: '/linguistic-breakdown',
+        params: {
+          originalText: translationEntry.originalText,
+          translatedText: translationEntry.translatedText,
+          originalLanguage: translationEntry.fromLanguage,
+          translatedLanguage: translationEntry.toLanguage,
+          cacheKey: cacheKey, // Pass the cache key for easier tracking
+          isOngoing: 'true', // Flag to indicate we need to wait for analysis to complete
+        }
+      });
+      return;
+    }
+    
+    // Check if analysis is already in progress for this specific translation
     if (global.ongoingAnalyses.has(cacheKey)) {
       console.log('Analysis already in progress for:', cacheKey);
       // Navigate to analyzing screen
@@ -370,6 +422,7 @@ export default function VocabularyListScreen() {
           translatedText: translationEntry.translatedText,
           originalLanguage: translationEntry.fromLanguage,
           translatedLanguage: translationEntry.toLanguage,
+          cacheKey: cacheKey,
           isOngoing: 'true', // Flag to indicate this is an ongoing analysis
         }
       });
@@ -380,7 +433,10 @@ export default function VocabularyListScreen() {
     const cachedBreakdown = breakdownCache[cacheKey];
     
     if (cachedBreakdown) {
-      console.log('Using cached breakdown data');
+      console.log('=== Using cached breakdown data ===');
+      console.log('cacheKey:', cacheKey);
+      console.log('cachedBreakdown keys:', Object.keys(cachedBreakdown));
+      console.log('cachedBreakdown:', cachedBreakdown);
       // Use cached data - navigate directly with the cached breakdown
       router.push({
         pathname: '/linguistic-breakdown',
@@ -389,6 +445,7 @@ export default function VocabularyListScreen() {
           translatedText: translationEntry.translatedText,
           originalLanguage: translationEntry.fromLanguage,
           translatedLanguage: translationEntry.toLanguage,
+          cacheKey: cacheKey,
           cachedData: JSON.stringify(cachedBreakdown),
         }
       });
@@ -405,18 +462,19 @@ export default function VocabularyListScreen() {
           translatedText: translationEntry.translatedText,
           originalLanguage: translationEntry.fromLanguage,
           translatedLanguage: translationEntry.toLanguage,
+          cacheKey: cacheKey,
         }
       });
     }
   };
 
   const isBreakdownCached = (item: VocabularyItem) => {
-    if (!item.translationEntry) return false;
+    if (!item.translationEntry) return 'fresh';
     
-    const { translationEntry } = item;
-    const cacheKey = `${translationEntry.originalText}_${translationEntry.fromLanguage}_${translationEntry.toLanguage}`;
+    const { vocabularyEntry } = item;
+    const cacheKey = vocabularyEntry.translationId;
     const isCached = !!breakdownCache[cacheKey];
-    const isAnalyzing = global.ongoingAnalyses.has(cacheKey);
+    const isAnalyzing = global.ongoingAnalyses.has(cacheKey) || ModelManager.isAnalysisInProgress();
     
     // Return different states: cached (gold), analyzing (blue), fresh (green)
     return isCached ? 'cached' : (isAnalyzing ? 'analyzing' : 'fresh');

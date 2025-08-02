@@ -48,6 +48,7 @@ export default function LinguisticBreakdownScreen() {
   const translatedLanguage = params.translatedLanguage as string;
   const cachedData = params.cachedData as string;
   const isOngoing = params.isOngoing as string;
+  const cacheKey = params.cacheKey as string; // Use passed cache key instead of generating
 
   const [analysis, setAnalysis] = useState<LinguisticAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,37 +58,54 @@ export default function LinguisticBreakdownScreen() {
   const [isWaitingForOngoing, setIsWaitingForOngoing] = useState(false);
 
   useEffect(() => {
-    const cacheKey = `${originalText}_${originalLanguage}_${translatedLanguage}`;
+    // Use passed cache key, fallback to text-based key for backward compatibility
+    const finalCacheKey = cacheKey || `${originalText}_${originalLanguage}_${translatedLanguage}`;
+    
+    console.log('=== LinguisticBreakdown useEffect ===');
+    console.log('cacheKey:', finalCacheKey);
+    console.log('cachedData:', cachedData ? 'Present' : 'Not present');
+    console.log('isOngoing:', isOngoing);
+    console.log('ModelManager.isAnalysisInProgress():', ModelManager.isAnalysisInProgress());
     
     // If this is an ongoing analysis, wait for it to complete
     if (isOngoing === 'true') {
       console.log('Waiting for ongoing analysis to complete...');
       setIsWaitingForOngoing(true);
-      waitForOngoingAnalysis(cacheKey);
+      waitForOngoingAnalysis(finalCacheKey);
+      return;
+    }
+    
+    // Check if ANY analysis is currently in progress (not just the same translation)
+    if (ModelManager.isAnalysisInProgress()) {
+      console.log('Another analysis is in progress, waiting for it to complete...');
+      setIsWaitingForOngoing(true);
+      waitForAnyOngoingAnalysis(finalCacheKey);
       return;
     }
     
     // Check if we have cached data first
     if (cachedData) {
       try {
+        console.log('Found cached data, parsing...');
         const parsedData = JSON.parse(cachedData);
         setAnalysis(parsedData);
         setIsLoading(false);
-        console.log('Using cached breakdown data');
+        console.log('Successfully used cached breakdown data');
         // Remove from ongoing analyses since we have cached data
-        global.ongoingAnalyses.delete(cacheKey);
+        global.ongoingAnalyses.delete(finalCacheKey);
         return;
       } catch (error) {
         console.error('Error parsing cached data:', error);
       }
     }
 
-    // Prevent multiple calls for fresh analysis
+    // Start fresh analysis only if we haven't started yet
     if (!hasStartedAnalysis) {
+      console.log('Starting fresh analysis...');
       setHasStartedAnalysis(true);
-      performLinguisticAnalysis();
+      performLinguisticAnalysis(finalCacheKey);
     }
-  }, [hasStartedAnalysis, cachedData, isOngoing]);
+  }, [cachedData, isOngoing, cacheKey]); // Added cacheKey to dependencies // Removed hasStartedAnalysis from dependencies
 
   const waitForOngoingAnalysis = async (cacheKey: string) => {
     const maxWaitTime = 60000; // 60 seconds max wait
@@ -132,14 +150,45 @@ export default function LinguisticBreakdownScreen() {
     checkForCompletion();
   };
 
-  const performLinguisticAnalysis = async () => {
-    const cacheKey = `${originalText}_${originalLanguage}_${translatedLanguage}`;
+  const waitForAnyOngoingAnalysis = async (cacheKey: string) => {
+    const maxWaitTime = 60000; // 60 seconds max wait
+    const checkInterval = 1000; // Check every second
+    let waitedTime = 0;
+
+    const checkForCompletion = async () => {
+      // Check if ANY analysis is no longer ongoing (not just this specific translation)
+      if (!ModelManager.isAnalysisInProgress()) {
+        console.log('All analysis completed, starting our analysis...');
+        setIsWaitingForOngoing(false);
+        performLinguisticAnalysis(cacheKey);
+        return;
+      }
+
+      waitedTime += checkInterval;
+      if (waitedTime >= maxWaitTime) {
+        console.log('Timeout waiting for ongoing analysis');
+        setError('Analysis is taking too long. Please try again.');
+        setIsLoading(false);
+        setIsWaitingForOngoing(false);
+        return;
+      }
+
+      // Continue waiting
+      setTimeout(checkForCompletion, checkInterval);
+    };
+
+    checkForCompletion();
+  };
+
+  const performLinguisticAnalysis = async (providedCacheKey?: string) => {
+    const cacheKey = providedCacheKey || `${originalText}_${originalLanguage}_${translatedLanguage}`;
     
     try {
       setIsLoading(true);
       setError(null);
       
       console.log('Starting linguistic analysis...');
+      console.log('Cache key:', cacheKey);
       console.log('Cache key:', cacheKey);
       
       const result = await ModelManager.getLinguisticAnalysisWithLlama(
@@ -207,11 +256,11 @@ export default function LinguisticBreakdownScreen() {
 
   // Handle back navigation - clean up ongoing analysis state
   const handleBackPress = () => {
-    const cacheKey = `${originalText}_${originalLanguage}_${translatedLanguage}`;
+    const finalCacheKey = cacheKey || `${originalText}_${originalLanguage}_${translatedLanguage}`;
     // Don't remove from ongoing analyses if we're still loading (analysis in progress)
     // Only remove if there was an error or if analysis completed
     if (error || analysis) {
-      global.ongoingAnalyses.delete(cacheKey);
+      global.ongoingAnalyses.delete(finalCacheKey);
     }
     router.back();
   };
@@ -265,7 +314,7 @@ export default function LinguisticBreakdownScreen() {
         <StatusBar style="light" />
         <View style={styles.errorContainer}>
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={performLinguisticAnalysis}>
+          <TouchableOpacity style={styles.retryButton} onPress={() => performLinguisticAnalysis()}>
             <Text style={styles.retryButtonText}>Try Again</Text>
           </TouchableOpacity>
         </View>
