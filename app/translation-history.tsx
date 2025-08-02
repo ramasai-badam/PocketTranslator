@@ -3,7 +3,8 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  FlatList,
+  SectionList,
   TouchableOpacity,
   Alert,
   RefreshControl,
@@ -19,11 +20,16 @@ import { useFocusEffect } from '@react-navigation/native';
 import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '../utils/LanguageConfig';
 
+interface DaySection {
+  title: string;
+  data: { languagePair: string; conversation: LanguagePairConversation; entries: TranslationEntry[] }[];
+}
+
 const { width } = Dimensions.get('window');
 
 export default function TranslationHistoryScreen() {
   const [translationsByDay, setTranslationsByDay] = useState<{ [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } }>({});
-  const [filteredTranslationsByDay, setFilteredTranslationsByDay] = useState<{ [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } }>({});
+  const [sectionsData, setSectionsData] = useState<DaySection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -117,9 +123,9 @@ export default function TranslationHistoryScreen() {
       filtered = filteredByLanguage;
     }
     
-    // Finally filter by search query
+    // Filter by search query
     if (!searchQuery.trim()) {
-      setFilteredTranslationsByDay(filtered);
+      convertToSections(filtered);
       return;
     }
 
@@ -149,7 +155,22 @@ export default function TranslationHistoryScreen() {
       });
     });
 
-    setFilteredTranslationsByDay(searchFiltered);
+    convertToSections(searchFiltered);
+  };
+
+  const convertToSections = (filteredData: typeof translationsByDay) => {
+    const sections: DaySection[] = Object.keys(filteredData)
+      .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+      .map(dateKey => ({
+        title: dateKey,
+        data: Object.keys(filteredData[dateKey]).map(languagePair => ({
+          languagePair,
+          conversation: filteredData[dateKey][languagePair].conversation,
+          entries: filteredData[dateKey][languagePair].entries,
+        }))
+      }));
+    
+    setSectionsData(sections);
   };
 
   const loadTranslations = async () => {
@@ -736,14 +757,26 @@ export default function TranslationHistoryScreen() {
       </Modal>
 
       {/* Translations by Day */}
-      <ScrollView
+      <SectionList
+        sections={sectionsData}
+        keyExtractor={(item) => `${item.conversation.languagePair}`}
+        renderItem={({ item }) => (
+          <LanguagePairSection
+            languagePair={item.languagePair}
+            conversation={item.conversation}
+            entries={item.entries}
+            onConversationPress={handleConversationPress}
+          />
+        )}
+        renderSectionHeader={({ section }) => (
+          <Text style={styles.dayHeader}>{formatDateHeader(section.title)}</Text>
+        )}
         style={styles.scrollView}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />
         }
         showsVerticalScrollIndicator={false}
-      >
-        {Object.keys(filteredTranslationsByDay).length === 0 ? (
+        ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <MessageCircle size={48} color="#666" />
             <Text style={styles.emptyTitle}>
@@ -753,77 +786,14 @@ export default function TranslationHistoryScreen() {
               {hasActiveFilters() ? 'Try adjusting your filters or clear them to see more results' : searchQuery ? 'Try a different search term' : 'Start translating to build your learning history'}
             </Text>
           </View>
-        ) : (
-          // Sort dates (newest first)
-          Object.keys(filteredTranslationsByDay)
-            .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
-            .map((dateKey) => (
-              <View key={dateKey} style={styles.daySection}>
-                {/* Day Header */}
-                <Text style={styles.dayHeader}>{formatDateHeader(dateKey)}</Text>
-                
-                {/* Language Pairs for this day */}
-                {Object.keys(filteredTranslationsByDay[dateKey]).map((languagePair) => {
-                  const { conversation, entries } = filteredTranslationsByDay[dateKey][languagePair];
-                  return (
-                    <View key={`${dateKey}-${languagePair}`} style={styles.languagePairSection}>
-                      {/* Language Pair Header */}
-                      <TouchableOpacity
-                        style={styles.languagePairHeader}
-                        onPress={() => handleConversationPress(conversation)}
-                      >
-                        <Text style={styles.languagePairTitle}>
-                          {conversation.displayName}
-                        </Text>
-                        <View style={styles.languagePairInfo}>
-                          <Text style={styles.entryCount}>
-                            {entries.length} translation{entries.length !== 1 ? 's' : ''}
-                          </Text>
-                          <Text style={styles.arrowText}>›</Text>
-                        </View>
-                      </TouchableOpacity>
-                      
-                      {/* Individual Translations */}
-                      {entries.slice(0, 3).map((entry) => (
-                        <TouchableOpacity
-                          key={entry.id}
-                          style={styles.translationItem}
-                          onPress={() => handleConversationPress(conversation, entry.id)}
-                          activeOpacity={0.7}
-                        >
-                          <View style={styles.translationContent}>
-                            <Text style={styles.originalText} numberOfLines={1}>
-                              {entry.originalText}
-                            </Text>
-                            <Text style={styles.translatedText} numberOfLines={1}>
-                              {entry.translatedText}
-                            </Text>
-                            <Text style={styles.translationTime}>
-                              {formatDate(entry.timestamp)}
-                            </Text>
-                          </View>
-                        </TouchableOpacity>
-                      ))}
-                      
-                      {entries.length > 3 && (
-                        <TouchableOpacity
-                          style={styles.viewMoreButton}
-                          onPress={() => handleConversationPress(conversation)}
-                        >
-                          <Text style={styles.viewMoreText}>
-                            View {entries.length - 3} more translation{entries.length - 3 !== 1 ? 's' : ''}
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            ))
         )}
-      </ScrollView>
+        stickySectionHeadersEnabled={false}
+        initialNumToRender={10}
+        maxToRenderPerBatch={5}
+        windowSize={10}
+      />
 
-      {Object.keys(filteredTranslationsByDay).length > 0 && (
+      {sectionsData.length > 0 && (
         <View style={styles.footer}>
           <Text style={styles.footerText}>
             💡 Tip: Tap any conversation to review and practice your translations
@@ -864,6 +834,79 @@ export default function TranslationHistoryScreen() {
     </View>
   );
 }
+
+// Memoized component for language pair sections
+const LanguagePairSection = React.memo(({ 
+  languagePair, 
+  conversation, 
+  entries, 
+  onConversationPress 
+}: {
+  languagePair: string;
+  conversation: LanguagePairConversation;
+  entries: TranslationEntry[];
+  onConversationPress: (conversation: LanguagePairConversation, highlightTranslationId?: string) => void;
+}) => {
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString([], { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+  };
+
+  return (
+    <View style={styles.languagePairSection}>
+      {/* Language Pair Header */}
+      <TouchableOpacity
+        style={styles.languagePairHeader}
+        onPress={() => onConversationPress(conversation)}
+      >
+        <Text style={styles.languagePairTitle}>
+          {conversation.displayName}
+        </Text>
+        <View style={styles.languagePairInfo}>
+          <Text style={styles.entryCount}>
+            {entries.length} translation{entries.length !== 1 ? 's' : ''}
+          </Text>
+          <Text style={styles.arrowText}>›</Text>
+        </View>
+      </TouchableOpacity>
+      
+      {/* Individual Translations */}
+      {entries.slice(0, 3).map((entry) => (
+        <TouchableOpacity
+          key={entry.id}
+          style={styles.translationItem}
+          onPress={() => onConversationPress(conversation, entry.id)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.translationContent}>
+            <Text style={styles.originalText} numberOfLines={1}>
+              {entry.originalText}
+            </Text>
+            <Text style={styles.translatedText} numberOfLines={1}>
+              {entry.translatedText}
+            </Text>
+            <Text style={styles.translationTime}>
+              {formatDate(entry.timestamp)}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      ))}
+      
+      {entries.length > 3 && (
+        <TouchableOpacity
+          style={styles.viewMoreButton}
+          onPress={() => onConversationPress(conversation)}
+        >
+          <Text style={styles.viewMoreText}>
+            View {entries.length - 3} more translation{entries.length - 3 !== 1 ? 's' : ''}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+});
 
 const styles = StyleSheet.create({
   container: {
