@@ -409,8 +409,8 @@ Translate this ${fromLang} text to ${toLang}: "${text}" Strictly Provide only si
     const toLanguageName = getLanguageName(toLanguage);
 
     // Construct the LLM prompt for linguistic analysis focusing on source and target languages
-    const prompt = `<start_of_turn>user
-Align phrases between:
+const prompt = `<start_of_turn>user
+Break down and align *smaller phrase segments* between the following sentences:
 
 ${fromLanguageName}: "${originalText}"  
 ${toLanguageName}: "${translatedText}"
@@ -423,12 +423,17 @@ Return strict JSON:
 }
 
 Rules:
-- Cover all phrases from input
-- Pairs must preserve meaning
+- Do not return full sentence pairs.
+- Strictly match meaningful phrase segments only.
+- Avoid redundant or nested phrases.
+- Return only distinct segments that clearly align in meaning.
+- Aim for phrase-level granularity, not sentence-level.
 
 <end_of_turn>
 <start_of_turn>model
 `;
+
+
 
     console.log('🚀 Sending linguistic analysis prompt...');
     
@@ -440,11 +445,12 @@ Rules:
       
       const result = await llamaContext.completion({
         prompt,
-        n_predict: 1500, // Further increase token limit to avoid truncation
+        n_predict: 300, // Further increase token limit to avoid truncation
         temperature: 0.0,
         top_p: 0.1,
         top_k: 1,
         stop: ['<end_of_turn>', '<start_of_turn>'],
+        repeatpenalty: 1.2, // Adjusted to avoid repetition
         seed: 42,
       });
 
