@@ -16,6 +16,19 @@ const streamingListeners = new Set<(chunk: string, isComplete: boolean) => void>
 // Event listeners for model state changes
 const listeners = new Set<() => void>();
 
+// Queue for linguistic analysis requests to prevent "Context is busy" errors
+let analysisQueue: Array<{
+  resolve: (value: any) => void;
+  reject: (error: any) => void;
+  params: {
+    originalText: string;
+    fromLanguage: string;
+    translatedText: string;
+    toLanguage: string;
+  };
+}> = [];
+let isProcessingAnalysis = false;
+
 const notifyListeners = () => {
   listeners.forEach(listener => listener());
 };
@@ -367,6 +380,57 @@ Translate this ${fromLang} text to ${toLang}: "${text}" Strictly Provide only si
 
   // Mock linguistic analysis for UI testing
   static async getLinguisticAnalysisWithLlama(
+    originalText: string,
+    fromLanguage: string,
+    translatedText: string,
+    toLanguage: string
+  ): Promise<any> {
+    // Return a promise that will be queued
+    return new Promise((resolve, reject) => {
+      const params = { originalText, fromLanguage, translatedText, toLanguage };
+      
+      // Add to queue
+      analysisQueue.push({ resolve, reject, params });
+      
+      // Process queue if not already processing
+      if (!isProcessingAnalysis) {
+        this.processAnalysisQueue();
+      }
+    });
+  }
+
+  // Process the analysis queue one by one to prevent "Context is busy" errors
+  private static async processAnalysisQueue(): Promise<void> {
+    if (isProcessingAnalysis || analysisQueue.length === 0) {
+      return;
+    }
+
+    isProcessingAnalysis = true;
+
+    while (analysisQueue.length > 0) {
+      const { resolve, reject, params } = analysisQueue.shift()!;
+      
+      try {
+        const result = await this.performSingleLinguisticAnalysis(
+          params.originalText,
+          params.fromLanguage,
+          params.translatedText,
+          params.toLanguage
+        );
+        resolve(result);
+      } catch (error) {
+        reject(error);
+      }
+      
+      // Small delay between analyses to ensure context is ready
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    isProcessingAnalysis = false;
+  }
+
+  // The actual analysis implementation (moved from getLinguisticAnalysisWithLlama)
+  private static async performSingleLinguisticAnalysis(
     originalText: string,
     fromLanguage: string,
     translatedText: string,

@@ -47,15 +47,25 @@ export default function LinguisticBreakdownScreen() {
   const originalLanguage = params.originalLanguage as string;
   const translatedLanguage = params.translatedLanguage as string;
   const cachedData = params.cachedData as string;
+  const isOngoing = params.isOngoing as string;
 
   const [analysis, setAnalysis] = useState<LinguisticAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTokenIndex, setSelectedTokenIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasStartedAnalysis, setHasStartedAnalysis] = useState(false);
+  const [isWaitingForOngoing, setIsWaitingForOngoing] = useState(false);
 
   useEffect(() => {
     const cacheKey = `${originalText}_${originalLanguage}_${translatedLanguage}`;
+    
+    // If this is an ongoing analysis, wait for it to complete
+    if (isOngoing === 'true') {
+      console.log('Waiting for ongoing analysis to complete...');
+      setIsWaitingForOngoing(true);
+      waitForOngoingAnalysis(cacheKey);
+      return;
+    }
     
     // Check if we have cached data first
     if (cachedData) {
@@ -77,7 +87,50 @@ export default function LinguisticBreakdownScreen() {
       setHasStartedAnalysis(true);
       performLinguisticAnalysis();
     }
-  }, [hasStartedAnalysis, cachedData]);
+  }, [hasStartedAnalysis, cachedData, isOngoing]);
+
+  const waitForOngoingAnalysis = async (cacheKey: string) => {
+    const maxWaitTime = 60000; // 60 seconds max wait
+    const checkInterval = 1000; // Check every second
+    let waitedTime = 0;
+
+    const checkForCompletion = async () => {
+      // Check if analysis is no longer ongoing (completed or failed)
+      if (!global.ongoingAnalyses.has(cacheKey)) {
+        console.log('Ongoing analysis completed, checking for cached result...');
+        
+        // Check if we have cached result from the completed analysis
+        if (global.lastBreakdownData && global.lastBreakdownData.cacheKey === cacheKey) {
+          console.log('Found completed analysis result');
+          setAnalysis(global.lastBreakdownData.data);
+          setIsLoading(false);
+          setIsWaitingForOngoing(false);
+          return;
+        }
+        
+        // If no cached result, start our own analysis
+        console.log('No cached result found, starting fresh analysis');
+        setIsWaitingForOngoing(false);
+        performLinguisticAnalysis();
+        return;
+      }
+
+      waitedTime += checkInterval;
+      if (waitedTime >= maxWaitTime) {
+        console.log('Timeout waiting for ongoing analysis');
+        setError('Analysis is taking too long. Please try again.');
+        setIsLoading(false);
+        setIsWaitingForOngoing(false);
+        global.ongoingAnalyses.delete(cacheKey);
+        return;
+      }
+
+      // Continue waiting
+      setTimeout(checkForCompletion, checkInterval);
+    };
+
+    checkForCompletion();
+  };
 
   const performLinguisticAnalysis = async () => {
     const cacheKey = `${originalText}_${originalLanguage}_${translatedLanguage}`;
@@ -87,12 +140,21 @@ export default function LinguisticBreakdownScreen() {
       setError(null);
       
       console.log('Starting linguistic analysis...');
+      console.log('Cache key:', cacheKey);
+      
       const result = await ModelManager.getLinguisticAnalysisWithLlama(
         originalText,
         originalLanguage,
         translatedText,
         translatedLanguage
       );
+      
+      console.log('Analysis result received:', result);
+      
+      // Validate the result structure
+      if (!result || !result.phrases || !Array.isArray(result.phrases)) {
+        throw new Error('Invalid analysis result structure');
+      }
       
       setAnalysis(result);
       console.log('Linguistic analysis completed:', result);
@@ -108,7 +170,18 @@ export default function LinguisticBreakdownScreen() {
       
     } catch (err) {
       console.error('Failed to perform linguistic analysis:', err);
-      setError('Failed to analyze sentence structure. Please try again.');
+      
+      // More specific error messages
+      let errorMessage = 'Failed to analyze sentence structure. Please try again.';
+      if (err instanceof Error) {
+        if (err.message.includes('Context is busy')) {
+          errorMessage = 'Analysis system is busy. Please wait a moment and try again.';
+        } else if (err.message.includes('not initialized')) {
+          errorMessage = 'Analysis system is not ready. Please try again.';
+        }
+      }
+      
+      setError(errorMessage);
       // Remove from ongoing analyses on error
       global.ongoingAnalyses.delete(cacheKey);
     } finally {
@@ -172,9 +245,14 @@ export default function LinguisticBreakdownScreen() {
         <StatusBar style="light" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Analyzing sentence structure...</Text>
+          <Text style={styles.loadingText}>
+            {isWaitingForOngoing ? 'Waiting for analysis to complete...' : 'Analyzing sentence structure...'}
+          </Text>
           <Text style={styles.loadingSubtext}>
-            Breaking down "{originalText}" into linguistic components
+            {isWaitingForOngoing 
+              ? 'Another analysis is in progress. Please wait...'
+              : `Breaking down "${originalText}" into linguistic components`
+            }
           </Text>
         </View>
       </View>

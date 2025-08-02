@@ -355,6 +355,10 @@ export default function VocabularyListScreen() {
     // Create a unique cache key for this translation pair
     const cacheKey = `${translationEntry.originalText}_${translationEntry.fromLanguage}_${translationEntry.toLanguage}`;
     
+    console.log('Breakdown requested for cache key:', cacheKey);
+    console.log('Current ongoing analyses:', Array.from(global.ongoingAnalyses));
+    console.log('Cache status:', !!breakdownCache[cacheKey]);
+    
     // Check if analysis is already in progress
     if (global.ongoingAnalyses.has(cacheKey)) {
       console.log('Analysis already in progress for:', cacheKey);
@@ -366,6 +370,7 @@ export default function VocabularyListScreen() {
           translatedText: translationEntry.translatedText,
           originalLanguage: translationEntry.fromLanguage,
           translatedLanguage: translationEntry.toLanguage,
+          isOngoing: 'true', // Flag to indicate this is an ongoing analysis
         }
       });
       return;
@@ -375,6 +380,7 @@ export default function VocabularyListScreen() {
     const cachedBreakdown = breakdownCache[cacheKey];
     
     if (cachedBreakdown) {
+      console.log('Using cached breakdown data');
       // Use cached data - navigate directly with the cached breakdown
       router.push({
         pathname: '/linguistic-breakdown',
@@ -387,6 +393,7 @@ export default function VocabularyListScreen() {
         }
       });
     } else {
+      console.log('Starting fresh analysis');
       // No cached data - mark as ongoing and navigate (will trigger API call)
       global.ongoingAnalyses.add(cacheKey);
       setOngoingAnalyses(new Set(global.ongoingAnalyses));
