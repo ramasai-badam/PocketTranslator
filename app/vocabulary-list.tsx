@@ -31,11 +31,12 @@ interface VocabularyItem {
 }
 
 // Memoized vocabulary item component
-const VocabularyItem = memo(({ item, onDelete, onBreakdown, isBreakdownCached }: {
+const VocabularyItem = memo(({ item, onDelete, onBreakdown, isBreakdownCached, renderInteractiveText }: {
   item: VocabularyItem;
   onDelete: (id: string) => void;
   onBreakdown: (item: VocabularyItem) => void;
   isBreakdownCached: (item: VocabularyItem) => boolean;
+  renderInteractiveText: (text: string, languageCode: string) => React.ReactNode;
 }) => {
   if (!item.translationEntry) return null;
   
@@ -81,7 +82,7 @@ const VocabularyItem = memo(({ item, onDelete, onBreakdown, isBreakdownCached }:
             <Volume2 size={16} color="#007AFF" />
           </TouchableOpacity>
         </View>
-        <Text style={{ fontSize: 16, color: '#FFF', lineHeight: 24 }}>{translationEntry.originalText}</Text>
+        {renderInteractiveText(translationEntry.originalText, translationEntry.fromLanguage)}
       </View>
 
       {/* Translation */}
@@ -95,7 +96,7 @@ const VocabularyItem = memo(({ item, onDelete, onBreakdown, isBreakdownCached }:
             <Volume2 size={16} color="#007AFF" />
           </TouchableOpacity>
         </View>
-        <Text style={{ fontSize: 16, color: '#FFF', lineHeight: 24 }}>{translationEntry.translatedText}</Text>
+        {renderInteractiveText(translationEntry.translatedText, translationEntry.toLanguage)}
       </View>
     </View>
   );
@@ -430,6 +431,7 @@ export default function VocabularyListScreen() {
             onDelete={handleDeleteWord}
             onBreakdown={handleLinguisticBreakdown}
             isBreakdownCached={isBreakdownCached}
+            renderInteractiveText={renderInteractiveText}
           />
         )}
         style={styles.scrollView}
