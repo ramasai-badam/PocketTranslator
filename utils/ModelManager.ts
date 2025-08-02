@@ -237,7 +237,7 @@ Translate this ${fromLang} text to ${toLang}: "${text}" Strictly Provide only si
       const context = await initLlama({
         model: modelPath,
         n_ctx: 1024,
-        n_threads: 4,
+        n_threads: 2,
         use_mlock: false,  // Turn OFF memory locking - model won't be loaded into RAM
         use_mmap: true,    // Keep memory mapping - reads from disk as needed
         embedding: false,
