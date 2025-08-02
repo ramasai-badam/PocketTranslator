@@ -307,14 +307,83 @@ export default function VocabularyListScreen() {
       </View>
 
       {/* Vocabulary Words */}
-      <ScrollView
+      <FlatList
+        data={vocabularyItems}
+        keyExtractor={(item) => item.vocabularyEntry.translationId}
+        renderItem={({ item }) => {
+          if (!item.translationEntry) return null;
+          
+          const { vocabularyEntry, translationEntry } = item;
+          
+          return (
+            <View style={styles.wordContainer}>
+              <View style={styles.wordHeader}>
+                <View style={styles.languageInfo}>
+                  <Text style={styles.languageLabel}>
+                    {getLanguageDisplayName(translationEntry.fromLanguage)} → {getLanguageDisplayName(translationEntry.toLanguage)}
+                  </Text>
+                </View>
+                
+                <View style={styles.wordHeaderRight}>
+                  <Text style={styles.dateAdded}>{vocabularyEntry.dateAdded}</Text>
+                  <TouchableOpacity
+                    style={styles.breakdownButton}
+                    onPress={() => handleLinguisticBreakdown(item)}
+                  >
+                    <GraduationCap 
+                      size={16} 
+                      color={isBreakdownCached(item) ? "#FFD700" : "#34C759"} 
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteButton}
+                    onPress={() => handleDeleteWord(vocabularyEntry.translationId)}
+                  >
+                    <Trash2 size={16} color="#FF3B30" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Original Text - Interactive */}
+              <View style={[styles.textContainer, styles.originalTextContainer]}>
+                <View style={styles.textHeader}>
+                  <Text style={styles.textLabel}>Original</Text>
+                  <View style={styles.iconGroup}>
+                    <TouchableOpacity
+                      style={styles.speakButton}
+                      onPress={() => Speech.speak(translationEntry.originalText, { language: translationEntry.fromLanguage })}
+                    >
+                      <Volume2 size={16} color="#007AFF" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                {renderInteractiveText(translationEntry.originalText, translationEntry.fromLanguage)}
+              </View>
+
+              {/* Translation - Interactive */}
+              <View style={[styles.textContainer, styles.translatedTextContainer]}>
+                <View style={styles.textHeader}>
+                  <Text style={styles.textLabel}>Translation</Text>
+                  <View style={styles.iconGroup}>
+                    <TouchableOpacity
+                      style={styles.speakButton}
+                      onPress={() => Speech.speak(translationEntry.translatedText, { language: translationEntry.toLanguage })}
+                    >
+                      <Volume2 size={16} color="#007AFF" />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                {renderInteractiveText(translationEntry.translatedText, translationEntry.toLanguage)}
+              </View>
+            </View>
+          );
+        }}
         style={styles.scrollView}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />
         }
         showsVerticalScrollIndicator={false}
-      >
-        {vocabularyItems.length === 0 ? (
+        ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
             <BookOpen size={48} color="#666" />
             <Text style={styles.emptyTitle}>No Vocabulary Words Yet</Text>
@@ -322,77 +391,12 @@ export default function VocabularyListScreen() {
               Add words from your translation history to start building your vocabulary
             </Text>
           </View>
-        ) : (
-          vocabularyItems.map((item) => {
-            if (!item.translationEntry) return null;
-            
-            const { vocabularyEntry, translationEntry } = item;
-            
-            return (
-              <View key={vocabularyEntry.translationId} style={styles.wordContainer}>
-                <View style={styles.wordHeader}>
-                  <View style={styles.languageInfo}>
-                    <Text style={styles.languageLabel}>
-                      {getLanguageDisplayName(translationEntry.fromLanguage)} → {getLanguageDisplayName(translationEntry.toLanguage)}
-                    </Text>
-                  </View>
-                  
-                  <View style={styles.wordHeaderRight}>
-                    <Text style={styles.dateAdded}>{vocabularyEntry.dateAdded}</Text>
-                    <TouchableOpacity
-                      style={styles.breakdownButton}
-                      onPress={() => handleLinguisticBreakdown(item)}
-                    >
-                      <GraduationCap 
-                        size={16} 
-                        color={isBreakdownCached(item) ? "#FFD700" : "#34C759"} 
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.deleteButton}
-                      onPress={() => handleDeleteWord(vocabularyEntry.translationId)}
-                    >
-                      <Trash2 size={16} color="#FF3B30" />
-                    </TouchableOpacity>
-                  </View>
-                </View>
-
-                {/* Original Text - Interactive */}
-                <View style={[styles.textContainer, styles.originalTextContainer]}>
-                  <View style={styles.textHeader}>
-                    <Text style={styles.textLabel}>Original</Text>
-                    <View style={styles.iconGroup}>
-                      <TouchableOpacity
-                        style={styles.speakButton}
-                        onPress={() => Speech.speak(translationEntry.originalText, { language: translationEntry.fromLanguage })}
-                      >
-                        <Volume2 size={16} color="#007AFF" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  {renderInteractiveText(translationEntry.originalText, translationEntry.fromLanguage)}
-                </View>
-
-                {/* Translation - Interactive */}
-                <View style={[styles.textContainer, styles.translatedTextContainer]}>
-                  <View style={styles.textHeader}>
-                    <Text style={styles.textLabel}>Translation</Text>
-                    <View style={styles.iconGroup}>
-                      <TouchableOpacity
-                        style={styles.speakButton}
-                        onPress={() => Speech.speak(translationEntry.translatedText, { language: translationEntry.toLanguage })}
-                      >
-                        <Volume2 size={16} color="#007AFF" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  {renderInteractiveText(translationEntry.translatedText, translationEntry.toLanguage)}
-                </View>
-              </View>
-            );
-          })
         )}
-      </ScrollView>
+        initialNumToRender={10}
+        maxToRenderPerBatch={5}
+        windowSize={10}
+        removeClippedSubviews={true}
+      />
 
       {vocabularyItems.length > 0 && (
         <View style={styles.footer}>
