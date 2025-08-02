@@ -15,6 +15,16 @@ import * as Speech from 'expo-speech';
 import { ModelManager } from '../utils/ModelManager';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
 
+// Extend global type for ongoing analyses tracking
+declare global {
+  var ongoingAnalyses: Set<string>;
+}
+
+// Initialize global ongoing analyses tracker
+if (!global.ongoingAnalyses) {
+  global.ongoingAnalyses = new Set<string>();
+}
+
 // Extend global type for caching
 declare global {
   var lastBreakdownData: { cacheKey: string; data: any } | null;
@@ -45,6 +55,8 @@ export default function LinguisticBreakdownScreen() {
   const [hasStartedAnalysis, setHasStartedAnalysis] = useState(false);
 
   useEffect(() => {
+    const cacheKey = `${originalText}_${originalLanguage}_${translatedLanguage}`;
+    
     // Check if we have cached data first
     if (cachedData) {
       try {
@@ -52,6 +64,8 @@ export default function LinguisticBreakdownScreen() {
         setAnalysis(parsedData);
         setIsLoading(false);
         console.log('Using cached breakdown data');
+        // Remove from ongoing analyses since we have cached data
+        global.ongoingAnalyses.delete(cacheKey);
         return;
       } catch (error) {
         console.error('Error parsing cached data:', error);
@@ -66,6 +80,8 @@ export default function LinguisticBreakdownScreen() {
   }, [hasStartedAnalysis, cachedData]);
 
   const performLinguisticAnalysis = async () => {
+    const cacheKey = `${originalText}_${originalLanguage}_${translatedLanguage}`;
+    
     try {
       setIsLoading(true);
       setError(null);
@@ -82,15 +98,19 @@ export default function LinguisticBreakdownScreen() {
       console.log('Linguistic analysis completed:', result);
 
       // Save the result for caching when user navigates back
-      const cacheKey = `${originalText}_${originalLanguage}_${translatedLanguage}`;
       global.lastBreakdownData = {
         cacheKey,
         data: result
       };
       
+      // Remove from ongoing analyses since analysis is complete
+      global.ongoingAnalyses.delete(cacheKey);
+      
     } catch (err) {
       console.error('Failed to perform linguistic analysis:', err);
       setError('Failed to analyze sentence structure. Please try again.');
+      // Remove from ongoing analyses on error
+      global.ongoingAnalyses.delete(cacheKey);
     } finally {
       setIsLoading(false);
     }
@@ -112,6 +132,16 @@ export default function LinguisticBreakdownScreen() {
     }
   };
 
+  // Handle back navigation - clean up ongoing analysis state
+  const handleBackPress = () => {
+    const cacheKey = `${originalText}_${originalLanguage}_${translatedLanguage}`;
+    // Don't remove from ongoing analyses if we're still loading (analysis in progress)
+    // Only remove if there was an error or if analysis completed
+    if (error || analysis) {
+      global.ongoingAnalyses.delete(cacheKey);
+    }
+    router.back();
+  };
   const getOriginalLanguageKey = () => {
     return originalLanguage;
   };
@@ -186,7 +216,7 @@ export default function LinguisticBreakdownScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={handleBackPress}
         >
           <ArrowLeft size={24} color="#FFF" />
         </TouchableOpacity>

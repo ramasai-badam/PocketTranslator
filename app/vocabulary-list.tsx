@@ -18,10 +18,17 @@ import { VocabularyManager, VocabularyEntry } from '../utils/VocabularyManager';
 import { TranslationHistoryManager, TranslationEntry } from '../utils/TranslationHistory';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
+import { ModelManager } from '../utils/ModelManager';
 
 // Extend global type for caching
 declare global {
   var lastBreakdownData: { cacheKey: string; data: any } | null;
+  var ongoingAnalyses: Set<string>;
+}
+
+// Initialize global ongoing analyses tracker
+if (!global.ongoingAnalyses) {
+  global.ongoingAnalyses = new Set<string>();
 }
 
 // Combined interface for vocabulary items with translation data
@@ -31,15 +38,16 @@ interface VocabularyItem {
 }
 
 // Memoized vocabulary item component
-const VocabularyItem = memo(({ item, onDelete, onBreakdown, isBreakdownCached }: {
+const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState }: {
   item: VocabularyItem;
   onDelete: (id: string) => void;
   onBreakdown: (item: VocabularyItem) => void;
-  isBreakdownCached: (item: VocabularyItem) => boolean;
+  getBreakdownState: (item: VocabularyItem) => 'cached' | 'analyzing' | 'fresh';
 }) => {
   if (!item.translationEntry) return null;
   
   const { vocabularyEntry, translationEntry } = item;
+  const breakdownState = getBreakdownState(item);
 
   const handleSpellWord = useCallback(async (word: string, languageCode: string) => {
     try {
@@ -107,7 +115,11 @@ const VocabularyItem = memo(({ item, onDelete, onBreakdown, isBreakdownCached }:
           >
             <GraduationCap 
               size={16} 
-              color={isBreakdownCached(item) ? "#FFD700" : "#34C759"} 
+              color={
+                breakdownState === 'cached' ? "#FFD700" : 
+                breakdownState === 'analyzing' ? "#007AFF" : 
+                "#34C759"
+              } 
             />
           </TouchableOpacity>
           <TouchableOpacity
@@ -177,6 +189,7 @@ export default function VocabularyListScreen() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showClearAllModal, setShowClearAllModal] = useState(false);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [ongoingAnalyses, setOngoingAnalyses] = useState<Set<string>>(new Set());
 
   // Simple pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -189,6 +202,8 @@ export default function VocabularyListScreen() {
   useEffect(() => {
     loadVocabularyItems();
     restoreBreakdownCache();
+    // Restore ongoing analyses state
+    setOngoingAnalyses(new Set(global.ongoingAnalyses));
   }, []);
 
   // Restore breakdown cache from AsyncStorage
@@ -340,6 +355,22 @@ export default function VocabularyListScreen() {
     // Create a unique cache key for this translation pair
     const cacheKey = `${translationEntry.originalText}_${translationEntry.fromLanguage}_${translationEntry.toLanguage}`;
     
+    // Check if analysis is already in progress
+    if (global.ongoingAnalyses.has(cacheKey)) {
+      console.log('Analysis already in progress for:', cacheKey);
+      // Navigate to analyzing screen
+      router.push({
+        pathname: '/linguistic-breakdown',
+        params: {
+          originalText: translationEntry.originalText,
+          translatedText: translationEntry.translatedText,
+          originalLanguage: translationEntry.fromLanguage,
+          translatedLanguage: translationEntry.toLanguage,
+        }
+      });
+      return;
+    }
+    
     // Check if we have cached breakdown data
     const cachedBreakdown = breakdownCache[cacheKey];
     
@@ -356,7 +387,10 @@ export default function VocabularyListScreen() {
         }
       });
     } else {
-      // No cached data - navigate normally (will trigger API call)
+      // No cached data - mark as ongoing and navigate (will trigger API call)
+      global.ongoingAnalyses.add(cacheKey);
+      setOngoingAnalyses(new Set(global.ongoingAnalyses));
+      
       router.push({
         pathname: '/linguistic-breakdown',
         params: {
@@ -374,7 +408,11 @@ export default function VocabularyListScreen() {
     
     const { translationEntry } = item;
     const cacheKey = `${translationEntry.originalText}_${translationEntry.fromLanguage}_${translationEntry.toLanguage}`;
-    return !!breakdownCache[cacheKey];
+    const isCached = !!breakdownCache[cacheKey];
+    const isAnalyzing = global.ongoingAnalyses.has(cacheKey);
+    
+    // Return different states: cached (gold), analyzing (blue), fresh (green)
+    return isCached ? 'cached' : (isAnalyzing ? 'analyzing' : 'fresh');
   };
 
   if (isLoading) {
@@ -424,7 +462,7 @@ export default function VocabularyListScreen() {
             item={item}
             onDelete={handleDeleteWord}
             onBreakdown={handleLinguisticBreakdown}
-            isBreakdownCached={isBreakdownCached}
+            getBreakdownState={isBreakdownCached}
           />
         )}
         style={styles.scrollView}
@@ -445,7 +483,7 @@ export default function VocabularyListScreen() {
       {vocabularyItems.length > 0 && (
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            💡 Tap words to hear pronunciation • 🎓 Green: fresh analysis, Gold: cached analysis
+            💡 Tap words to hear pronunciation • 🎓 Green: fresh analysis, Blue: analyzing, Gold: cached
           </Text>
         </View>
       )}
