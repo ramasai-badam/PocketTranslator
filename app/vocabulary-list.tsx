@@ -31,16 +31,64 @@ interface VocabularyItem {
 }
 
 // Memoized vocabulary item component
-const VocabularyItem = memo(({ item, onDelete, onBreakdown, isBreakdownCached, renderInteractiveText }: {
+const VocabularyItem = memo(({ item, onDelete, onBreakdown, isBreakdownCached }: {
   item: VocabularyItem;
   onDelete: (id: string) => void;
   onBreakdown: (item: VocabularyItem) => void;
   isBreakdownCached: (item: VocabularyItem) => boolean;
-  renderInteractiveText: (text: string, languageCode: string) => React.ReactNode;
 }) => {
   if (!item.translationEntry) return null;
   
   const { vocabularyEntry, translationEntry } = item;
+
+  const handleSpellWord = useCallback(async (word: string, languageCode: string) => {
+    try {
+      const cleanWord = word.trim();
+      if (!cleanWord) return;
+
+      const isAsianLanguage = ['ja', 'ja-JP', 'zh', 'zh-CN', 'zh-TW', 'ko', 'ko-KR'].includes(languageCode);
+      const speechRate = isAsianLanguage ? 1.0 : 0.8;
+
+      Speech.speak(cleanWord, {
+        language: languageCode,
+        pitch: 1.0,
+        rate: speechRate,
+      });
+    } catch (error) {
+      console.error('Failed to spell word:', error);
+    }
+  }, []);
+
+  const renderInteractiveText = useCallback((text: string, languageCode: string) => {
+    const words = text.split(/(\s+)/).filter(part => part.length > 0);
+    
+    return (
+      <View style={styles.interactiveTextContainer}>
+        {words.map((part, index) => {
+          const isWord = part.trim().length > 0 && !/^\s+$/.test(part);
+          
+          if (isWord) {
+            return (
+              <TouchableOpacity
+                key={index}
+                style={styles.wordButton}
+                onPress={() => handleSpellWord(part, languageCode)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.interactiveWord}>{part}</Text>
+              </TouchableOpacity>
+            );
+          } else {
+            return (
+              <Text key={index} style={styles.wordSpace}>
+                {part}
+              </Text>
+            );
+          }
+        })}
+      </View>
+    );
+  }, [handleSpellWord]);
   
   return (
     <View style={styles.wordContainer}>
@@ -285,28 +333,6 @@ export default function VocabularyListScreen() {
     setShowClearAllModal(false);
   };
 
-  const handleSpellWord = async (word: string, languageCode: string) => {
-    try {
-      // Just trim whitespace, don't remove special characters or accents
-      const cleanWord = word.trim();
-      if (!cleanWord) return;
-
-      // For Japanese, Chinese, Korean - speak at normal rate
-      // For other languages - speak slower for spelling practice
-      const isAsianLanguage = ['ja', 'ja-JP', 'zh', 'zh-CN', 'zh-TW', 'ko', 'ko-KR'].includes(languageCode);
-      const speechRate = isAsianLanguage ? 1.0 : 0.8;
-
-      // Speak the word
-      Speech.speak(cleanWord, {
-        language: languageCode,
-        pitch: 1.0,
-        rate: speechRate,
-      });
-    } catch (error) {
-      console.error('Failed to spell word:', error);
-    }
-  };
-
   const handleLinguisticBreakdown = (item: VocabularyItem) => {
     if (!item.translationEntry) return;
     
@@ -349,38 +375,6 @@ export default function VocabularyListScreen() {
     const { translationEntry } = item;
     const cacheKey = `${translationEntry.originalText}_${translationEntry.fromLanguage}_${translationEntry.toLanguage}`;
     return !!breakdownCache[cacheKey];
-  };
-
-  const renderInteractiveText = (text: string, languageCode: string) => {
-    const words = text.split(/(\s+)/).filter(part => part.length > 0);
-    
-    return (
-      <View style={styles.interactiveTextContainer}>
-        {words.map((part, index) => {
-          // Better word detection that works with all languages including Asian characters
-          const isWord = part.trim().length > 0 && !/^\s+$/.test(part);
-          
-          if (isWord) {
-            return (
-              <TouchableOpacity
-                key={index}
-                style={styles.wordButton}
-                onPress={() => handleSpellWord(part, languageCode)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.interactiveWord}>{part}</Text>
-              </TouchableOpacity>
-            );
-          } else {
-            return (
-              <Text key={index} style={styles.wordSpace}>
-                {part}
-              </Text>
-            );
-          }
-        })}
-      </View>
-    );
   };
 
   if (isLoading) {
@@ -431,7 +425,6 @@ export default function VocabularyListScreen() {
             onDelete={handleDeleteWord}
             onBreakdown={handleLinguisticBreakdown}
             isBreakdownCached={isBreakdownCached}
-            renderInteractiveText={renderInteractiveText}
           />
         )}
         style={styles.scrollView}
