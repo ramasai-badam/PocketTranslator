@@ -16,9 +16,13 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
     whisper: { progress: 0, downloaded: false },
     llama: { progress: 0, downloaded: false }
   });
+  const [showSkip, setShowSkip] = useState(false);
 
   useEffect(() => {
     checkExistingModels();
+    // Show skip button after 3 seconds for testing
+    const timer = setTimeout(() => setShowSkip(true), 3000);
+    return () => clearTimeout(timer);
   }, []);
 
   const checkExistingModels = async () => {
@@ -213,6 +217,11 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
 
         {/* Continue to Translator button removed as requested */}
 
+        {showSkip && !isProcessing && (
+          <TouchableOpacity style={styles.skipButton} onPress={onReady}>
+            <Text style={styles.skipText}>Skip (For Testing)</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   ); 
@@ -317,5 +326,14 @@ const styles = StyleSheet.create({
     color: '#ccc',
     fontSize: 16,
     marginBottom: 15,
+  },
+  skipButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+  },
+  skipText: {
+    color: '#ccc',
+    fontSize: 14,
+    textDecorationLine: 'underline',
   },
 });
