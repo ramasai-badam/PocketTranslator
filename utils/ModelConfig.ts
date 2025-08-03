@@ -9,9 +9,9 @@ export const MODEL_CONFIG = {
     displayName: 'Speech Recognition (Whisper)'
   },
   llama: {
-    url: 'https://huggingface.co/bartowski/google_gemma-3n-E2B-it-GGUF/resolve/main/google_gemma-3n-E2B-it-IQ4_XS.gguf',
-    path: `${FileSystem.documentDirectory}gemma-3n-E2B-IQ4_XS.bin`,
-    size: 2800 * 1024 * 1024, // ~2800MB
+    url: 'https://huggingface.co/bartowski/google_gemma-3n-E2B-it-GGUF/resolve/main/google_gemma-3n-E2B-it-Q6_K.gguf',
+    path: `${FileSystem.documentDirectory}gemma-3n-E2B-Q6_K.bin`,
+    size: 3720 * 1024 * 1024, // ~3720MB
     displayName: 'Translation (Gemma 3n)'
   }
 };
