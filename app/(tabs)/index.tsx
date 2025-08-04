@@ -34,7 +34,6 @@ export default function TranslatorScreen() {
   const [isTopRecording, setIsTopRecording] = useState(false);
   const [isBottomRecording, setIsBottomRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [recordingDirection, setRecordingDirection] = useState<'top' | 'bottom'>('top'); // Default to top
 
   const { translateText, isTranslating, streamingText } = useTranslation();
   const { startRecording, stopRecording, isRecording, isInitialized, error: audioError, cleanup } = useAudioRecording();
@@ -271,19 +270,6 @@ export default function TranslatorScreen() {
     }
   };
 
-  const handleCenterMicPress = () => {
-    // Toggle recording direction on each press
-    const isTop = recordingDirection === 'top';
-    handleStartRecording(isTop);
-  };
-
-  const handleCenterMicRelease = () => {
-    const isTop = recordingDirection === 'top';
-    handleStopRecording(isTop);
-    // Switch direction for next recording
-    setRecordingDirection(recordingDirection === 'top' ? 'bottom' : 'top');
-  };
-
   const swapLanguages = () => {
     setTopLanguage(bottomLanguage);
     setBottomLanguage(topLanguage);
@@ -346,27 +332,26 @@ export default function TranslatorScreen() {
             isSpeaking={isSpeaking}
           />
           <View style={styles.controls}>
-            {/* Mic button moved to center divider */}
+            <TouchableOpacity
+              style={[
+                styles.micButton, 
+                isTopRecording && styles.recordingButton,
+                (!modelsReady || isRecording || isBottomRecording) && styles.disabledButton
+              ]}
+              onPressIn={() => handleStartRecording(true)}
+              onPressOut={() => handleStopRecording(true)}
+              disabled={!modelsReady || isRecording || isBottomRecording}
+            >
+              <Mic size={32} color={(modelsReady && !isRecording && !isBottomRecording) ? "white" : "#666"} />
+              {isTopRecording && <RecordingIndicator />}
+            </TouchableOpacity>
           </View>
         </View>
       </View>
-      {/* Center Divider with Mic Button */}
+      {/* Center Divider with Swap Button */}
       <View style={styles.divider}>
-        <TouchableOpacity
-          style={[
-            styles.centerMicButton, 
-            (isTopRecording || isBottomRecording) && styles.recordingButton,
-            (!modelsReady || isRecording) && styles.disabledButton
-          ]}
-          onPressIn={handleCenterMicPress}
-          onPressOut={handleCenterMicRelease}
-          disabled={!modelsReady || isRecording}
-        >
-          <Mic size={36} color={modelsReady ? "white" : "#666"} />
-          {(isTopRecording || isBottomRecording) && <RecordingIndicator />}
-          <Text style={styles.recordingDirectionText}>
-            {recordingDirection === 'top' ? '↑' : '↓'}
-          </Text>
+        <TouchableOpacity style={styles.swapButton} onPress={swapLanguages}>
+          <RotateCcw size={24} color="white" />
         </TouchableOpacity>
       </View>
       {/* Bottom Section */}
@@ -384,7 +369,19 @@ export default function TranslatorScreen() {
           isSpeaking={isSpeaking}
         />
         <View style={styles.controls}>
-          {/* Mic button moved to center divider */}
+          <TouchableOpacity
+            style={[
+              styles.micButton, 
+              isBottomRecording && styles.recordingButton,
+              (!modelsReady || isRecording || isTopRecording) && styles.disabledButton
+            ]}
+            onPressIn={() => handleStartRecording(false)}
+            onPressOut={() => handleStopRecording(false)}
+            disabled={!modelsReady || isRecording || isTopRecording}
+          >
+            <Mic size={32} color={(modelsReady && !isRecording && !isTopRecording) ? "white" : "#666"} />
+            {isBottomRecording && <RecordingIndicator />}
+          </TouchableOpacity>
         </View>
       </View>
     </View>
@@ -499,27 +496,19 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   divider: {
-    height: 80,
+    height: 60,
     backgroundColor: '#1a1a1a',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  centerMicButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 45,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  swapButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: '#374151',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    position: 'relative',
-  },
-  recordingDirectionText: {
-    position: 'absolute',
-    bottom: -8,
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
 });
