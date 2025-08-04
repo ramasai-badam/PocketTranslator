@@ -33,12 +33,20 @@ export default function TranslatorScreen() {
   const [bottomText, setBottomText] = useState('');
   const [isTopRecording, setIsTopRecording] = useState(false);
   const [isBottomRecording, setIsBottomRecording] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   const { translateText, isTranslating, streamingText } = useTranslation();
   const { startRecording, stopRecording, isRecording, isInitialized, error: audioError, cleanup } = useAudioRecording();
   const { transcribeWav, isTranscribing, error: whisperError } = useSpeechToText();
   const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
   const [isStreamingToTop, setIsStreamingToTop] = useState(false);
+
+  // Cleanup TTS on component unmount
+  useEffect(() => {
+    return () => {
+      Speech.stop();
+    };
+  }, []);
 
   // Save translation to history
   const saveToHistory = async (
@@ -201,7 +209,7 @@ export default function TranslatorScreen() {
   };
 
   const handleSpeak = async (text: string, language: string) => {
-    if (!text) return;
+    if (!text || isSpeaking) return;
     
     // Haptic feedback for speaker press
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid);
@@ -226,19 +234,39 @@ export default function TranslatorScreen() {
         return;
       }
 
+      // Stop any current speech and start new one
+      await Speech.stop();
+      setIsSpeaking(true);
+
       Speech.speak(text, {
         language: language,
         pitch: 1.0,
         rate: 0.8,
+        onDone: () => setIsSpeaking(false),
+        onStopped: () => setIsSpeaking(false),
+        onError: () => setIsSpeaking(false),
       });
     } catch (error) {
       console.error('Failed to speak text:', error);
+      setIsSpeaking(false);
+      
       // Fallback to speaking without language check
-      Speech.speak(text, {
-        language: language,
-        pitch: 1.0,
-        rate: 0.8,
-      });
+      try {
+        await Speech.stop();
+        setIsSpeaking(true);
+        
+        Speech.speak(text, {
+          language: language,
+          pitch: 1.0,
+          rate: 0.8,
+          onDone: () => setIsSpeaking(false),
+          onStopped: () => setIsSpeaking(false),
+          onError: () => setIsSpeaking(false),
+        });
+      } catch (fallbackError) {
+        console.error('Fallback TTS also failed:', fallbackError);
+        setIsSpeaking(false);
+      }
     }
   };
 
