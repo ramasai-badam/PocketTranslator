@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { History } from 'lucide-react-native';
+import { Mic, History } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -14,6 +14,15 @@ export default function TabLayout() {
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: '#666',
       }}>
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Translator',
+          tabBarIcon: ({ size, color }) => (
+            <Mic size={size} color={color} />
+          ),
+        }}
+      />
       <Tabs.Screen
         name="history"
         options={{
