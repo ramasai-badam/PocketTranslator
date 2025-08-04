@@ -32,8 +32,7 @@ export default function LanguageSelector({
           color="white" 
           style={[
             styles.chevron,
-            isExpanded && styles.chevronExpanded,
-            isRotated && styles.chevronRotated
+            isExpanded && styles.chevronExpanded
           ]} 
         />
       </TouchableOpacity>
@@ -56,7 +55,7 @@ export default function LanguageSelector({
                 <Text
                   style={[
                     styles.optionText,
-                    selectedLanguage === language.code && styles.selectedOptionText,
+                    selectedLanguage === language.code && styles.selectedOptionText
                   ]}
                 >
                   {language.nativeName}
@@ -100,9 +99,23 @@ const styles = StyleSheet.create({
   chevronRotated: {
     transform: [{ rotate: '180deg' }],
   },
+  chevronRotatedExpanded: {
+    transform: [{ rotate: '360deg' }], // 180° for rotation + 180° for expansion = 360° (back to normal)
+  },
+  rotatedSelector: {
+    transform: [{ rotate: '180deg' }],
+    backgroundColor: 'rgba(255, 0, 0, 0.3)', // Temporarily add red background to see rotation
+  },
+  rotatedText: {
+    transform: [{ rotate: '180deg' }],
+  },
+  rotatedDropdown: {
+    transform: [{ rotate: '180deg' }],
+    top: -250, // Adjust position for rotated dropdown
+  },
   dropdown: {
-    position: 'relative',
-    top: 10,
+    position: 'absolute',
+    top: 50,
     left: 0,
     right: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.95)',

@@ -26,31 +26,29 @@ export default function TranslationDisplay({
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.textContainer}>
-          <Text style={[styles.text, isRotated && styles.rotatedText]}>
-            {text || 'Tap and hold the microphone to start speaking...'}
-          </Text>
-          {hasText && onSpeak && language && (
-            <TouchableOpacity 
-              style={styles.speakerButton} 
-              onPress={handleSpeak}
-              disabled={isSpeaking}
-            >
-              <Volume2 
-                size={16} 
-                color={isSpeaking ? "#666" : "#fff"} 
-              />
-            </TouchableOpacity>
-          )}
-        </View>
-      </ScrollView>
-    </View>
+    <ScrollView 
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.textContainer}>
+        <Text style={[styles.text, isRotated && styles.rotatedText]}>
+          {text || 'Tap and hold the microphone to start speaking...'}
+        </Text>
+        {hasText && onSpeak && language && (
+          <TouchableOpacity 
+            style={styles.speakerButton} 
+            onPress={handleSpeak}
+            disabled={isSpeaking}
+          >
+            <Volume2 
+              size={16} 
+              color={isSpeaking ? "#666" : "#fff"} 
+            />
+          </TouchableOpacity>
+        )}
+      </View>
+    </ScrollView>
   );
 }
 
@@ -59,29 +57,27 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 16,
-    padding: 10,
-    marginVertical: 20,
-    minHeight: 120,
-  },
-  scrollView: {
-    flex: 1,
+    padding: 8,
+    marginVertical: 10,
+    minHeight: 100,
   },
   scrollContent: {
     flexGrow: 1,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 5,
   },
   textContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexWrap: 'wrap',
+    alignItems: 'flex-end',
     gap: 8,
   },
   text: {
     color: 'white',
     fontSize: 18,
     lineHeight: 26,
-    textAlign: 'center',
-    flex: 1,
+    textAlign: 'left',
+    flexShrink: 1,
   },
   rotatedText: {
     // Text is already rotated by parent container
@@ -95,5 +91,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
+    marginLeft: 4,
+    alignSelf: 'center',
   },
 });

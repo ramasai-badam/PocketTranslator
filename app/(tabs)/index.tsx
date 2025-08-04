@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Mic, Volume2, RotateCcw, Settings } from 'lucide-react-native';
+import { Mic, Volume2, Settings } from 'lucide-react-native';
 import * as Speech from 'expo-speech';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
@@ -270,13 +270,6 @@ export default function TranslatorScreen() {
     }
   };
 
-  const swapLanguages = () => {
-    setTopLanguage(bottomLanguage);
-    setBottomLanguage(topLanguage);
-    setTopText(bottomText);
-    setBottomText(topText);
-  };
-
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -319,11 +312,6 @@ export default function TranslatorScreen() {
       {/* Top Section (Rotated 180 degrees) */}
       <View style={[styles.section, styles.topSection]}>
         <View style={styles.rotatedContent}>
-          <LanguageSelector
-            selectedLanguage={topLanguage}
-            onLanguageChange={setTopLanguage}
-            isRotated={true}
-          />
           <TranslationDisplay
             text={getDisplayText(topText, isStreamingToTop)}
             isRotated={true}
@@ -348,19 +336,27 @@ export default function TranslatorScreen() {
           </View>
         </View>
       </View>
-      {/* Center Divider with Swap Button */}
+      {/* Center Divider with Language Selectors */}
       <View style={styles.divider}>
-        <TouchableOpacity style={styles.swapButton} onPress={swapLanguages}>
-          <RotateCcw size={24} color="white" />
-        </TouchableOpacity>
+        <View style={styles.languageContainer}>
+          <View style={styles.topLanguageSelector}>
+            <LanguageSelector
+              selectedLanguage={topLanguage}
+              onLanguageChange={setTopLanguage}
+              isRotated={true}
+            />
+          </View>
+          <View style={styles.bottomLanguageSelector}>
+            <LanguageSelector
+              selectedLanguage={bottomLanguage}
+              onLanguageChange={setBottomLanguage}
+              isRotated={false}
+            />
+          </View>
+        </View>
       </View>
       {/* Bottom Section */}
       <View style={[styles.section, styles.bottomSection]}>
-        <LanguageSelector
-          selectedLanguage={bottomLanguage}
-          onLanguageChange={setBottomLanguage}
-          isRotated={false}
-        />
         <TranslationDisplay
           text={getDisplayText(bottomText, !isStreamingToTop)}
           isRotated={false}
@@ -457,12 +453,13 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     paddingTop: 50, // Extra padding for the rotated top section
+    paddingBottom: 0, // No bottom padding to match the divider
   },
   bottomSection: {
     backgroundColor: '#101010',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingTop: 20, // Match the top section padding
+    paddingTop: 0, // Match the top section padding
   },
   rotatedContent: {
     flex: 1,
@@ -473,42 +470,54 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 20,
+    paddingVertical: 10,
     paddingHorizontal: 40,
+    marginTop: -20, // Overlap with translation display
   },
   micButton: {
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'transparent',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    position: 'relative',
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    position: 'absolute',
   },
   recordingButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    borderColor: 'white',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.8)',
   },
   disabledButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: 'transparent',
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   divider: {
-    height: 60,
+    height: 80,
     backgroundColor: '#1a1a1a',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 20,
   },
-  swapButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#374151',
-    justifyContent: 'center',
+  languageContainer: {
+    width: '100%',
+    height: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
+    zIndex: 1000,
+  },
+  topLanguageSelector: {
+    flex: 1,
+    transform: [{ rotate: '180deg' }],
+    paddingLeft: 10,
+    paddingRight: 0,
+    zIndex: 1001,
+  },
+  bottomLanguageSelector: {
+    flex: 1,
+    paddingLeft: 10,
+    zIndex: 1001,
   },
 });
