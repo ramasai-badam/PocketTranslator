@@ -459,12 +459,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#101010',
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
-    paddingTop: 60, // Extra padding for the rotated top section
+    paddingTop: 50, // Extra padding for the rotated top section
   },
   bottomSection: {
     backgroundColor: '#101010',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
+    paddingTop: 20, // Match the top section padding
   },
   rotatedContent: {
     flex: 1,
