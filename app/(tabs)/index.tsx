@@ -327,6 +327,9 @@ export default function TranslatorScreen() {
           <TranslationDisplay
             text={getDisplayText(topText, isStreamingToTop)}
             isRotated={true}
+            language={topLanguage}
+            onSpeak={handleSpeak}
+            isSpeaking={isSpeaking}
           />
           <View style={styles.controls}>
             <TouchableOpacity
@@ -341,13 +344,6 @@ export default function TranslatorScreen() {
             >
               <Mic size={32} color={(modelsReady && !isRecording && !isBottomRecording) ? "white" : "#666"} />
               {isTopRecording && <RecordingIndicator />}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.speakerButton}
-              onPress={() => handleSpeak(topText, topLanguage)}
-              disabled={!topText}
-            >
-              <Volume2 size={28} color={topText ? "white" : "#666"} />
             </TouchableOpacity>
           </View>
         </View>
@@ -368,6 +364,9 @@ export default function TranslatorScreen() {
         <TranslationDisplay
           text={getDisplayText(bottomText, !isStreamingToTop)}
           isRotated={false}
+          language={bottomLanguage}
+          onSpeak={handleSpeak}
+          isSpeaking={isSpeaking}
         />
         <View style={styles.controls}>
           <TouchableOpacity
@@ -382,13 +381,6 @@ export default function TranslatorScreen() {
           >
             <Mic size={32} color={(modelsReady && !isRecording && !isTopRecording) ? "white" : "#666"} />
             {isBottomRecording && <RecordingIndicator />}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.speakerButton}
-            onPress={() => handleSpeak(bottomText, bottomLanguage)}
-            disabled={!bottomText}
-          >
-            <Volume2 size={28} color={bottomText ? "white" : "#666"} />
           </TouchableOpacity>
         </View>
       </View>
@@ -478,7 +470,7 @@ const styles = StyleSheet.create({
   },
   controls: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
+    justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 20,
     paddingHorizontal: 40,
@@ -501,16 +493,6 @@ const styles = StyleSheet.create({
   disabledButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderColor: 'rgba(255, 255, 255, 0.2)',
-  },
-  speakerButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   divider: {
     height: 60,
