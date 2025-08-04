@@ -499,6 +499,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
+    overflow: 'visible',
+    zIndex: 1000,
   },
   languageContainer: {
     width: '100%',
@@ -507,17 +509,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     zIndex: 1000,
+    overflow: 'visible',
   },
   topLanguageSelector: {
     flex: 1,
     transform: [{ rotate: '180deg' }],
     paddingLeft: 10,
     paddingRight: 0,
-    zIndex: 1001,
+    zIndex: 10001,
+    overflow: 'visible',
   },
   bottomLanguageSelector: {
     flex: 1,
     paddingLeft: 10,
-    zIndex: 1001,
+    zIndex: 10001,
+    overflow: 'visible',
   },
 });
