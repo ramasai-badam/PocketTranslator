@@ -3,9 +3,9 @@ import { View, Text } from 'react-native';
 import WelcomeScreen from './WelcomeScreen';
 import { withNativeModuleSafety } from '../components/NativeModuleSafety';
 
-// Dynamically import TranslatorScreen only when needed
-let TranslatorScreen: React.ComponentType | null = null;
-let SafeTranslatorScreen: React.ComponentType | null = null;
+// Dynamically import the main translator screen only when needed
+let MainTranslatorScreen: React.ComponentType | null = null;
+let SafeMainTranslatorScreen: React.ComponentType | null = null;
 
 export default function Index() {
   const [ready, setReady] = useState(false);
@@ -18,21 +18,21 @@ export default function Index() {
     setLoading(true);
     
     try {
-      // Import the TranslatorScreen only when models are ready
-      if (!TranslatorScreen) {
-        const module = await import('./(tabs)/index');
-        TranslatorScreen = module.default;
+      // Import the main translator screen only when models are ready
+      if (!MainTranslatorScreen) {
+        const module = await import('./SingleTranslatorScreen');
+        MainTranslatorScreen = module.default;
         // Wrap with safety boundary
-        SafeTranslatorScreen = withNativeModuleSafety(
-          TranslatorScreen, 
+        SafeMainTranslatorScreen = withNativeModuleSafety(
+          MainTranslatorScreen, 
           'Speech-to-text translation requires device native modules'
         );
       }
       setReady(true);
     } catch (error) {
-      console.error('Error loading TranslatorScreen:', error);
+      console.error('Error loading main translator screen:', error);
       // Even if there's an error, show a safe fallback
-      SafeTranslatorScreen = () => (
+      SafeMainTranslatorScreen = () => (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#1a1a1a' }}>
           <Text style={{ color: 'white', fontSize: 18, textAlign: 'center' }}>
             Translation interface unavailable
@@ -56,8 +56,8 @@ export default function Index() {
     );
   }
   
-  if (ready && SafeTranslatorScreen) {
-    return <SafeTranslatorScreen />;
+  if (ready && SafeMainTranslatorScreen) {
+    return <SafeMainTranslatorScreen />;
   }
   
   return <WelcomeScreen onReady={handleReady} />;

@@ -26,7 +26,7 @@ import { TranslationHistoryManager } from '@/utils/TranslationHistory';
 
 const { height, width } = Dimensions.get('window');
 
-export default function TranslatorScreen() {
+export default function TwoSidedTranslatorScreen() {
   const [topLanguage, setTopLanguage] = useState('en');
   const [bottomLanguage, setBottomLanguage] = useState('es');
   const [topText, setTopText] = useState('');
