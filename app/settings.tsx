@@ -10,13 +10,18 @@ import {
   Linking,
   Platform,
   NativeModules,
+  PanResponder,
+  Dimensions,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Download, Check, X, ArrowLeft } from 'lucide-react-native';
+import { Download, Check, X, ArrowLeft, Type } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import * as Haptics from 'expo-haptics';
 import { TTSVoiceManager, AVAILABLE_TTS_VOICES, TTSVoice } from '../utils/LanguagePackManager';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
+import { TEXT_SIZE_OPTIONS, TextSizeId } from '../utils/SettingsManager';
+import { useTextSize } from '../contexts/TextSizeContext';
 
 // Get the native module
 const { SettingsModule } = NativeModules;
@@ -24,6 +29,43 @@ const { SettingsModule } = NativeModules;
 export default function SettingsScreen() {
   const [ttsVoices, setTTSVoices] = useState<TTSVoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { textSize: currentTextSize, updateTextSize, refreshTextSize } = useTextSize();
+  const [sliderWidth, setSliderWidth] = useState(200);
+
+  const getCurrentIndex = () => {
+    return TEXT_SIZE_OPTIONS.findIndex(opt => opt.id === currentTextSize);
+  };
+
+  const getTextSizeFromPosition = (position: number) => {
+    const normalizedPosition = Math.max(0, Math.min(1, position / sliderWidth));
+    const index = Math.round(normalizedPosition * (TEXT_SIZE_OPTIONS.length - 1));
+    return TEXT_SIZE_OPTIONS[index].id;
+  };
+
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: () => true,
+    onPanResponderGrant: (evt) => {
+      // Haptic feedback when starting to drag
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      const { locationX } = evt.nativeEvent;
+      const newTextSize = getTextSizeFromPosition(locationX);
+      if (newTextSize !== currentTextSize) {
+        handleTextSizeChangeWithoutHaptic(newTextSize);
+      }
+    },
+    onPanResponderMove: (evt) => {
+      const { locationX } = evt.nativeEvent;
+      const newTextSize = getTextSizeFromPosition(locationX);
+      if (newTextSize !== currentTextSize) {
+        handleTextSizeChangeWithoutHaptic(newTextSize);
+      }
+    },
+    onPanResponderRelease: () => {
+      // Light haptic feedback when releasing
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    },
+  });
 
   useEffect(() => {
     // Defer initialization to avoid blocking the navigation animation
@@ -40,10 +82,11 @@ export default function SettingsScreen() {
       if (!isLoading) {
         const timeoutId = setTimeout(() => {
           initializeTTSVoices();
+          refreshTextSize(); // Also refresh text size
         }, 50);
         return () => clearTimeout(timeoutId);
       }
-    }, [isLoading])
+    }, [isLoading, refreshTextSize])
   );
 
   const initializeTTSVoices = async () => {
@@ -58,6 +101,25 @@ export default function SettingsScreen() {
     } catch (error) {
       console.error('Failed to initialize TTS voices:', error);
       setIsLoading(false);
+    }
+  };
+
+  const handleTextSizeChange = async (textSizeId: TextSizeId) => {
+    try {
+      // Add haptic feedback for better UX
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await updateTextSize(textSizeId);
+    } catch (error) {
+      console.error('Failed to update text size:', error);
+      Alert.alert('Error', 'Failed to update text size. Please try again.');
+    }
+  };
+
+  const handleTextSizeChangeWithoutHaptic = async (textSizeId: TextSizeId) => {
+    try {
+      await updateTextSize(textSizeId);
+    } catch (error) {
+      console.error('Failed to update text size:', error);
     }
   };
 
@@ -240,19 +302,80 @@ export default function SettingsScreen() {
         >
           <ArrowLeft size={24} color="#FFF" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>TTS Voice Settings</Text>
+        <Text style={styles.headerTitle}>Settings</Text>
         <View style={styles.headerSpacer} />
       </View>
 
       <View style={styles.headerSubtitleContainer}>
         <Text style={styles.headerSubtitle}>
-          Manage text-to-speech voices for translation output
+          Customize your translation experience
         </Text>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Available TTS Voices</Text>
+          <Text style={styles.sectionTitle}>Text Size</Text>
+          <Text style={styles.sectionDescription}>
+            Choose the text size for translation display to improve readability.
+          </Text>
+        </View>
+
+        <View style={styles.textSizeContainer}>
+          <View style={styles.textSizeHeader}>
+            <Type size={18} color="#FFF" />
+            <Text style={styles.currentSizeLabel}>
+              {TEXT_SIZE_OPTIONS.find(opt => opt.id === currentTextSize)?.label || 'Large'}
+            </Text>
+          </View>
+          
+          <View style={styles.sliderContainer}>
+            <Text style={[styles.sliderLabel, { fontSize: 12 }]}>A</Text>
+            <View 
+              style={styles.slider}
+              onLayout={(event) => {
+                const { width } = event.nativeEvent.layout;
+                setSliderWidth(width);
+              }}
+              {...panResponder.panHandlers}
+            >
+              <View style={styles.sliderTrack} />
+              {TEXT_SIZE_OPTIONS.map((option, index) => {
+                const isSelected = currentTextSize === option.id;
+                const position = (index / (TEXT_SIZE_OPTIONS.length - 1)) * 100;
+                return (
+                  <View
+                    key={option.id}
+                    style={[styles.sliderPoint, { left: `${position}%` }]}
+                  >
+                    <Text style={[
+                      styles.sliderPointLabel,
+                      { fontSize: option.fontSize * 0.8, lineHeight: option.fontSize * 0.8 + 4 }
+                    ]}>
+                      A
+                    </Text>
+                    <View style={styles.sliderPointDot}>
+                      <View style={[
+                        styles.sliderDotInner,
+                        isSelected && styles.sliderDotInnerActive,
+                      ]} />
+                    </View>
+                  </View>
+                );
+              })}
+              {/* Active slider thumb */}
+              <View style={[
+                styles.sliderThumb,
+                { 
+                  left: `${(getCurrentIndex() / (TEXT_SIZE_OPTIONS.length - 1)) * 100}%`,
+                }
+              ]} />
+            </View>
+            <Text style={[styles.sliderLabel, { fontSize: 18 }]}>A</Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>TTS Voices</Text>
           <Text style={styles.sectionDescription}>
             Voices marked with a checkmark are available for text-to-speech output.
           </Text>
@@ -298,7 +421,7 @@ export default function SettingsScreen() {
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          💡 Tip: Download TTS voices from your device settings to hear translations in different languages.
+          💡 Tip: Adjust text size for better readability and download TTS voices to hear translations in different languages.
         </Text>
       </View>
     </View>
@@ -440,5 +563,121 @@ const styles = StyleSheet.create({
     color: '#999',
     textAlign: 'center',
     lineHeight: 20,
+  },
+  // Text Size Settings styles
+  textSizeContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  textSizeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 20,
+  },
+  currentSizeLabel: {
+    fontSize: 16,
+    color: '#FFF',
+    fontWeight: '600',
+  },
+  sliderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 15,
+    marginBottom: 20,
+  },
+  sliderLabel: {
+    fontSize: 14,
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontWeight: '500',
+  },
+  slider: {
+    flex: 1,
+    height: 60,
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  sliderTrack: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    borderRadius: 1,
+    top: '50%',
+    marginTop: -1,
+  },
+  sliderPoint: {
+    position: 'absolute',
+    width: 20,
+    height: 60,
+    marginLeft: -10,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  sliderPointLabel: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  sliderPointDot: {
+    width: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  sliderDot: {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    marginLeft: -10,
+    justifyContent: 'center',
+    alignItems: 'center',
+    top: '50%',
+    marginTop: -10,
+  },
+  sliderDotInner: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
+  },
+  sliderDotActive: {
+    // Active dot container styles if needed
+  },
+  sliderDotInnerActive: {
+    backgroundColor: '#007AFF',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  sliderThumb: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    marginLeft: -12,
+    borderRadius: 12,
+    backgroundColor: '#007AFF',
+    borderWidth: 3,
+    borderColor: '#FFF',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    top: '50%',
+    marginTop: -12,
+  },
+  previewText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    textAlign: 'center',
+    marginTop: 10,
   },
 });

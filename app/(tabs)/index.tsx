@@ -13,6 +13,7 @@ import * as Speech from 'expo-speech';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import { router } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import LanguageSelector from '@/components/LanguageSelector';
 import RecordingIndicator from '@/components/RecordingIndicator';
 import TranslationDisplay from '@/components/TranslationDisplay';
@@ -23,6 +24,7 @@ import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { TTSVoiceManager } from '@/utils/LanguagePackManager';
 import { getLanguageDisplayName } from '@/utils/LanguageConfig';
 import { TranslationHistoryManager } from '@/utils/TranslationHistory';
+import { useTextSize } from '@/contexts/TextSizeContext';
 
 // Conversation message interface
 interface ConversationMessage {
@@ -51,8 +53,16 @@ export default function TranslatorScreen() {
   const { translateText, isTranslating, streamingText } = useTranslation();
   const { startRecording, stopRecording, isRecording, isInitialized, error: audioError, cleanup } = useAudioRecording();
   const { transcribeWav, isTranscribing, error: whisperError } = useSpeechToText();
+  const { refreshTextSize } = useTextSize();
   const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
   const [isStreamingToTop, setIsStreamingToTop] = useState(false);
+
+  // Refresh text size when screen comes into focus (e.g., returning from settings)
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshTextSize();
+    }, [refreshTextSize])
+  );
 
   // Cleanup TTS on component unmount
   useEffect(() => {

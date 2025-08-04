@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Volume2 } from 'lucide-react-native';
+import { useTextSize } from '../contexts/TextSizeContext';
 
 interface ConversationMessage {
   id: string;
@@ -27,6 +28,9 @@ export default function TranslationDisplay({
   isSpeaking = false,
   conversationHistory = [],
 }: TranslationDisplayProps) {
+  const { getTextSizeConfig } = useTextSize();
+  const textSizeConfig = getTextSizeConfig();
+  
   const hasText = text && text !== 'Tap and hold the microphone to start speaking...';
   
   const handleSpeak = (textToSpeak: string, lang?: string) => {
@@ -37,7 +41,11 @@ export default function TranslationDisplay({
 
   const renderMessage = (message: ConversationMessage, index: number) => (
     <View key={message.id} style={[styles.messageContent, { marginBottom: index === conversationHistory.length - 1 ? 0 : 8 }]}>
-      <Text style={[styles.messageText, isRotated && styles.rotatedText]}>
+      <Text style={[
+        styles.messageText, 
+        isRotated && styles.rotatedText,
+        { fontSize: textSizeConfig.fontSize, lineHeight: textSizeConfig.lineHeight }
+      ]}>
         {message.text}
       </Text>
       {message.language && onSpeak && (
@@ -70,7 +78,11 @@ export default function TranslationDisplay({
       {hasText && (
         <View style={[styles.currentMessageContainer, conversationHistory.length > 0 && styles.currentMessageWithHistory]}>
           <View style={styles.textContainer}>
-            <Text style={[styles.currentText, isRotated && styles.rotatedText]}>
+            <Text style={[
+              styles.currentText, 
+              isRotated && styles.rotatedText,
+              { fontSize: textSizeConfig.fontSize + 2, lineHeight: textSizeConfig.lineHeight + 4 } // Slightly larger for current text
+            ]}>
               {text}
             </Text>
             {onSpeak && language && (
