@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Mic, Volume2, Settings } from 'lucide-react-native';
+import { Mic, Volume2, RotateCcw, Settings } from 'lucide-react-native';
 import * as Speech from 'expo-speech';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
@@ -24,6 +24,15 @@ import { TTSVoiceManager } from '@/utils/LanguagePackManager';
 import { getLanguageDisplayName } from '@/utils/LanguageConfig';
 import { TranslationHistoryManager } from '@/utils/TranslationHistory';
 
+// Conversation message interface
+interface ConversationMessage {
+  id: string;
+  text: string;
+  timestamp: Date;
+  type: 'transcription' | 'translation';
+  language?: string;
+}
+
 const { height, width } = Dimensions.get('window');
 
 export default function TranslatorScreen() {
@@ -34,6 +43,10 @@ export default function TranslatorScreen() {
   const [isTopRecording, setIsTopRecording] = useState(false);
   const [isBottomRecording, setIsBottomRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  
+  // Conversation history for each side
+  const [topConversationHistory, setTopConversationHistory] = useState<ConversationMessage[]>([]);
+  const [bottomConversationHistory, setBottomConversationHistory] = useState<ConversationMessage[]>([]);
 
   const { translateText, isTranslating, streamingText } = useTranslation();
   const { startRecording, stopRecording, isRecording, isInitialized, error: audioError, cleanup } = useAudioRecording();
@@ -70,12 +83,45 @@ export default function TranslatorScreen() {
     }
   };
 
+  // Helper function to add message to conversation history
+  const addToConversationHistory = (
+    isTop: boolean,
+    text: string,
+    type: 'transcription' | 'translation',
+    language?: string
+  ) => {
+    const message: ConversationMessage = {
+      id: `${Date.now()}-${Math.random()}`,
+      text,
+      timestamp: new Date(),
+      type,
+      language,
+    };
+
+    if (isTop) {
+      setTopConversationHistory(prev => [...prev, message]);
+    } else {
+      setBottomConversationHistory(prev => [...prev, message]);
+    }
+  };
+
   // Helper function to get display text with streaming support
   const getDisplayText = (baseText: string, isStreamingTarget: boolean) => {
     if (isTranslating && isStreamingTarget && streamingText) {
       return streamingText;
     }
     return baseText;
+  };
+
+  const swapLanguages = () => {
+    setTopLanguage(bottomLanguage);
+    setBottomLanguage(topLanguage);
+    setTopText(bottomText);
+    setBottomText(topText);
+    // Also swap conversation histories
+    const tempHistory = topConversationHistory;
+    setTopConversationHistory(bottomConversationHistory);
+    setBottomConversationHistory(tempHistory);
   };
 
   // Models are ready when hooks are loaded (lazy loading)
@@ -166,6 +212,11 @@ export default function TranslatorScreen() {
           setTopText(''); // Clear opposite side before translation
         }
 
+        // Add transcription to conversation history
+        if (!errorMsg && speechText) {
+          addToConversationHistory(isTop, speechText, 'transcription', fromLang);
+        }
+
         // Only proceed with translation if transcription was successful
         if (!errorMsg && speechText) {
           
@@ -180,10 +231,14 @@ export default function TranslatorScreen() {
           // Update the translation side with final result
           if (isTop) {
             setBottomText(translatedText);
+            // Add translation to conversation history (opposite side)
+            addToConversationHistory(false, translatedText, 'translation', toLang);
             // Save to history: top side spoke (user1), translation goes to bottom
             await saveToHistory(speechText, translatedText, fromLang, toLang, 'user1');
           } else {
             setTopText(translatedText);
+            // Add translation to conversation history (opposite side)
+            addToConversationHistory(true, translatedText, 'translation', toLang);
             // Save to history: bottom side spoke (user2), translation goes to top
             await saveToHistory(speechText, translatedText, fromLang, toLang, 'user2');
           }
@@ -318,6 +373,7 @@ export default function TranslatorScreen() {
             language={topLanguage}
             onSpeak={handleSpeak}
             isSpeaking={isSpeaking}
+            conversationHistory={topConversationHistory}
           />
           <View style={styles.controls}>
             <TouchableOpacity
@@ -346,6 +402,9 @@ export default function TranslatorScreen() {
               isRotated={true}
             />
           </View>
+          <TouchableOpacity style={styles.swapButton} onPress={swapLanguages}>
+            <RotateCcw size={20} color="white" />
+          </TouchableOpacity>
           <View style={styles.bottomLanguageSelector}>
             <LanguageSelector
               selectedLanguage={bottomLanguage}
@@ -363,6 +422,7 @@ export default function TranslatorScreen() {
           language={bottomLanguage}
           onSpeak={handleSpeak}
           isSpeaking={isSpeaking}
+          conversationHistory={bottomConversationHistory}
         />
         <View style={styles.controls}>
           <TouchableOpacity
@@ -524,5 +584,16 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
     zIndex: 10001,
     overflow: 'visible',
+  },
+  swapButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#374151',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    marginHorizontal: 8,
   },
 });
