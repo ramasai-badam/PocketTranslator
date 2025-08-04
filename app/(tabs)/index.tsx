@@ -461,13 +461,13 @@ const styles = StyleSheet.create({
     paddingTop: 40, // Add more top padding to avoid header overlap
   },
   topSection: {
-    backgroundColor: '#2563eb',
+    backgroundColor: '#101010',
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     paddingTop: 60, // Extra padding for the rotated top section
   },
   bottomSection: {
-    backgroundColor: '#dc2626',
+    backgroundColor: '#101010',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
   },
