@@ -47,7 +47,6 @@ export default function ConversationDetailScreen() {
   const [highlightScale] = useState(new Animated.Value(1));
   const [borderColorAnim] = useState(new Animated.Value(0));
   const flatListRef = useRef<FlatList>(null);
-  const entryPositions = useRef<{ [key: string]: number }>({});
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'translation' | 'conversation'; id?: string } | null>(null);
 
@@ -86,28 +85,35 @@ export default function ConversationDetailScreen() {
         }),
       ]).start();
       
-      // Scroll to the highlighted entry after a short delay to ensure rendering is complete
-      setTimeout(() => {
-        const entryY = entryPositions.current[highlightTranslationId];
-        if (entryY !== undefined && flatListRef.current) {
-          flatListRef.current.scrollToOffset({ 
-            offset: Math.max(0, entryY - 100), // Offset by 100px to show some context above
-            animated: true 
-          });
-        } else {
-          // Fallback: scroll to estimated position based on entry index
-          const entryIndex = entries.findIndex(entry => entry.id === highlightTranslationId);
-          if (entryIndex !== -1) {
+      // Find the entry index first
+      const entryIndex = entries.findIndex(entry => entry.id === highlightTranslationId);
+      
+      if (entryIndex !== -1) {
+        // Use a longer delay to ensure FlatList has finished rendering
+        setTimeout(() => {
+          try {
+            // Try scrollToIndex first (more reliable for virtualized lists)
             flatListRef.current?.scrollToIndex({ 
               index: entryIndex,
               animated: true,
-              viewOffset: 100
+              viewOffset: 100,
+              viewPosition: 0.3 // Position the item at 30% from the top
+            });
+          } catch (error) {
+            console.log('scrollToIndex failed, trying fallback method');
+            // Fallback: Use estimated offset calculation
+            const estimatedItemHeight = 200; // Approximate height of each entry
+            const estimatedOffset = Math.max(0, (entryIndex * estimatedItemHeight) - 100);
+            
+            flatListRef.current?.scrollToOffset({ 
+              offset: estimatedOffset,
+              animated: true 
             });
           }
-        }
-      }, 500); // Increased delay to allow layout to complete
+        }, 800); // Longer delay for better reliability
+      }
       
-      // Remove highlight after 3 seconds with smooth fade out
+      // Remove highlight after 4 seconds (extended to see the effect better)
       const timeout = setTimeout(() => {
         Animated.timing(borderColorAnim, {
           toValue: 0,
@@ -125,7 +131,7 @@ export default function ConversationDetailScreen() {
             setHighlightedEntryId(null);
           }
         });
-      }, 3000);
+      }, 4000);
       return () => clearTimeout(timeout);
     }
   }, [highlightTranslationId, entries]);
@@ -410,10 +416,6 @@ export default function ConversationDetailScreen() {
   const renderItem: ListRenderItem<TranslationEntry> = useCallback(({ item: entry }) => (
     <Animated.View 
       key={entry.id} 
-      onLayout={(event) => {
-        const { y } = event.nativeEvent.layout;
-        entryPositions.current[entry.id] = y;
-      }}
       style={[
         styles.entryContainer,
         {
@@ -592,11 +594,26 @@ export default function ConversationDetailScreen() {
         onEndReachedThreshold={0.3}
         ListEmptyComponent={renderEmpty}
         ListFooterComponent={renderFooter}
-        removeClippedSubviews={true}
-        maxToRenderPerBatch={10}
-        windowSize={10}
-        initialNumToRender={10}
-        getItemLayout={undefined}
+        removeClippedSubviews={false} // Disable to ensure all items are rendered for highlighting
+        maxToRenderPerBatch={15}
+        windowSize={15}
+        initialNumToRender={15}
+        maintainVisibleContentPosition={{
+          minIndexForVisible: 0,
+        }}
+        onScrollToIndexFailed={(info) => {
+          // Handle scroll to index failure with a fallback
+          console.log('ScrollToIndex failed, using fallback for index:', info.index);
+          const wait = new Promise(resolve => setTimeout(resolve, 500));
+          wait.then(() => {
+            flatListRef.current?.scrollToIndex({ 
+              index: Math.min(info.index, entries.length - 1), 
+              animated: true,
+              viewOffset: 100,
+              viewPosition: 0.3
+            });
+          });
+        }}
       />
         
       {entries.length > 0 && (
