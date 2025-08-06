@@ -19,8 +19,15 @@ import { TranslationHistoryManager, TranslationEntry } from '../utils/Translatio
 import { TTSVoiceManager } from '../utils/LanguagePackManager';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
 import { VocabularyManager } from '../utils/VocabularyManager';
+import { useTheme } from '../contexts/ThemeContext';
+import { useTextSize } from '../hooks/useTextSize';
 
 export default function ConversationDetailScreen() {
+  const { colors } = useTheme();
+  const { getTextSizeConfig } = useTextSize();
+  const textSizeConfig = getTextSizeConfig();
+  const scale = textSizeConfig.fontSize / 16; // Base scale on medium (16px)
+  
   const params = useLocalSearchParams();
   const languagePair = params.languagePair as string;
   const displayName = params.displayName as string;
@@ -419,12 +426,13 @@ export default function ConversationDetailScreen() {
       style={[
         styles.entryContainer,
         {
+          backgroundColor: colors.surface,
           borderColor: highlightedEntryId === entry.id 
             ? borderColorAnim.interpolate({
                 inputRange: [0, 1],
-                outputRange: ['#333', '#FFFFFF'],
+                outputRange: [colors.border, colors.text],
               })
-            : '#333',
+            : colors.border,
           borderWidth: 2,
         },
       ]}
@@ -440,7 +448,7 @@ export default function ConversationDetailScreen() {
         }}
       >
         <View style={styles.entryHeader}>
-          <Text style={styles.timestamp}>
+          <Text style={[styles.timestamp, { color: colors.textSecondary, fontSize: 12 * scale }]}>
             {new Date(entry.timestamp).toLocaleString()}
           </Text>
           <View style={styles.entryActions}>
@@ -448,20 +456,20 @@ export default function ConversationDetailScreen() {
               style={styles.iconButton}
               onPress={() => handleAddToVocabulary(entry)}
             >
-              <Bookmark size={16} color={savedEntries.has(entry.id) ? "#34C759" : "#FF3B30"} />
+              <Bookmark size={16 * scale} color={savedEntries.has(entry.id) ? "#34C759" : "#FF3B30"} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => handleDeleteTranslation(entry.id)}
             >
-              <Trash2 size={16} color="#FF3B30" />
+              <Trash2 size={16 * scale} color="#FF3B30" />
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={[styles.textContainer, styles.originalTextContainer]}>
           <View style={styles.textHeader}>
-            <Text style={styles.languageLabel}>
+            <Text style={[styles.languageLabel, { color: colors.textSecondary, fontSize: 12 * scale }]}>
               {getLanguageDisplayName(entry.fromLanguage)}
             </Text>
             <View style={styles.textActions}>
@@ -469,58 +477,58 @@ export default function ConversationDetailScreen() {
                 style={styles.speakButton}
                 onPress={() => handleSpeak(entry.originalText, entry.fromLanguage)}
               >
-                <Volume2 size={16} color="#007AFF" />
+                <Volume2 size={16 * scale} color="#007AFF" />
               </TouchableOpacity>
             </View>
           </View>
-          <Text style={styles.originalText}>{entry.originalText}</Text>
+          <Text style={[styles.originalText, { color: colors.text, fontSize: 16 * scale }]}>{entry.originalText}</Text>
         </View>
 
         <View style={[styles.textContainer, styles.translatedTextContainer]}>
           <View style={styles.textHeader}>
-            <Text style={styles.languageLabel}>
+            <Text style={[styles.languageLabel, { color: colors.textSecondary, fontSize: 12 * scale }]}>
               {getLanguageDisplayName(entry.toLanguage)}
             </Text>
             <TouchableOpacity
               style={styles.speakButton}
               onPress={() => handleSpeak(entry.translatedText, entry.toLanguage)}
             >
-              <Volume2 size={16} color="#007AFF" />
+              <Volume2 size={16 * scale} color="#007AFF" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.translatedText}>{entry.translatedText}</Text>
+          <Text style={[styles.translatedText, { color: colors.text, fontSize: 16 * scale }]}>{entry.translatedText}</Text>
         </View>
       </Animated.View>
     </Animated.View>
-  ), [highlightedEntryId, borderColorAnim, savedEntries, handleAddToVocabulary, handleDeleteTranslation, handleSpeak]);
+  ), [highlightedEntryId, borderColorAnim, savedEntries, handleAddToVocabulary, handleDeleteTranslation, handleSpeak, colors, scale]);
 
   // Memoized footer component
   const renderFooter = useCallback(() => {
     if (entries.length >= allEntries.length) {
       return entries.length > 0 ? (
         <View style={styles.endFooter}>
-          <Text style={styles.endText}>• • •</Text>
+          <Text style={[styles.endText, { color: colors.textTertiary, fontSize: 14 * scale }]}>• • •</Text>
         </View>
       ) : null;
     }
 
     return loadingMore ? (
       <View style={styles.loadingFooter}>
-        <Text style={styles.loadingText}>Loading more translations...</Text>
+        <Text style={[styles.loadingText, { color: colors.text, fontSize: 16 * scale }]}>Loading more translations...</Text>
       </View>
     ) : null;
-  }, [loadingMore, entries.length, allEntries.length]);
+  }, [loadingMore, entries.length, allEntries.length, colors, scale]);
 
   // Memoized empty component
   const renderEmpty = useCallback(() => (
     <View style={styles.emptyContainer}>
-      <User size={48} color="#666" />
-      <Text style={styles.emptyTitle}>No Translations Yet</Text>
-      <Text style={styles.emptySubtitle}>
+      <User size={48 * scale} color={colors.textTertiary} />
+      <Text style={[styles.emptyTitle, { color: colors.text, fontSize: 20 * scale }]}>No Translations Yet</Text>
+      <Text style={[styles.emptySubtitle, { color: colors.textSecondary, fontSize: 16 * scale }]}>
         Start using the translator to build your conversation history
       </Text>
     </View>
-  ), []);
+  ), [colors, scale]);
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -542,40 +550,40 @@ export default function ConversationDetailScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <StatusBar style="light" />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar style={colors.background === '#1a1a1a' ? 'light' : 'dark'} />
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading conversation...</Text>
+          <Text style={[styles.loadingText, { color: colors.text, fontSize: 16 * scale }]}>Loading conversation...</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar style={colors.background === '#1a1a1a' ? 'light' : 'dark'} />
       
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={[styles.backButton, { backgroundColor: colors.surfaceTransparent }]}
           onPress={() => router.back()}
         >
-          <ArrowLeft size={24} color="#FFF" />
+          <ArrowLeft size={24 * scale} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>{displayName}</Text>
-          <Text style={styles.headerSubtitle}>
+          <Text style={[styles.headerTitle, { color: colors.text, fontSize: 18 * scale }]}>{displayName}</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary, fontSize: 12 * scale }]}>
             {entries.length} translation{entries.length !== 1 ? 's' : ''}
             {searchQuery && searchQuery.trim() !== '' && ` • Search: "${searchQuery}"`}
           </Text>
         </View>
         <TouchableOpacity
-          style={styles.clearButton}
+          style={[styles.clearButton, { backgroundColor: colors.surfaceTransparent }]}
           onPress={handleClearConversation}
           disabled={entries.length === 0}
         >
-          <Trash2 size={20} color={entries.length > 0 ? "#FF3B30" : "#666"} />
+          <Trash2 size={20 * scale} color={entries.length > 0 ? "#FF3B30" : colors.disabled} />
         </TouchableOpacity>
       </View>
 
@@ -587,7 +595,7 @@ export default function ConversationDetailScreen() {
         keyExtractor={(item) => item.id}
         style={styles.scrollView}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.text} />
         }
         showsVerticalScrollIndicator={false}
         onEndReached={loadMore}
@@ -617,8 +625,8 @@ export default function ConversationDetailScreen() {
       />
         
       {entries.length > 0 && (
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
+        <View style={[styles.footer, { borderTopColor: colors.border }]}>
+          <Text style={[styles.footerText, { color: colors.textSecondary, fontSize: 14 * scale }]}>
             🔊 Tap the speaker icons to hear pronunciations and practice your listening skills
           </Text>
         </View>
@@ -687,16 +695,11 @@ export default function ConversationDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingText: {
-    color: '#FFF',
-    fontSize: 16,
   },
   header: {
     flexDirection: 'row',
@@ -710,7 +713,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -719,20 +721,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFF',
   },
   headerSubtitle: {
-    fontSize: 12,
-    color: '#999',
     marginTop: 2,
   },
   clearButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -746,31 +743,22 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyTitle: {
-    fontSize: 20,
     fontWeight: '600',
-    color: '#FFF',
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 16,
-    color: '#999',
     textAlign: 'center',
     paddingHorizontal: 40,
   },
   entryContainer: {
-    backgroundColor: '#1A1A1A',
     marginHorizontal: 20,
     marginBottom: 16,
     borderRadius: 12,
     padding: 16,
-    borderWidth: 2, // Always 2px to match highlighted state
-    borderColor: '#333',
+    borderWidth: 2,
   },
   entryContainerHighlighted: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderColor: '#FFF',
-    borderWidth: 2,
     shadowOffset: {
       width: 0,
       height: 0,
@@ -804,7 +792,6 @@ const styles = StyleSheet.create({
   },
   entryTime: {
     fontSize: 12,
-    color: '#999',
   },
   textContainer: {
     marginBottom: 12,
@@ -834,8 +821,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   languageLabel: {
-    fontSize: 12,
-    color: '#999',
     fontWeight: '500',
   },
   speakButton: {
@@ -848,24 +833,17 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   originalText: {
-    fontSize: 16,
-    color: '#FFF',
     lineHeight: 22,
   },
   translatedText: {
-    fontSize: 16,
-    color: '#FFF',
     lineHeight: 22,
   },
   footer: {
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: '#333',
   },
   footerText: {
-    fontSize: 14,
-    color: '#999',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -964,8 +942,6 @@ const styles = StyleSheet.create({
   },
   // Additional styles for pagination
   timestamp: {
-    color: '#999',
-    fontSize: 12,
     marginBottom: 4,
   },
   entryActions: {
@@ -975,10 +951,9 @@ const styles = StyleSheet.create({
   saveButton: {
     padding: 6,
     borderRadius: 6,
-    backgroundColor: '#333',
   },
   savedButton: {
-    backgroundColor: '#007AFF',
+    //
   },
   loadingFooter: {
     paddingVertical: 20,
@@ -989,10 +964,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   endText: {
-    color: '#666',
-    fontSize: 14,
+    //
   },
   iconButton: {
     padding: 4,
+  },
+  loadingText: {
+    //
   },
 });
