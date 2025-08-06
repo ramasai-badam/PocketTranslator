@@ -114,41 +114,57 @@ export default function ConversationDetailScreen() {
           
           // Start animations after scroll
           setTimeout(() => {
-            // Smooth border color animation
-            Animated.timing(borderColorAnim, {
-              toValue: 1,
-              duration: 600,
-              useNativeDriver: false,
-            }).start();
+            // Reset opacity value
+            highlightOpacity.setValue(0.98);
             
-            // Smooth scale animation
-            Animated.sequence([
-              Animated.timing(highlightScale, {
-                toValue: 1.03,
-                duration: 300,
-                useNativeDriver: true,
-              }),
-              Animated.timing(highlightScale, {
+            // Start parallel animations with proper driver separation
+            Animated.parallel([
+              // JS driver animations
+              Animated.timing(borderColorAnim, {
                 toValue: 1,
-                duration: 400,
-                useNativeDriver: true,
+                duration: 600,
+                useNativeDriver: false, // Required for color/shadow
               }),
+              Animated.timing(highlightOpacity, {
+                toValue: 1,
+                duration: 300,
+                useNativeDriver: false, // Required for opacity in JS-driven view
+              }),
+              // Native driver animation (separate)
+              Animated.sequence([
+                Animated.timing(highlightScale, {
+                  toValue: 1.03,
+                  duration: 300,
+                  useNativeDriver: true, // Safe for transform
+                }),
+                Animated.timing(highlightScale, {
+                  toValue: 1,
+                  duration: 400,
+                  useNativeDriver: true,
+                }),
+              ]),
             ]).start();
           }, 250);
         }
         
         // Remove highlight after 3.5 seconds
         const timeout = setTimeout(() => {
+          // Animate out with proper driver separation
           Animated.parallel([
             Animated.timing(borderColorAnim, {
               toValue: 0,
               duration: 600,
-              useNativeDriver: false,
+              useNativeDriver: false, // JS driver for color
+            }),
+            Animated.timing(highlightOpacity, {
+              toValue: 1,
+              duration: 400,
+              useNativeDriver: false, // JS driver for opacity
             }),
             Animated.timing(highlightScale, {
               toValue: 1,
               duration: 600,
-              useNativeDriver: true,
+              useNativeDriver: true, // Native driver for transform
             }),
           ]).start((finished) => {
             if (finished) {
@@ -159,7 +175,7 @@ export default function ConversationDetailScreen() {
         return () => clearTimeout(timeout);
       });
     }
-  }, [highlightTranslationId, entries, isInitialRender]);
+  }, [highlightTranslationId, entries, isInitialRender, highlightOpacity, highlightScale, borderColorAnim]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -453,7 +469,7 @@ export default function ConversationDetailScreen() {
               })
             : colors.border,
           borderWidth: highlightedEntryId === entry.id ? 3 : 2,
-          transform: highlightedEntryId === entry.id ? [{ scale: highlightScale }] : [],
+          // Remove transform from this view to avoid driver conflict
           shadowOpacity: highlightedEntryId === entry.id 
             ? borderColorAnim.interpolate({
                 inputRange: [0, 1],
@@ -466,16 +482,17 @@ export default function ConversationDetailScreen() {
         },
       ]}
     >
+      {/* Separate transform view to avoid driver conflicts */}
       <Animated.View
-        style={{
-          opacity: highlightedEntryId === entry.id 
-            ? borderColorAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [1, 0.98],
-              })
-            : 1,
-        }}
+        style={highlightedEntryId === entry.id ? {
+          transform: [{ scale: highlightScale }],
+        } : undefined}
       >
+        <Animated.View
+          style={{
+            opacity: highlightedEntryId === entry.id ? highlightOpacity : 1,
+          }}
+        >
         <View style={styles.entryHeader}>
           <Text style={[styles.timestamp, { color: colors.textSecondary, fontSize: 12 * scale }]}>
             {new Date(entry.timestamp).toLocaleString()}
@@ -527,9 +544,10 @@ export default function ConversationDetailScreen() {
           </View>
           <Text style={[styles.translatedText, { color: colors.text, fontSize: 16 * scale }]}>{entry.translatedText}</Text>
         </View>
+        </Animated.View>
       </Animated.View>
     </Animated.View>
-  ), [highlightedEntryId, borderColorAnim, savedEntries, handleAddToVocabulary, handleDeleteTranslation, handleSpeak, colors, scale]);
+  ), [highlightedEntryId, borderColorAnim, highlightOpacity, highlightScale, savedEntries, handleAddToVocabulary, handleDeleteTranslation, handleSpeak, colors, scale]);
 
   // Memoized footer component
   const renderFooter = useCallback(() => {
