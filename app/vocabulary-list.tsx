@@ -40,13 +40,14 @@ interface VocabularyItem {
 }
 
 // Memoized vocabulary item component
-const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState, colors, fonts }: {
+const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState, colors, fonts, dynamicStyles }: {
   item: VocabularyItem;
   onDelete: (id: string) => void;
   onBreakdown: (item: VocabularyItem) => void;
   getBreakdownState: (item: VocabularyItem) => 'cached' | 'analyzing' | 'fresh';
   colors: any;
   fonts: any;
+  dynamicStyles: any;
 }) => {
   if (!item.translationEntry) return null;
   
@@ -83,16 +84,16 @@ const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState, c
             return (
               <TouchableOpacity
                 key={index}
-                style={[styles.wordButton, { backgroundColor: colors.surfaceTransparent, borderColor: colors.borderTransparent }]}
+                style={[dynamicStyles.wordButton, { backgroundColor: colors.surfaceTransparent, borderColor: colors.borderTransparent }]}
                 onPress={() => handleSpellWord(part, languageCode)}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.interactiveWord, { color: colors.text, fontSize: fonts.primary }]}>{part}</Text>
+                <Text style={[dynamicStyles.interactiveWord, { color: colors.text, fontSize: fonts.primary }]}>{part}</Text>
               </TouchableOpacity>
             );
           } else {
             return (
-              <Text key={index} style={[styles.wordSpace, { color: colors.text, fontSize: fonts.primary }]}>
+              <Text key={index} style={[dynamicStyles.wordSpace, { color: colors.text, fontSize: fonts.primary }]}>
                 {part}
               </Text>
             );
@@ -100,7 +101,7 @@ const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState, c
         })}
       </View>
     );
-  }, [handleSpellWord, colors, fonts]);
+  }, [handleSpellWord, colors, fonts, dynamicStyles]);
   
   return (
     <View style={[styles.wordContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -200,6 +201,28 @@ export default function VocabularyListScreen() {
     secondary: Math.max(10, textSizeConfig.fontSize - 2),
     // Small text (4px smaller than primary)
     small: Math.max(8, textSizeConfig.fontSize - 4),
+  };
+
+  // Dynamic styles that scale with font size to prevent text clipping
+  const dynamicStyles = {
+    wordButton: {
+      paddingHorizontal: 4,
+      // Scale padding based on font size to prevent clipping of descenders
+      paddingVertical: Math.max(2, Math.round(textSizeConfig.fontSize * 0.15)),
+      borderRadius: 6,
+      marginHorizontal: 1,
+      marginVertical: 1,
+      borderWidth: 1,
+    },
+    interactiveWord: {
+      // Scale line height based on font size for proper descender space
+      lineHeight: Math.max(20, Math.round(textSizeConfig.fontSize * 1.3)),
+      fontWeight: '500',
+    },
+    wordSpace: {
+      // Scale line height to match interactive words
+      lineHeight: Math.max(20, Math.round(textSizeConfig.fontSize * 1.3)),
+    },
   };
   
   const [vocabularyItems, setVocabularyItems] = useState<VocabularyItem[]>([]);
@@ -550,6 +573,7 @@ export default function VocabularyListScreen() {
             getBreakdownState={isBreakdownCached}
             colors={colors}
             fonts={fonts}
+            dynamicStyles={dynamicStyles}
           />
         )}
         style={styles.scrollView}
