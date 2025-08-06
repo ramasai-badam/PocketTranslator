@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Mic, Volume2, Settings } from 'lucide-react-native';
+import { Mic, MicOff, Square, Settings } from 'lucide-react-native';
 import * as Speech from 'expo-speech';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
@@ -46,6 +46,7 @@ export default function TranslatorScreen() {
   const [isTopRecording, setIsTopRecording] = useState(false);
   const [isBottomRecording, setIsBottomRecording] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [recordingInitiatedByTop, setRecordingInitiatedByTop] = useState<boolean | null>(null);
   
   // Conversation history for each side
   const [topConversationHistory, setTopConversationHistory] = useState<ConversationMessage[]>([]);
@@ -176,6 +177,9 @@ export default function TranslatorScreen() {
 
      console.log(`Starting recording for ${isTop ? 'TOP' : 'BOTTOM'} user`);
      
+      // Track which side initiated the recording
+      setRecordingInitiatedByTop(isTop);
+     
       if (isTop) {
         setIsTopRecording(true);
       } else {
@@ -279,6 +283,7 @@ export default function TranslatorScreen() {
      console.log(`Cleaning up recording state for ${isTop ? 'TOP' : 'BOTTOM'} user`);
       setIsTopRecording(false);
       setIsBottomRecording(false);
+      setRecordingInitiatedByTop(null); // Clear the initiator
     }
   };
 
@@ -425,13 +430,22 @@ export default function TranslatorScreen() {
               style={[
                 styles.micButton, 
                 isTopRecording && styles.recordingButton,
+                (recordingInitiatedByTop === true && (isTranscribing || isTranslating)) && styles.processingButton,
                 (!modelsReady || (isRecording && !isTopRecording)) && styles.disabledButton
               ]}
               onPress={() => handleMicPress(true)}
-              disabled={!modelsReady || (isRecording && !isTopRecording)}
+              disabled={!modelsReady || (isRecording && !isTopRecording) || (recordingInitiatedByTop === true && (isTranscribing || isTranslating))}
             >
-              <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && (!isRecording || isTopRecording)) ? colors.buttonText : colors.disabled} />
-              {isTopRecording && <RecordingIndicator />}
+              {isTopRecording ? (
+                <Square size={Math.max(24, textSizeConfig.fontSize * 1.4)} color={colors.buttonText} />
+              ) : (recordingInitiatedByTop === true && (isTranscribing || isTranslating)) ? (
+                <>
+                  <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={colors.disabled} />
+                  <RecordingIndicator />
+                </>
+              ) : (
+                <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && !isRecording) ? colors.buttonText : colors.disabled} />
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -459,13 +473,22 @@ export default function TranslatorScreen() {
             style={[
               styles.micButton, 
               isBottomRecording && styles.recordingButton,
+              (recordingInitiatedByTop === false && (isTranscribing || isTranslating)) && styles.processingButton,
               (!modelsReady || (isRecording && !isBottomRecording)) && styles.disabledButton
             ]}
             onPress={() => handleMicPress(false)}
-            disabled={!modelsReady || (isRecording && !isBottomRecording)}
+            disabled={!modelsReady || (isRecording && !isBottomRecording) || (recordingInitiatedByTop === false && (isTranscribing || isTranslating))}
           >
-            <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && (!isRecording || isBottomRecording)) ? colors.buttonText : colors.disabled} />
-            {isBottomRecording && <RecordingIndicator />}
+            {isBottomRecording ? (
+              <Square size={Math.max(24, textSizeConfig.fontSize * 1.4)} color={colors.buttonText} />
+            ) : (recordingInitiatedByTop === false && (isTranscribing || isTranslating)) ? (
+              <>
+                <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={colors.disabled} />
+                <RecordingIndicator />
+              </>
+            ) : (
+              <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && !isRecording) ? colors.buttonText : colors.disabled} />
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -572,6 +595,10 @@ const styles = StyleSheet.create({
   recordingButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderColor: 'rgba(255, 255, 255, 0.8)',
+  },
+  processingButton: {
+    backgroundColor: 'rgba(255, 215, 0, 0.1)',
+    borderColor: 'rgba(255, 215, 0, 0.8)',
   },
   disabledButton: {
     backgroundColor: 'transparent',
