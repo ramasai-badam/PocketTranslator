@@ -68,8 +68,8 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
       console.log('Loading models into memory...');
       
       // Load both models using ModelManager
-      // await ModelManager.initializeAll();
-      console.log('Models loaded into memory successfully - skipped');
+      await ModelManager.initializeAll();
+      // console.log('Models loaded into memory successfully - skipped');
     } catch (error) {
       console.error('Error loading models into memory:', error);
     } finally {
