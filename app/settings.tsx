@@ -136,6 +136,31 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleThemeSelection = async (selectedTheme: 'light' | 'dark' | 'high-contrast-light' | 'high-contrast-dark') => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      await updateTheme(selectedTheme);
+    } catch (error) {
+      console.error('Failed to update theme:', error);
+      Alert.alert('Error', 'Failed to update theme. Please try again.');
+    }
+  };
+
+  const getThemeDisplayName = (themeMode: string) => {
+    switch (themeMode) {
+      case 'light':
+        return '☀️ Light';
+      case 'dark':
+        return '🌙 Dark';
+      case 'high-contrast-light':
+        return '⚫ High Contrast Light';
+      case 'high-contrast-dark':
+        return '⚪ High Contrast Dark';
+      default:
+        return '🌙 Dark';
+    }
+  };
+
   const enableTTSVoice = async (languageCode: string) => {
     try {
       // Update UI to show enabling state
@@ -329,32 +354,92 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Appearance</Text>
           <Text style={[styles.sectionDescription, { color: colors.textTertiary }]}>
-            Choose between light and dark theme for better readability.
+            Choose your preferred theme. High contrast themes provide better visibility for visually impaired users.
           </Text>
         </View>
 
         <View style={[styles.themeContainer, { borderBottomColor: colors.border }]}>
-          <View style={styles.themeHeader}>
-            <Text style={[styles.themeLabel, { color: colors.text }]}>Theme</Text>
-            <TouchableOpacity
-              style={[
-                styles.themeToggle,
-                { backgroundColor: theme === 'light' ? '#007AFF' : colors.button }
-              ]}
-              onPress={handleThemeToggle}
-            >
-              <View style={[
-                styles.themeToggleSlider,
-                { 
-                  backgroundColor: colors.surface,
-                  transform: [{ translateX: theme === 'light' ? 22 : 2 }]
-                }
-              ]} />
-            </TouchableOpacity>
-            <Text style={[styles.themeValue, { color: colors.textSecondary }]}>
-              {theme === 'light' ? '☀️ Light' : '🌙 Dark'}
-            </Text>
-          </View>
+          <Text style={[styles.themeLabel, { color: colors.text }]}>Theme Options</Text>
+          
+          {/* Regular Light Theme */}
+          <TouchableOpacity
+            style={[
+              styles.themeOption,
+              { 
+                backgroundColor: theme === 'light' ? colors.primary + '20' : colors.surface,
+                borderColor: theme === 'light' ? colors.primary : colors.border,
+              }
+            ]}
+            onPress={() => handleThemeSelection('light')}
+          >
+            <View style={styles.themeOptionContent}>
+              <Text style={[styles.themeOptionTitle, { color: colors.text }]}>☀️ Light</Text>
+              <Text style={[styles.themeOptionDescription, { color: colors.textSecondary }]}>
+                Standard light theme with comfortable contrast
+              </Text>
+            </View>
+            {theme === 'light' && <Check size={20} color={colors.primary} />}
+          </TouchableOpacity>
+          
+          {/* Regular Dark Theme */}
+          <TouchableOpacity
+            style={[
+              styles.themeOption,
+              { 
+                backgroundColor: theme === 'dark' ? colors.primary + '20' : colors.surface,
+                borderColor: theme === 'dark' ? colors.primary : colors.border,
+              }
+            ]}
+            onPress={() => handleThemeSelection('dark')}
+          >
+            <View style={styles.themeOptionContent}>
+              <Text style={[styles.themeOptionTitle, { color: colors.text }]}>🌙 Dark</Text>
+              <Text style={[styles.themeOptionDescription, { color: colors.textSecondary }]}>
+                Standard dark theme for low-light environments
+              </Text>
+            </View>
+            {theme === 'dark' && <Check size={20} color={colors.primary} />}
+          </TouchableOpacity>
+          
+          {/* High Contrast Light Theme */}
+          <TouchableOpacity
+            style={[
+              styles.themeOption,
+              { 
+                backgroundColor: theme === 'high-contrast-light' ? colors.primary + '20' : colors.surface,
+                borderColor: theme === 'high-contrast-light' ? colors.primary : colors.border,
+              }
+            ]}
+            onPress={() => handleThemeSelection('high-contrast-light')}
+          >
+            <View style={styles.themeOptionContent}>
+              <Text style={[styles.themeOptionTitle, { color: colors.text }]}>⚫ High Contrast Light</Text>
+              <Text style={[styles.themeOptionDescription, { color: colors.textSecondary }]}>
+                Maximum contrast light theme for better visibility
+              </Text>
+            </View>
+            {theme === 'high-contrast-light' && <Check size={20} color={colors.primary} />}
+          </TouchableOpacity>
+          
+          {/* High Contrast Dark Theme */}
+          <TouchableOpacity
+            style={[
+              styles.themeOption,
+              { 
+                backgroundColor: theme === 'high-contrast-dark' ? colors.primary + '20' : colors.surface,
+                borderColor: theme === 'high-contrast-dark' ? colors.primary : colors.border,
+              }
+            ]}
+            onPress={() => handleThemeSelection('high-contrast-dark')}
+          >
+            <View style={styles.themeOptionContent}>
+              <Text style={[styles.themeOptionTitle, { color: colors.text }]}>⚪ High Contrast Dark</Text>
+              <Text style={[styles.themeOptionDescription, { color: colors.textSecondary }]}>
+                Maximum contrast dark theme for better visibility
+              </Text>
+            </View>
+            {theme === 'high-contrast-dark' && <Check size={20} color={colors.primary} />}
+          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
@@ -751,5 +836,28 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     minWidth: 80,
     textAlign: 'right',
+  },
+  // New theme option styles
+  themeOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    marginVertical: 4,
+    marginHorizontal: 20,
+    borderRadius: 12,
+    borderWidth: 2,
+  },
+  themeOptionContent: {
+    flex: 1,
+  },
+  themeOptionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  themeOptionDescription: {
+    fontSize: 14,
+    lineHeight: 20,
   },
 });

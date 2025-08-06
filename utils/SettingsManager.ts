@@ -15,7 +15,7 @@ export const TEXT_SIZE_OPTIONS = [
 export type TextSizeId = typeof TEXT_SIZE_OPTIONS[number]['id'];
 
 // Theme options
-export type ThemeMode = 'light' | 'dark';
+export type ThemeMode = 'light' | 'dark' | 'high-contrast-light' | 'high-contrast-dark';
 
 // Settings interface
 export interface UserSettings {
