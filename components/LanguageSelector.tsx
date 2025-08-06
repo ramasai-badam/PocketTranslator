@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { ChevronDown } from 'lucide-react-native';
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '../utils/LanguageConfig';
 import { useTextSize } from '../contexts/TextSizeContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface LanguageSelectorProps {
   selectedLanguage: string;
@@ -18,22 +19,29 @@ export default function LanguageSelector({
   const [isExpanded, setIsExpanded] = React.useState(false);
   const { getTextSizeConfig } = useTextSize();
   const textConfig = getTextSizeConfig();
+  const { colors } = useTheme();
 
   const selectedLang = getLanguageByCode(selectedLanguage);
 
   return (
     <View style={styles.container} pointerEvents="auto">
       <TouchableOpacity
-        style={styles.selector}
+        style={[
+          styles.selector,
+          {
+            backgroundColor: colors.selectorBackground,
+            borderColor: colors.selectorBorder,
+          }
+        ]}
         onPress={() => setIsExpanded(!isExpanded)}
         activeOpacity={0.7}
       >
-        <Text style={[styles.selectedText, { fontSize: textConfig.fontSize }]}>
+        <Text style={[styles.selectedText, { fontSize: textConfig.fontSize, color: colors.buttonText }]}>
           {selectedLang?.nativeName || 'Select Language'}
         </Text>
         <ChevronDown 
           size={Math.max(10, textConfig.fontSize * 0.6)} 
-          color="white" 
+          color={colors.buttonText} 
           style={[
             styles.chevron,
             isExpanded && styles.chevronExpanded
@@ -42,7 +50,13 @@ export default function LanguageSelector({
       </TouchableOpacity>
 
       {isExpanded && (
-        <View style={styles.dropdown} pointerEvents="auto">
+        <View style={[
+          styles.dropdown,
+          {
+            backgroundColor: colors.dropdownBackground,
+            borderColor: colors.dropdownBorder,
+          }
+        ]} pointerEvents="auto">
           <ScrollView 
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
@@ -58,7 +72,13 @@ export default function LanguageSelector({
                 key={language.code}
                 style={[
                   styles.option,
-                  selectedLanguage === language.code && styles.selectedOption,
+                  {
+                    borderBottomColor: colors.borderTransparent,
+                  },
+                  selectedLanguage === language.code && [
+                    styles.selectedOption,
+                    { backgroundColor: colors.optionSelected }
+                  ],
                 ]}
                 onPress={() => {
                   onLanguageChange(language.code);
@@ -68,7 +88,10 @@ export default function LanguageSelector({
                 <Text
                   style={[
                     styles.optionText,
-                    { fontSize: textConfig.fontSize },
+                    { 
+                      fontSize: textConfig.fontSize,
+                      color: colors.buttonText,
+                    },
                     selectedLanguage === language.code && styles.selectedOptionText
                   ]}
                 >
@@ -94,15 +117,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   selectedText: {
-    color: 'white',
     fontWeight: '600',
   },
   chevron: {
@@ -112,11 +132,9 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '180deg' }],
   },
   dropdown: {
-    backgroundColor: 'rgba(0, 0, 0, 0.98)',
     borderRadius: 10,
     maxHeight: 200,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
     marginTop: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -135,13 +153,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   selectedOption: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    // backgroundColor will be set dynamically
   },
   optionText: {
-    color: 'white',
+    // color will be set dynamically
   },
   selectedOptionText: {
     fontWeight: '600',

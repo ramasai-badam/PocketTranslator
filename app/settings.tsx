@@ -22,6 +22,7 @@ import { TTSVoiceManager, AVAILABLE_TTS_VOICES, TTSVoice } from '../utils/Langua
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
 import { TEXT_SIZE_OPTIONS, TextSizeId } from '../utils/SettingsManager';
 import { useTextSize } from '../contexts/TextSizeContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 // Get the native module
 const { SettingsModule } = NativeModules;
@@ -30,6 +31,7 @@ export default function SettingsScreen() {
   const [ttsVoices, setTTSVoices] = useState<TTSVoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { textSize: currentTextSize, updateTextSize, refreshTextSize } = useTextSize();
+  const { theme, colors, updateTheme } = useTheme();
   const [sliderWidth, setSliderWidth] = useState(200);
 
   const getCurrentIndex = () => {
@@ -120,6 +122,17 @@ export default function SettingsScreen() {
       await updateTextSize(textSizeId);
     } catch (error) {
       console.error('Failed to update text size:', error);
+    }
+  };
+
+  const handleThemeToggle = async () => {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const newTheme = theme === 'light' ? 'dark' : 'light';
+      await updateTheme(newTheme);
+    } catch (error) {
+      console.error('Failed to update theme:', error);
+      Alert.alert('Error', 'Failed to update theme. Please try again.');
     }
   };
 
@@ -281,55 +294,86 @@ export default function SettingsScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <StatusBar style="light" />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar style={theme === 'light' ? 'dark' : 'light'} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Loading TTS voices...</Text>
+          <Text style={[styles.loadingText, { color: colors.text }]}>Loading TTS voices...</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar style={theme === 'light' ? 'dark' : 'light'} />
       
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={[styles.backButton, { backgroundColor: colors.button }]}
           onPress={() => router.back()}
         >
-          <ArrowLeft size={24} color="#FFF" />
+          <ArrowLeft size={24} color={colors.buttonText} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
         <View style={styles.headerSpacer} />
       </View>
 
-      <View style={styles.headerSubtitleContainer}>
-        <Text style={styles.headerSubtitle}>
+      <View style={[styles.headerSubtitleContainer, { borderBottomColor: colors.border }]}>
+        <Text style={[styles.headerSubtitle, { color: colors.textTertiary }]}>
           Customize your translation experience
         </Text>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Text Size</Text>
-          <Text style={styles.sectionDescription}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Appearance</Text>
+          <Text style={[styles.sectionDescription, { color: colors.textTertiary }]}>
+            Choose between light and dark theme for better readability.
+          </Text>
+        </View>
+
+        <View style={[styles.themeContainer, { borderBottomColor: colors.border }]}>
+          <View style={styles.themeHeader}>
+            <Text style={[styles.themeLabel, { color: colors.text }]}>Theme</Text>
+            <TouchableOpacity
+              style={[
+                styles.themeToggle,
+                { backgroundColor: theme === 'light' ? '#007AFF' : colors.button }
+              ]}
+              onPress={handleThemeToggle}
+            >
+              <View style={[
+                styles.themeToggleSlider,
+                { 
+                  backgroundColor: colors.surface,
+                  transform: [{ translateX: theme === 'light' ? 22 : 2 }]
+                }
+              ]} />
+            </TouchableOpacity>
+            <Text style={[styles.themeValue, { color: colors.textSecondary }]}>
+              {theme === 'light' ? '☀️ Light' : '🌙 Dark'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Text Size</Text>
+          <Text style={[styles.sectionDescription, { color: colors.textTertiary }]}>
             Choose the text size for translation display to improve readability.
           </Text>
         </View>
 
-        <View style={styles.textSizeContainer}>
+        <View style={[styles.textSizeContainer, { borderBottomColor: colors.border }]}>
           <View style={styles.textSizeHeader}>
-            <Type size={18} color="#FFF" />
-            <Text style={styles.currentSizeLabel}>
+            <Type size={18} color={colors.buttonText} />
+            <Text style={[styles.currentSizeLabel, { color: colors.text }]}>
               {TEXT_SIZE_OPTIONS.find(opt => opt.id === currentTextSize)?.label || 'Large'}
             </Text>
           </View>
           
           <View style={styles.sliderContainer}>
-            <Text style={[styles.sliderLabel, { fontSize: 12 }]}>A</Text>
+            <Text style={[styles.sliderLabel, { fontSize: 12, color: colors.textTertiary }]}>A</Text>
             <View 
               style={styles.slider}
               onLayout={(event) => {
@@ -338,7 +382,7 @@ export default function SettingsScreen() {
               }}
               {...panResponder.panHandlers}
             >
-              <View style={styles.sliderTrack} />
+              <View style={[styles.sliderTrack, { backgroundColor: colors.borderTransparent }]} />
               {TEXT_SIZE_OPTIONS.map((option, index) => {
                 const isSelected = currentTextSize === option.id;
                 const position = (index / (TEXT_SIZE_OPTIONS.length - 1)) * 100;
@@ -349,13 +393,18 @@ export default function SettingsScreen() {
                   >
                     <Text style={[
                       styles.sliderPointLabel,
-                      { fontSize: option.fontSize * 0.8, lineHeight: option.fontSize * 0.8 + 4 }
+                      { 
+                        fontSize: option.fontSize * 0.8, 
+                        lineHeight: option.fontSize * 0.8 + 4,
+                        color: colors.textTertiary,
+                      }
                     ]}>
                       A
                     </Text>
                     <View style={styles.sliderPointDot}>
                       <View style={[
                         styles.sliderDotInner,
+                        { backgroundColor: colors.borderTransparent },
                         isSelected && styles.sliderDotInnerActive,
                       ]} />
                     </View>
@@ -367,26 +416,27 @@ export default function SettingsScreen() {
                 styles.sliderThumb,
                 { 
                   left: `${(getCurrentIndex() / (TEXT_SIZE_OPTIONS.length - 1)) * 100}%`,
+                  borderColor: colors.surface,
                 }
               ]} />
             </View>
-            <Text style={[styles.sliderLabel, { fontSize: 18 }]}>A</Text>
+            <Text style={[styles.sliderLabel, { fontSize: 18, color: colors.textTertiary }]}>A</Text>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>TTS Voices</Text>
-          <Text style={styles.sectionDescription}>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>TTS Voices</Text>
+          <Text style={[styles.sectionDescription, { color: colors.textTertiary }]}>
             Voices marked with a checkmark are available for text-to-speech output.
           </Text>
         </View>
 
         {ttsVoices.map((voice) => (
-          <View key={voice.code} style={styles.languageItem}>
+          <View key={voice.code} style={[styles.languageItem, { borderBottomColor: colors.border }]}>
             <View style={styles.languageInfo}>
-              <Text style={styles.languageName}>{voice.name}</Text>
+              <Text style={[styles.languageName, { color: colors.text }]}>{voice.name}</Text>
               {voice.isDefault && (
-                <Text style={styles.defaultLabel}>Default</Text>
+                <Text style={[styles.defaultLabel, { backgroundColor: colors.button }]}>Default</Text>
               )}
             </View>
             
@@ -407,7 +457,7 @@ export default function SettingsScreen() {
                 </View>
               ) : (
                 <TouchableOpacity
-                  style={styles.downloadButton}
+                  style={[styles.downloadButton, { backgroundColor: colors.button }]}
                   onPress={() => enableTTSVoice(voice.code)}
                 >
                   <Download size={20} color="#007AFF" />
@@ -419,8 +469,8 @@ export default function SettingsScreen() {
         ))}
       </ScrollView>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
+      <View style={[styles.footer, { borderTopColor: colors.border }]}>
+        <Text style={[styles.footerText, { color: colors.textTertiary }]}>
           💡 Tip: Adjust text size for better readability and download TTS voices to hear translations in different languages.
         </Text>
       </View>
@@ -431,7 +481,6 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   loadingContainer: {
     flex: 1,
@@ -439,7 +488,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#FFF',
     fontSize: 16,
     marginTop: 16,
   },
@@ -455,7 +503,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -465,7 +512,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFF',
     flex: 1,
     textAlign: 'center',
   },
@@ -473,11 +519,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   headerSubtitle: {
     fontSize: 16,
-    color: '#999',
     textAlign: 'center',
   },
   scrollView: {
@@ -490,12 +534,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#FFF',
     marginBottom: 8,
   },
   sectionDescription: {
     fontSize: 14,
-    color: '#999',
     lineHeight: 20,
   },
   languageItem: {
@@ -505,7 +547,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   languageInfo: {
     flex: 1,
@@ -514,13 +555,11 @@ const styles = StyleSheet.create({
   },
   languageName: {
     fontSize: 16,
-    color: '#FFF',
     fontWeight: '500',
   },
   defaultLabel: {
     fontSize: 12,
     color: '#007AFF',
-    backgroundColor: '#1A1A1A',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -541,7 +580,6 @@ const styles = StyleSheet.create({
   downloadButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A1A1A',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -556,11 +594,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: '#333',
   },
   footerText: {
     fontSize: 14,
-    color: '#999',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -569,7 +605,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   textSizeHeader: {
     flexDirection: 'row',
@@ -579,7 +614,6 @@ const styles = StyleSheet.create({
   },
   currentSizeLabel: {
     fontSize: 16,
-    color: '#FFF',
     fontWeight: '600',
   },
   sliderContainer: {
@@ -590,7 +624,6 @@ const styles = StyleSheet.create({
   },
   sliderLabel: {
     fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.6)',
     fontWeight: '500',
   },
   slider: {
@@ -604,7 +637,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     borderRadius: 1,
     top: '50%',
     marginTop: -1,
@@ -620,7 +652,6 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   sliderPointLabel: {
-    color: 'rgba(255, 255, 255, 0.7)',
     fontWeight: '500',
     textAlign: 'center',
   },
@@ -644,7 +675,6 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
   },
   sliderDotActive: {
     // Active dot container styles if needed
@@ -663,7 +693,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#007AFF',
     borderWidth: 3,
-    borderColor: '#FFF',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -679,5 +708,48 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
     textAlign: 'center',
     marginTop: 10,
+  },
+  // Theme Settings styles
+  themeContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderBottomWidth: 1,
+  },
+  themeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  themeLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    flex: 1,
+  },
+  themeToggle: {
+    width: 50,
+    height: 26,
+    borderRadius: 13,
+    padding: 2,
+    marginHorizontal: 12,
+    justifyContent: 'center',
+  },
+  themeToggleSlider: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  themeValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    minWidth: 80,
+    textAlign: 'right',
   },
 });

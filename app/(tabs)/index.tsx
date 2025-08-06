@@ -25,6 +25,7 @@ import { TTSVoiceManager } from '@/utils/LanguagePackManager';
 import { getLanguageDisplayName } from '@/utils/LanguageConfig';
 import { TranslationHistoryManager } from '@/utils/TranslationHistory';
 import { useTextSize } from '@/contexts/TextSizeContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 // Conversation message interface
 interface ConversationMessage {
@@ -55,6 +56,7 @@ export default function TranslatorScreen() {
   const { transcribeWav, isTranscribing, error: whisperError } = useSpeechToText();
   const { refreshTextSize, getTextSizeConfig } = useTextSize();
   const textSizeConfig = getTextSizeConfig();
+  const { colors } = useTheme();
   const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
   const [isStreamingToTop, setIsStreamingToTop] = useState(false);
 
@@ -337,7 +339,7 @@ export default function TranslatorScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style="light" />
       
       {/* Header with Settings Button */}
@@ -348,7 +350,9 @@ export default function TranslatorScreen() {
             {
               width: Math.max(44, textSizeConfig.fontSize * 3.0),
               height: Math.max(44, textSizeConfig.fontSize * 3.0),
-              borderRadius: Math.max(22, textSizeConfig.fontSize * 1.5)
+              borderRadius: Math.max(22, textSizeConfig.fontSize * 1.5),
+              backgroundColor: colors.headerButton,
+              borderColor: colors.headerButtonBorder,
             }
           ]}
           onPress={() => {
@@ -366,7 +370,9 @@ export default function TranslatorScreen() {
             {
               width: Math.max(44, textSizeConfig.fontSize * 3.0),
               height: Math.max(44, textSizeConfig.fontSize * 3.0),
-              borderRadius: Math.max(22, textSizeConfig.fontSize * 1.5)
+              borderRadius: Math.max(22, textSizeConfig.fontSize * 1.5),
+              backgroundColor: colors.headerButton,
+              borderColor: colors.headerButtonBorder,
             }
           ]}
           onPress={() => {
@@ -376,7 +382,7 @@ export default function TranslatorScreen() {
           }}
           activeOpacity={0.7}
         >
-          <Settings size={Math.max(20, textSizeConfig.fontSize * 1.4)} color="#FFF" />
+          <Settings size={Math.max(20, textSizeConfig.fontSize * 1.4)} color={colors.buttonText} />
         </TouchableOpacity>
       </View>
       
@@ -390,7 +396,7 @@ export default function TranslatorScreen() {
       )}
       
       {/* Top Section (Rotated 180 degrees) */}
-      <View style={[styles.section, styles.topSection]}>
+      <View style={[styles.section, styles.topSection, { backgroundColor: colors.surface }]}>
         <View style={styles.rotatedContent}>
           <View style={styles.topLanguageSelectorContainer}>
             <LanguageSelector
@@ -419,14 +425,14 @@ export default function TranslatorScreen() {
               onPressOut={() => handleStopRecording(true)}
               disabled={!modelsReady || isRecording || isBottomRecording}
             >
-              <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && !isRecording && !isBottomRecording) ? "white" : "#666"} />
+              <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && !isRecording && !isBottomRecording) ? colors.buttonText : colors.disabled} />
               {isTopRecording && <RecordingIndicator />}
             </TouchableOpacity>
           </View>
         </View>
       </View>
       {/* Bottom Section */}
-      <View style={[styles.section, styles.bottomSection]}>
+      <View style={[styles.section, styles.bottomSection, { backgroundColor: colors.surface }]}>
         <View style={styles.bottomLanguageSelectorContainer}>
           <LanguageSelector
             selectedLanguage={bottomLanguage}
@@ -454,7 +460,7 @@ export default function TranslatorScreen() {
             onPressOut={() => handleStopRecording(false)}
             disabled={!modelsReady || isRecording || isTopRecording}
           >
-            <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && !isRecording && !isTopRecording) ? "white" : "#666"} />
+            <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && !isRecording && !isTopRecording) ? colors.buttonText : colors.disabled} />
             {isBottomRecording && <RecordingIndicator />}
           </TouchableOpacity>
         </View>
@@ -466,7 +472,6 @@ export default function TranslatorScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
     overflow: 'visible',
   },
   header: {
@@ -481,22 +486,18 @@ const styles = StyleSheet.create({
     pointerEvents: 'box-none', // Allow touch events to pass through to children
   },
   historyButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
     pointerEvents: 'auto', // Ensure button itself is touchable
   },
   historyButtonText: {
     // fontSize will be set dynamically
   },
   settingsButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
     pointerEvents: 'auto', // Ensure button itself is touchable
   },
   modelStatusContainer: {
@@ -525,7 +526,6 @@ const styles = StyleSheet.create({
   },
   topSection: {
     flex: 1.1,
-    backgroundColor: '#101010',
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     paddingTop: 50, // Extra padding for the rotated top section
@@ -534,7 +534,6 @@ const styles = StyleSheet.create({
   },
   bottomSection: {
     flex: 1.05,
-    backgroundColor: '#101010',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 3, // Add top padding to balance

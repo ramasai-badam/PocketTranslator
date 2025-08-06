@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Volume2 } from 'lucide-react-native';
 import { useTextSize } from '../contexts/TextSizeContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface ConversationMessage {
   id: string;
@@ -30,6 +31,7 @@ export default function TranslationDisplay({
 }: TranslationDisplayProps) {
   const { getTextSizeConfig } = useTextSize();
   const textSizeConfig = getTextSizeConfig();
+  const { colors } = useTheme();
   
   const hasText = text && text !== 'Tap and hold the microphone to start speaking...';
   
@@ -44,7 +46,11 @@ export default function TranslationDisplay({
       <Text style={[
         styles.messageText, 
         isRotated && styles.rotatedText,
-        { fontSize: textSizeConfig.fontSize, lineHeight: textSizeConfig.lineHeight }
+        { 
+          fontSize: textSizeConfig.fontSize, 
+          lineHeight: textSizeConfig.lineHeight,
+          color: colors.textSecondary,
+        }
       ]}>
         {message.text}
       </Text>
@@ -55,7 +61,9 @@ export default function TranslationDisplay({
             { 
               width: Math.max(24, textSizeConfig.fontSize * 1.2),
               height: Math.max(24, textSizeConfig.fontSize * 1.2),
-              borderRadius: Math.max(12, textSizeConfig.fontSize * 0.6)
+              borderRadius: Math.max(12, textSizeConfig.fontSize * 0.6),
+              backgroundColor: colors.button,
+              borderColor: colors.buttonBorder,
             }
           ]} 
           onPress={() => handleSpeak(message.text, message.language)}
@@ -63,7 +71,7 @@ export default function TranslationDisplay({
         >
           <Volume2 
             size={Math.max(12, textSizeConfig.fontSize * 0.7)} 
-            color={isSpeaking ? "#666" : "#fff"} 
+            color={isSpeaking ? colors.disabled : colors.buttonText} 
           />
         </TouchableOpacity>
       )}
@@ -72,7 +80,12 @@ export default function TranslationDisplay({
 
   return (
     <ScrollView 
-      style={styles.container}
+      style={[
+        styles.container,
+        {
+          backgroundColor: colors.translationBackground,
+        }
+      ]}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={true}
     >
@@ -83,12 +96,23 @@ export default function TranslationDisplay({
       
       {/* Current/Streaming Text - only show if we have current text */}
       {hasText && (
-        <View style={[styles.currentMessageContainer, conversationHistory.length > 0 && styles.currentMessageWithHistory]}>
+        <View style={[
+          styles.currentMessageContainer, 
+          conversationHistory.length > 0 && styles.currentMessageWithHistory,
+          {
+            backgroundColor: colors.currentMessageBackground,
+            borderColor: colors.translationBorder,
+          }
+        ]}>
           <View style={styles.textContainer}>
             <Text style={[
               styles.currentText, 
               isRotated && styles.rotatedText,
-              { fontSize: textSizeConfig.fontSize + 2, lineHeight: textSizeConfig.lineHeight + 4 } // Slightly larger for current text
+              { 
+                fontSize: textSizeConfig.fontSize + 2, 
+                lineHeight: textSizeConfig.lineHeight + 4,
+                color: colors.text,
+              }
             ]}>
               {text}
             </Text>
@@ -99,7 +123,9 @@ export default function TranslationDisplay({
                   { 
                     width: Math.max(28, textSizeConfig.fontSize * 1.4),
                     height: Math.max(28, textSizeConfig.fontSize * 1.4),
-                    borderRadius: Math.max(14, textSizeConfig.fontSize * 0.7)
+                    borderRadius: Math.max(14, textSizeConfig.fontSize * 0.7),
+                    backgroundColor: colors.button,
+                    borderColor: colors.buttonBorder,
                   }
                 ]} 
                 onPress={() => handleSpeak(text)}
@@ -107,7 +133,7 @@ export default function TranslationDisplay({
               >
                 <Volume2 
                   size={Math.max(14, textSizeConfig.fontSize * 0.8)} 
-                  color={isSpeaking ? "#666" : "#fff"} 
+                  color={isSpeaking ? colors.disabled : colors.buttonText} 
                 />
               </TouchableOpacity>
             )}
@@ -121,7 +147,11 @@ export default function TranslationDisplay({
           <Text style={[
             styles.placeholderText, 
             isRotated && styles.rotatedText,
-            { fontSize: textSizeConfig.fontSize, lineHeight: textSizeConfig.lineHeight }
+            { 
+              fontSize: textSizeConfig.fontSize, 
+              lineHeight: textSizeConfig.lineHeight,
+              color: colors.placeholderText,
+            }
           ]}>
             Tap and hold the microphone to start speaking...
           </Text>
@@ -134,7 +164,6 @@ export default function TranslationDisplay({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderRadius: 16,
     padding: 8,
     marginVertical: 10,
@@ -153,15 +182,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   messageText: {
-    color: 'rgba(255, 255, 255, 0.9)',
     flexShrink: 1,
   },
   messageSpeakerButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.25)',
   },
   messageType: {
     color: 'rgba(255, 255, 255, 0.6)',
@@ -170,11 +196,9 @@ const styles = StyleSheet.create({
   },
   // Current message styles
   currentMessageContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
     borderRadius: 12,
     padding: 12,
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   currentMessageWithHistory: {
     marginTop: 8,
@@ -185,14 +209,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   currentText: {
-    color: 'white',
     textAlign: 'left',
     flexShrink: 1,
     fontWeight: '500',
   },
   // Legacy text style (keeping for compatibility)
   text: {
-    color: 'white',
     textAlign: 'left',
     flexShrink: 1,
   },
@@ -200,11 +222,9 @@ const styles = StyleSheet.create({
     // Text is already rotated by parent container
   },
   speakerButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   // Placeholder styles
   placeholderContainer: {
@@ -214,7 +234,6 @@ const styles = StyleSheet.create({
     minHeight: 80,
   },
   placeholderText: {
-    color: 'rgba(255, 255, 255, 0.6)',
     textAlign: 'center',
     fontStyle: 'italic',
   },

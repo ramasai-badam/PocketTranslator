@@ -14,14 +14,19 @@ export const TEXT_SIZE_OPTIONS = [
 
 export type TextSizeId = typeof TEXT_SIZE_OPTIONS[number]['id'];
 
+// Theme options
+export type ThemeMode = 'light' | 'dark';
+
 // Settings interface
 export interface UserSettings {
   textSize: TextSizeId;
+  theme: ThemeMode;
 }
 
 // Default settings
 const DEFAULT_SETTINGS: UserSettings = {
   textSize: 'large', // Default to current size (18px)
+  theme: 'dark', // Default to dark theme (current)
 };
 
 export class SettingsManager {
@@ -76,6 +81,29 @@ export class SettingsManager {
   // Get text size configuration
   static getTextSizeConfig(textSizeId: TextSizeId) {
     return TEXT_SIZE_OPTIONS.find(option => option.id === textSizeId) || TEXT_SIZE_OPTIONS[2]; // Default to 'large'
+  }
+
+  // Get theme setting
+  static async getTheme(): Promise<ThemeMode> {
+    try {
+      const settings = await this.getSettings();
+      return settings.theme;
+    } catch (error) {
+      console.error('Failed to get theme:', error);
+      return DEFAULT_SETTINGS.theme;
+    }
+  }
+
+  // Save theme setting
+  static async setTheme(theme: ThemeMode): Promise<void> {
+    try {
+      const currentSettings = await this.getSettings();
+      const updatedSettings = { ...currentSettings, theme };
+      await this.saveSettings(updatedSettings);
+    } catch (error) {
+      console.error('Failed to set theme:', error);
+      throw error;
+    }
   }
 
   // Clear all settings
