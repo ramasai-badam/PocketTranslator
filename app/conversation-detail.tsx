@@ -61,9 +61,12 @@ export default function ConversationDetailScreen() {
   useEffect(() => {
     // Defer heavy operations to allow screen to render first
     const loadData = async () => {
-      await loadConversationEntries();
-      // Mark initial render complete after data loads
-      setTimeout(() => setIsInitialRender(false), 50);
+      // Use InteractionManager to wait for animations to complete
+      requestAnimationFrame(() => {
+        loadConversationEntries();
+      });
+      // Mark initial render complete after a shorter delay
+      setTimeout(() => setIsInitialRender(false), 16); // Single frame delay
     };
     
     loadData();
@@ -91,7 +94,7 @@ export default function ConversationDetailScreen() {
         const entryIndex = entries.findIndex(entry => entry.id === highlightTranslationId);
         
         if (entryIndex !== -1) {
-          // Scroll to the item with optimized timing
+          // Scroll to the item with optimized timing - faster for smoother transition
           setTimeout(() => {
             try {
               flatListRef.current?.scrollToIndex({ 
@@ -110,9 +113,9 @@ export default function ConversationDetailScreen() {
                 animated: true 
               });
             }
-          }, 150);
+          }, 100); // Faster scroll timing
           
-          // Start animations after scroll
+          // Start animations after scroll - reduced delay for snappier feel
           setTimeout(() => {
             // Reset opacity value
             highlightOpacity.setValue(0.98);
@@ -122,29 +125,29 @@ export default function ConversationDetailScreen() {
               // JS driver animations
               Animated.timing(borderColorAnim, {
                 toValue: 1,
-                duration: 600,
+                duration: 400, // Slightly faster animation
                 useNativeDriver: false, // Required for color/shadow
               }),
               Animated.timing(highlightOpacity, {
                 toValue: 1,
-                duration: 300,
+                duration: 200, // Faster opacity change
                 useNativeDriver: false, // Required for opacity in JS-driven view
               }),
               // Native driver animation (separate)
               Animated.sequence([
                 Animated.timing(highlightScale, {
                   toValue: 1.03,
-                  duration: 300,
+                  duration: 200, // Faster scale animation
                   useNativeDriver: true, // Safe for transform
                 }),
                 Animated.timing(highlightScale, {
                   toValue: 1,
-                  duration: 400,
+                  duration: 300,
                   useNativeDriver: true,
                 }),
               ]),
             ]).start();
-          }, 250);
+          }, 150); // Reduced delay for faster perceived performance
         }
         
         // Remove highlight after 3.5 seconds
@@ -298,9 +301,9 @@ export default function ConversationDetailScreen() {
         // Sort entries by timestamp (newest first)
         const sortedEntries = filteredEntries.sort((a, b) => b.timestamp - a.timestamp);
         
-        // Store all entries and display first page with reduced initial batch
+        // Store all entries and display smaller initial batch for faster rendering
         setAllEntries(sortedEntries);
-        const initialBatch = sortedEntries.slice(0, Math.min(ITEMS_PER_PAGE, 10)); // Start with max 10 items
+        const initialBatch = sortedEntries.slice(0, Math.min(ITEMS_PER_PAGE, 5)); // Even smaller initial batch
         setEntries(initialBatch);
         setCurrentPage(1);
       }
@@ -308,8 +311,11 @@ export default function ConversationDetailScreen() {
       console.error('Failed to load conversation entries:', error);
       Alert.alert('Error', 'Failed to load conversation details');
     } finally {
-      setIsLoading(false);
-      setRefreshing(false);
+      // Use requestAnimationFrame to defer state updates
+      requestAnimationFrame(() => {
+        setIsLoading(false);
+        setRefreshing(false);
+      });
     }
   };
 
@@ -318,7 +324,8 @@ export default function ConversationDetailScreen() {
     
     setLoadingMore(true);
     
-    setTimeout(() => {
+    // Use requestAnimationFrame for smoother updates
+    requestAnimationFrame(() => {
       const nextPage = currentPage + 1;
       const startIndex = 0;
       const endIndex = nextPage * ITEMS_PER_PAGE;
@@ -326,8 +333,10 @@ export default function ConversationDetailScreen() {
       
       setEntries(newEntries);
       setCurrentPage(nextPage);
-      setLoadingMore(false);
-    }, 300);
+      
+      // Defer loading state reset for smooth UI
+      setTimeout(() => setLoadingMore(false), 100);
+    });
   };
 
   const onRefresh = () => {
@@ -599,6 +608,27 @@ export default function ConversationDetailScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar style={colors.background === '#1a1a1a' ? 'light' : 'dark'} />
+        {/* Show header immediately for better perceived performance */}
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={[styles.backButton, { backgroundColor: colors.surfaceTransparent }]}
+            onPress={() => router.back()}
+          >
+            <ArrowLeft size={24 * scale} color={colors.text} />
+          </TouchableOpacity>
+          <View style={styles.headerTitleContainer}>
+            <Text style={[styles.headerTitle, { color: colors.text, fontSize: 18 * scale }]}>{displayName}</Text>
+            <Text style={[styles.headerSubtitle, { color: colors.textSecondary, fontSize: 12 * scale }]}>
+              Loading translations...
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={[styles.clearButton, { backgroundColor: colors.surfaceTransparent }]}
+            disabled={true}
+          >
+            <Trash2 size={20 * scale} color={colors.disabled} />
+          </TouchableOpacity>
+        </View>
         <View style={styles.loadingContainer}>
           <Text style={[styles.loadingText, { color: colors.text, fontSize: 16 * scale }]}>Loading conversation...</Text>
         </View>
@@ -649,11 +679,11 @@ export default function ConversationDetailScreen() {
         onEndReachedThreshold={0.3}
         ListEmptyComponent={renderEmpty}
         ListFooterComponent={renderFooter}
-        removeClippedSubviews={false}
-        maxToRenderPerBatch={5} // Reduced for smoother initial render
-        windowSize={8} // Smaller window for better performance
-        initialNumToRender={5} // Start with fewer items for faster initial render
-        updateCellsBatchingPeriod={100} // Slower batching to avoid blocking UI
+        removeClippedSubviews={true} // Enable for better performance
+        maxToRenderPerBatch={3} // Smaller batches for smoother scrolling
+        windowSize={6} // Smaller window for faster initial render
+        initialNumToRender={3} // Start with even fewer items for instant rendering
+        updateCellsBatchingPeriod={50} // Faster batching for responsiveness
         getItemLayout={(data, index) => ({
           length: 200, // Estimated item height
           offset: 200 * index,
@@ -662,9 +692,12 @@ export default function ConversationDetailScreen() {
         maintainVisibleContentPosition={{
           minIndexForVisible: 0,
         }}
+        // Add lazy rendering optimization
+        disableVirtualization={false}
+        legacyImplementation={false}
         onScrollToIndexFailed={(info) => {
           // Handle scroll to index failure with optimized fallback
-          const wait = new Promise(resolve => setTimeout(resolve, 100));
+          const wait = new Promise(resolve => setTimeout(resolve, 50)); // Faster fallback
           wait.then(() => {
             if (flatListRef.current && entries.length > 0) {
               const safeIndex = Math.min(info.index, entries.length - 1);
