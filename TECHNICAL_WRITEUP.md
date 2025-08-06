@@ -388,8 +388,8 @@ const speakTranslation = (text: string, language: string) => {
 ```typescript
 // TTS flow in the translation pipeline
 Speech Input → Whisper → Gemma 3n → Android TTS → Audio Output
-     ↓            ↓         ↓           ↓
-   148MB        2.8GB      0MB      System Native
+                  ↓            ↓         ↓           ↓
+                148MB        2.8GB      0MB      System Native
 ```
 
 **Language Mapping:**
