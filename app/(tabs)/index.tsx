@@ -140,10 +140,16 @@ export default function TranslatorScreen() {
   // Models are ready when hooks are loaded (lazy loading)
   const modelsReady = true;
 
-  const handleStartRecording = async (isTop: boolean) => {
+  const handleMicPress = async (isTop: boolean) => {
     try {
       // Haptic feedback for mic press
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid);
+      
+      // If currently recording on this side, stop recording
+      if ((isTop && isTopRecording) || (!isTop && isBottomRecording)) {
+        await handleStopRecording(isTop);
+        return;
+      }
       
       // Check if audio recording is initialized
       if (!isInitialized) {
@@ -151,9 +157,9 @@ export default function TranslatorScreen() {
         return;
       }
 
-      // Check if already recording
+      // Check if already recording on the other side
       if (isRecording) {
-        Alert.alert('Recording Error', 'Already recording. Please stop the current recording first.');
+        Alert.alert('Recording Error', 'Already recording on the other side. Please stop that recording first.');
         return;
       }
 
@@ -419,13 +425,12 @@ export default function TranslatorScreen() {
               style={[
                 styles.micButton, 
                 isTopRecording && styles.recordingButton,
-                (!modelsReady || isRecording || isBottomRecording) && styles.disabledButton
+                (!modelsReady || (isRecording && !isTopRecording)) && styles.disabledButton
               ]}
-              onPressIn={() => handleStartRecording(true)}
-              onPressOut={() => handleStopRecording(true)}
-              disabled={!modelsReady || isRecording || isBottomRecording}
+              onPress={() => handleMicPress(true)}
+              disabled={!modelsReady || (isRecording && !isTopRecording)}
             >
-              <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && !isRecording && !isBottomRecording) ? colors.buttonText : colors.disabled} />
+              <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && (!isRecording || isTopRecording)) ? colors.buttonText : colors.disabled} />
               {isTopRecording && <RecordingIndicator />}
             </TouchableOpacity>
           </View>
@@ -454,13 +459,12 @@ export default function TranslatorScreen() {
             style={[
               styles.micButton, 
               isBottomRecording && styles.recordingButton,
-              (!modelsReady || isRecording || isTopRecording) && styles.disabledButton
+              (!modelsReady || (isRecording && !isBottomRecording)) && styles.disabledButton
             ]}
-            onPressIn={() => handleStartRecording(false)}
-            onPressOut={() => handleStopRecording(false)}
-            disabled={!modelsReady || isRecording || isTopRecording}
+            onPress={() => handleMicPress(false)}
+            disabled={!modelsReady || (isRecording && !isBottomRecording)}
           >
-            <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && !isRecording && !isTopRecording) ? colors.buttonText : colors.disabled} />
+            <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && (!isRecording || isBottomRecording)) ? colors.buttonText : colors.disabled} />
             {isBottomRecording && <RecordingIndicator />}
           </TouchableOpacity>
         </View>
