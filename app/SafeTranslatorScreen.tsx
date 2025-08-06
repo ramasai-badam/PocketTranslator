@@ -29,11 +29,23 @@ export default function SafeTranslatorScreen() {
 
       {/* Language Selection */}
       <View style={styles.languageContainer}>
-        <TouchableOpacity style={styles.languageButton}>
+        <TouchableOpacity 
+          style={styles.languageButton}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={`Source language: ${sourceLanguage}`}
+          accessibilityHint="Tap to change source language"
+        >
           <Text style={styles.languageText}>{sourceLanguage}</Text>
         </TouchableOpacity>
-        <Text style={styles.arrowText}>→</Text>
-        <TouchableOpacity style={styles.languageButton}>
+        <Text style={styles.arrowText} accessible={false}>→</Text>
+        <TouchableOpacity 
+          style={styles.languageButton}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={`Target language: ${targetLanguage}`}
+          accessibilityHint="Tap to change target language"
+        >
           <Text style={styles.languageText}>{targetLanguage}</Text>
         </TouchableOpacity>
       </View>
@@ -50,6 +62,11 @@ export default function SafeTranslatorScreen() {
         <TouchableOpacity 
           style={[styles.recordButton, isRecording && styles.recordingButton]}
           onPress={handleRecord}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel={isRecording ? 'Stop recording' : 'Start recording'}
+          accessibilityHint={isRecording ? 'Tap to stop voice recording' : 'Tap to start voice recording'}
+          accessibilityState={{ selected: isRecording }}
         >
           <Text style={styles.recordButtonText}>
             {isRecording ? '⏹️ Stop' : '🎤 Record'}
@@ -66,7 +83,14 @@ export default function SafeTranslatorScreen() {
           </Text>
         </View>
         
-        <TouchableOpacity style={styles.translateButton} onPress={handleTranslate}>
+        <TouchableOpacity 
+          style={styles.translateButton} 
+          onPress={handleTranslate}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Translate text"
+          accessibilityHint="Tap to translate the input text"
+        >
           <Text style={styles.translateButtonText}>Translate</Text>
         </TouchableOpacity>
       </View>

@@ -87,6 +87,10 @@ const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState, c
                 style={[dynamicStyles.wordButton, { backgroundColor: colors.surfaceTransparent, borderColor: colors.borderTransparent }]}
                 onPress={() => handleSpellWord(part, languageCode)}
                 activeOpacity={0.7}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel={`Spell word: ${part}`}
+                accessibilityHint="Tap to hear this word spelled out"
               >
                 <Text style={[dynamicStyles.interactiveWord, { color: colors.text, fontSize: fonts.primary }]}>{part}</Text>
               </TouchableOpacity>
@@ -117,6 +121,10 @@ const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState, c
           <TouchableOpacity
             style={styles.breakdownButton}
             onPress={() => onBreakdown(item)}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Linguistic breakdown"
+            accessibilityHint="View detailed analysis of this translation"
           >
             <GraduationCap 
               size={Math.max(14, fonts.primary * 0.9)} 
@@ -130,6 +138,10 @@ const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState, c
           <TouchableOpacity
             style={styles.deleteButton}
             onPress={() => onDelete(vocabularyEntry.translationId)}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Delete vocabulary entry"
+            accessibilityHint="Remove this word from your vocabulary list"
           >
             <Trash2 size={Math.max(14, fonts.primary * 0.9)} color="#FF3B30" />
           </TouchableOpacity>
@@ -543,6 +555,10 @@ export default function VocabularyListScreen() {
         <TouchableOpacity
           style={[styles.backButton, { backgroundColor: colors.surfaceTransparent }]}
           onPress={() => router.back()}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          accessibilityHint="Returns to the previous screen"
         >
           <ArrowLeft size={Math.max(20, fonts.emphasized * 1.2)} color={colors.text} />
         </TouchableOpacity>
@@ -556,6 +572,11 @@ export default function VocabularyListScreen() {
           style={[styles.clearAllButton, { backgroundColor: colors.surfaceTransparent }]}
           onPress={handleClearAllVocabulary}
           disabled={vocabularyItems.length === 0}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Clear all vocabulary"
+          accessibilityHint="Remove all saved vocabulary words"
+          accessibilityState={{ disabled: vocabularyItems.length === 0 }}
         >
           <Trash2 size={Math.max(18, fonts.emphasized)} color={vocabularyItems.length > 0 ? "#FF3B30" : colors.disabled} />
         </TouchableOpacity>
@@ -616,12 +637,20 @@ export default function VocabularyListScreen() {
               <TouchableOpacity
                 style={[styles.deleteModalCancelButton, { backgroundColor: colors.surfaceTransparent }]}
                 onPress={cancelDeleteWord}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+                accessibilityHint="Cancel deletion and keep the vocabulary entry"
               >
                 <Text style={[styles.deleteModalCancelText, { color: colors.text, fontSize: fonts.primary }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.deleteModalConfirmButton}
                 onPress={confirmDeleteWord}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel="Delete"
+                accessibilityHint="Confirm deletion and remove the vocabulary entry"
               >
                 <Text style={[styles.deleteModalConfirmText, { fontSize: fonts.primary }]}>Delete</Text>
               </TouchableOpacity>

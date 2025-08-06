@@ -68,6 +68,11 @@ export default function TranslationDisplay({
           ]} 
           onPress={() => handleSpeak(message.text, message.language)}
           disabled={isSpeaking}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Speak this message"
+          accessibilityHint={`Tap to hear this ${message.type} spoken aloud`}
+          accessibilityState={{ disabled: isSpeaking }}
         >
           <Volume2 
             size={Math.max(12, textSizeConfig.fontSize * 0.7)} 
@@ -130,6 +135,11 @@ export default function TranslationDisplay({
                 ]} 
                 onPress={() => handleSpeak(text)}
                 disabled={isSpeaking}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel="Speak current text"
+                accessibilityHint="Tap to hear the current translation spoken aloud"
+                accessibilityState={{ disabled: isSpeaking }}
               >
                 <Volume2 
                   size={Math.max(14, textSizeConfig.fontSize * 0.8)} 

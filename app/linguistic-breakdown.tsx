@@ -329,7 +329,12 @@ export default function LinguisticBreakdownScreen() {
         <StatusBar style="light" />
         <View style={styles.errorContainer}>
           <Text style={[styles.errorText, { fontSize: fonts.primary }]}>{error}</Text>
-          <TouchableOpacity style={styles.retryButton} onPress={() => performLinguisticAnalysis()}>
+          <TouchableOpacity style={styles.retryButton} onPress={() => performLinguisticAnalysis()}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Try again"
+            accessibilityHint="Retry the linguistic analysis"
+          >
             <Text style={[styles.retryButtonText, { fontSize: fonts.primary }]}>Try Again</Text>
           </TouchableOpacity>
         </View>
@@ -359,6 +364,10 @@ export default function LinguisticBreakdownScreen() {
         <TouchableOpacity
           style={[styles.backButton, { backgroundColor: colors.surfaceTransparent }]}
           onPress={handleBackPress}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          accessibilityHint="Returns to the previous screen"
         >
           <ArrowLeft size={Math.max(24, fonts.emphasized)} color={colors.text} />
         </TouchableOpacity>
@@ -394,6 +403,10 @@ export default function LinguisticBreakdownScreen() {
                   style={[styles.wordButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   onPress={() => handlePronounceToken(getTokenDisplayText(phrase, true), translatedLanguage)}
                   activeOpacity={0.7}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Pronounce ${getTokenDisplayText(phrase, true)}`}
+                  accessibilityHint={`Hear pronunciation in ${getLanguageDisplayName(translatedLanguage)}`}
                 >
                   <Text style={[styles.wordText, { color: colors.text, fontSize: fonts.emphasized }]}>
                     {getTokenDisplayText(phrase, true)}
@@ -405,6 +418,10 @@ export default function LinguisticBreakdownScreen() {
                   style={[styles.wordButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   onPress={() => handlePronounceToken(getTokenDisplayText(phrase, false), originalLanguage)}
                   activeOpacity={0.7}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Pronounce ${getTokenDisplayText(phrase, false)}`}
+                  accessibilityHint={`Hear pronunciation in ${getLanguageDisplayName(originalLanguage)}`}
                 >
                   <Text style={[styles.wordText, { color: colors.text, fontSize: fonts.emphasized }]}>
                     {getTokenDisplayText(phrase, false)}

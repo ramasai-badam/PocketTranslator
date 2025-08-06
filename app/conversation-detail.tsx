@@ -521,12 +521,20 @@ export default function ConversationDetailScreen() {
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => handleAddToVocabulary(entry)}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={savedEntries.has(entry.id) ? "Remove from vocabulary" : "Add to vocabulary"}
+              accessibilityHint={savedEntries.has(entry.id) ? "Remove this translation from your vocabulary list" : "Save this translation to your vocabulary list"}
             >
               <Bookmark size={Math.max(14, fonts.primary * 0.9)} color={savedEntries.has(entry.id) ? "#34C759" : "#FF3B30"} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => handleDeleteTranslation(entry.id)}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Delete translation"
+              accessibilityHint="Remove this translation from history"
             >
               <Trash2 size={Math.max(14, fonts.primary * 0.9)} color="#FF3B30" />
             </TouchableOpacity>
@@ -542,6 +550,10 @@ export default function ConversationDetailScreen() {
               <TouchableOpacity
                 style={styles.speakButton}
                 onPress={() => handleSpeak(entry.originalText, entry.fromLanguage)}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel="Speak original text"
+                accessibilityHint={`Hear the original text in ${getLanguageDisplayName(entry.fromLanguage)}`}
               >
                 <Volume2 size={Math.max(14, fonts.primary * 0.9)} color="#007AFF" />
               </TouchableOpacity>
@@ -558,6 +570,10 @@ export default function ConversationDetailScreen() {
             <TouchableOpacity
               style={styles.speakButton}
               onPress={() => handleSpeak(entry.translatedText, entry.toLanguage)}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel="Speak translated text"
+              accessibilityHint={`Hear the translation in ${getLanguageDisplayName(entry.toLanguage)}`}
             >
               <Volume2 size={Math.max(14, fonts.primary * 0.9)} color="#007AFF" />
             </TouchableOpacity>
@@ -624,6 +640,10 @@ export default function ConversationDetailScreen() {
           <TouchableOpacity
             style={[styles.backButton, { backgroundColor: colors.surfaceTransparent }]}
             onPress={() => router.back()}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
+            accessibilityHint="Returns to the previous screen"
           >
             <ArrowLeft size={Math.max(24, fonts.emphasized)} color={colors.text} />
           </TouchableOpacity>
@@ -636,6 +656,11 @@ export default function ConversationDetailScreen() {
           <TouchableOpacity
             style={[styles.clearButton, { backgroundColor: colors.surfaceTransparent }]}
             disabled={true}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Clear conversation"
+            accessibilityHint="Delete all translations in this conversation"
+            accessibilityState={{ disabled: true }}
           >
             <Trash2 size={Math.max(20, fonts.primary * 1.2)} color={colors.disabled} />
           </TouchableOpacity>
@@ -656,6 +681,10 @@ export default function ConversationDetailScreen() {
         <TouchableOpacity
           style={[styles.backButton, { backgroundColor: colors.surfaceTransparent }]}
           onPress={() => router.back()}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          accessibilityHint="Returns to the previous screen"
         >
           <ArrowLeft size={Math.max(24, fonts.emphasized)} color={colors.text} />
         </TouchableOpacity>
@@ -670,6 +699,11 @@ export default function ConversationDetailScreen() {
           style={[styles.clearButton, { backgroundColor: colors.surfaceTransparent }]}
           onPress={handleClearConversation}
           disabled={entries.length === 0}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Clear conversation"
+          accessibilityHint="Delete all translations in this conversation"
+          accessibilityState={{ disabled: entries.length === 0 }}
         >
           <Trash2 size={Math.max(20, fonts.primary * 1.2)} color={entries.length > 0 ? "#FF3B30" : colors.disabled} />
         </TouchableOpacity>
@@ -772,12 +806,20 @@ export default function ConversationDetailScreen() {
               <TouchableOpacity
                 style={styles.deleteModalCancelButton}
                 onPress={cancelDelete}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel"
+                accessibilityHint="Cancel the deletion"
               >
                 <Text style={[styles.deleteModalCancelText, { fontSize: fonts.primary }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.deleteModalConfirmButton}
                 onPress={confirmDelete}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel={deleteTarget?.type === 'translation' ? 'Delete translation' : 'Clear conversation'}
+                accessibilityHint={deleteTarget?.type === 'translation' ? 'Confirm deletion of this translation' : 'Confirm deletion of all translations in this conversation'}
               >
                 <Text style={[styles.deleteModalConfirmText, { fontSize: fonts.primary }]}>
                   {deleteTarget?.type === 'translation' ? 'Delete' : 'Clear All'}

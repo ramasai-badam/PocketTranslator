@@ -6,6 +6,7 @@ import {
   Dimensions,
   TouchableOpacity,
   Alert,
+  AccessibilityInfo,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Mic, MicOff, Square, Settings } from 'lucide-react-native';
@@ -26,6 +27,7 @@ import { getLanguageDisplayName } from '@/utils/LanguageConfig';
 import { TranslationHistoryManager } from '@/utils/TranslationHistory';
 import { useTextSize } from '@/contexts/TextSizeContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { AccessibilityManager } from '@/utils/AccessibilityConfig';
 
 // Conversation message interface
 interface ConversationMessage {
@@ -70,8 +72,20 @@ export default function TranslatorScreen() {
 
   // Cleanup TTS on component unmount
   useEffect(() => {
+    // Initialize accessibility manager
+    const accessibilityManager = AccessibilityManager.getInstance();
+    accessibilityManager.initialize();
+    
+    // Announce app ready state
+    setTimeout(() => {
+      accessibilityManager.announceForAccessibility(
+        AccessibilityManager.Messages.APP_READY()
+      );
+    }, 1000);
+    
     return () => {
       Speech.stop();
+      accessibilityManager.cleanup();
     };
   }, []);
 
@@ -187,6 +201,11 @@ export default function TranslatorScreen() {
       }
       
       await startRecording();
+      
+      // Announce recording start to screen readers
+      AccessibilityInfo.announceForAccessibility(
+        `Recording started for ${getLanguageDisplayName(isTop ? topLanguage : bottomLanguage)}`
+      );
     } catch (error) {
      console.error('Recording start error:', error);
       Alert.alert('Recording Error', 'Failed to start recording');
@@ -235,6 +254,13 @@ export default function TranslatorScreen() {
           setTopText(''); // Clear opposite side before translation
         }
 
+        // Announce transcription completion
+        if (!errorMsg && speechText) {
+          AccessibilityInfo.announceForAccessibility('Speech transcribed. Starting translation.');
+        } else {
+          AccessibilityInfo.announceForAccessibility('Transcription failed.');
+        }
+
         // Add transcription to conversation history
         if (!errorMsg && speechText) {
           addToConversationHistory(isTop, speechText, 'transcription', fromLang);
@@ -265,6 +291,11 @@ export default function TranslatorScreen() {
             // Save to history: bottom side spoke (user2), translation goes to top
             await saveToHistory(speechText, translatedText, fromLang, toLang, 'user2');
           }
+          
+          // Announce translation completion
+          AccessibilityInfo.announceForAccessibility(
+            `Translation completed to ${getLanguageDisplayName(toLang)}`
+          );
         }
       }
     } catch (error) {
@@ -372,6 +403,10 @@ export default function TranslatorScreen() {
             });
           }}
           activeOpacity={0.7}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Translation History"
+          accessibilityHint="Opens the translation history screen"
         >
           <Text style={[styles.historyButtonText, { fontSize: Math.max(18, textSizeConfig.fontSize * 1.4) }]}>📚</Text>
         </TouchableOpacity>
@@ -392,6 +427,10 @@ export default function TranslatorScreen() {
             });
           }}
           activeOpacity={0.7}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          accessibilityHint="Opens the settings screen"
         >
           <Settings size={Math.max(20, textSizeConfig.fontSize * 1.4)} color={colors.buttonText} />
         </TouchableOpacity>
@@ -407,7 +446,11 @@ export default function TranslatorScreen() {
       )}
       
       {/* Top Section (Rotated 180 degrees) */}
-      <View style={[styles.section, styles.topSection, { backgroundColor: colors.surface }]}>
+      <View 
+        style={[styles.section, styles.topSection, { backgroundColor: colors.surface }]}
+        accessible={true}
+        accessibilityLabel={`Top translation section for ${getLanguageDisplayName(topLanguage)}`}
+      >
         <View style={styles.rotatedContent}>
           <View style={styles.topLanguageSelectorContainer}>
             <LanguageSelector
@@ -435,6 +478,26 @@ export default function TranslatorScreen() {
               ]}
               onPress={() => handleMicPress(true)}
               disabled={!modelsReady || (isRecording && !isTopRecording) || (recordingInitiatedByTop === true && (isTranscribing || isTranslating))}
+              accessible={true}
+              accessibilityRole="button"
+              accessibilityLabel={
+                isTopRecording 
+                  ? "Stop recording" 
+                  : (recordingInitiatedByTop === true && (isTranscribing || isTranslating))
+                    ? "Processing speech"
+                    : "Start recording for top language"
+              }
+              accessibilityHint={
+                isTopRecording 
+                  ? "Tap to stop recording and translate" 
+                  : (recordingInitiatedByTop === true && (isTranscribing || isTranslating))
+                    ? "Please wait while processing"
+                    : `Tap to start recording in ${getLanguageDisplayName(topLanguage)}`
+              }
+              accessibilityState={{
+                disabled: !modelsReady || (isRecording && !isTopRecording) || (recordingInitiatedByTop === true && (isTranscribing || isTranslating)),
+                busy: recordingInitiatedByTop === true && (isTranscribing || isTranslating)
+              }}
             >
               {isTopRecording ? (
                 <Square size={Math.max(24, textSizeConfig.fontSize * 1.4)} color={colors.buttonText} />
@@ -451,7 +514,11 @@ export default function TranslatorScreen() {
         </View>
       </View>
       {/* Bottom Section */}
-      <View style={[styles.section, styles.bottomSection, { backgroundColor: colors.surface }]}>
+      <View 
+        style={[styles.section, styles.bottomSection, { backgroundColor: colors.surface }]}
+        accessible={true}
+        accessibilityLabel={`Bottom translation section for ${getLanguageDisplayName(bottomLanguage)}`}
+      >
         <View style={styles.bottomLanguageSelectorContainer}>
           <LanguageSelector
             selectedLanguage={bottomLanguage}
@@ -478,6 +545,26 @@ export default function TranslatorScreen() {
             ]}
             onPress={() => handleMicPress(false)}
             disabled={!modelsReady || (isRecording && !isBottomRecording) || (recordingInitiatedByTop === false && (isTranscribing || isTranslating))}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel={
+              isBottomRecording 
+                ? "Stop recording" 
+                : (recordingInitiatedByTop === false && (isTranscribing || isTranslating))
+                  ? "Processing speech"
+                  : "Start recording for bottom language"
+            }
+            accessibilityHint={
+              isBottomRecording 
+                ? "Tap to stop recording and translate" 
+                : (recordingInitiatedByTop === false && (isTranscribing || isTranslating))
+                  ? "Please wait while processing"
+                  : `Tap to start recording in ${getLanguageDisplayName(bottomLanguage)}`
+            }
+            accessibilityState={{
+              disabled: !modelsReady || (isRecording && !isBottomRecording) || (recordingInitiatedByTop === false && (isTranscribing || isTranslating)),
+              busy: recordingInitiatedByTop === false && (isTranscribing || isTranslating)
+            }}
           >
             {isBottomRecording ? (
               <Square size={Math.max(24, textSizeConfig.fontSize * 1.4)} color={colors.buttonText} />

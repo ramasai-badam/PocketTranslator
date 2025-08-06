@@ -376,6 +376,10 @@ export default function SettingsScreen() {
         <TouchableOpacity
           style={[styles.backButton, { backgroundColor: colors.button }]}
           onPress={() => router.back()}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          accessibilityHint="Returns to the previous screen"
         >
           <ArrowLeft size={24} color={colors.buttonText} />
         </TouchableOpacity>

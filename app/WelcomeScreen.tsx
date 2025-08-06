@@ -217,7 +217,14 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
 
       <View style={styles.buttonContainer}>
         {!allDownloaded && !isProcessing && (
-          <TouchableOpacity style={[styles.downloadButton, { backgroundColor: colors.primary }]} onPress={startDownload}>
+          <TouchableOpacity 
+            style={[styles.downloadButton, { backgroundColor: colors.primary }]} 
+            onPress={startDownload}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Download AI models"
+            accessibilityHint="Tap to download speech recognition and translation models"
+          >
             <Text style={[styles.downloadButtonText, { color: colors.buttonText, fontSize: fonts.primary }]}>Download Models</Text>
           </TouchableOpacity>
         )}
@@ -233,7 +240,14 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
         {/* Continue to Translator button removed as requested */}
 
         {showSkip && !isProcessing && (
-          <TouchableOpacity style={styles.skipButton} onPress={onReady}>
+          <TouchableOpacity 
+            style={styles.skipButton} 
+            onPress={onReady}
+            accessible={true}
+            accessibilityRole="button"
+            accessibilityLabel="Skip download"
+            accessibilityHint="Tap to skip model download and proceed to translator"
+          >
             <Text style={[styles.skipText, { color: colors.textTertiary, fontSize: fonts.secondary }]}>Skip (For Testing)</Text>
           </TouchableOpacity>
         )}

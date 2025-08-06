@@ -35,6 +35,11 @@ export default function LanguageSelector({
         ]}
         onPress={() => setIsExpanded(!isExpanded)}
         activeOpacity={0.7}
+        accessible={true}
+        accessibilityRole="button"
+        accessibilityLabel={`Language selector. Currently selected: ${selectedLang?.nativeName || 'No language selected'}`}
+        accessibilityHint={isExpanded ? "Tap to close language options" : "Tap to open language options"}
+        accessibilityState={{ expanded: isExpanded }}
       >
         <Text style={[styles.selectedText, { fontSize: textConfig.fontSize, color: colors.buttonText }]}>
           {selectedLang?.nativeName || 'Select Language'}
@@ -84,6 +89,10 @@ export default function LanguageSelector({
                   onLanguageChange(language.code);
                   setIsExpanded(false);
                 }}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel={`Select ${language.nativeName} language`}
+                accessibilityState={{ selected: selectedLanguage === language.code }}
               >
                 <Text
                   style={[

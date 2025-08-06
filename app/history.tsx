@@ -387,6 +387,10 @@ export default function HistoryScreen() {
           style={[styles.tile, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={() => router.push('/translation-history')}
           activeOpacity={0.7}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="Translation History"
+          accessibilityHint="View your translation history"
         >
           <History size={49 * scale} color="#34C759" />
           <Text style={[styles.tileTitle, { color: colors.text, fontSize: 16 * scale }]}>History</Text>
@@ -396,6 +400,10 @@ export default function HistoryScreen() {
           style={[styles.tile, { backgroundColor: colors.surface, borderColor: colors.border }]}
           onPress={() => router.push('/vocabulary-list')}
           activeOpacity={0.7}
+          accessible={true}
+          accessibilityRole="button"
+          accessibilityLabel="My Vocabulary"
+          accessibilityHint="View your saved vocabulary words"
         >
           <BookOpen size={49 * scale} color="#34C759" />
           <Text style={[styles.tileTitle, { color: colors.text, fontSize: 16 * scale }]}>My Vocabulary</Text>
