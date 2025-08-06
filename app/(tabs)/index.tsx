@@ -152,6 +152,13 @@ export default function TranslatorScreen() {
     setBottomConversationHistory(tempHistory);
   };
 
+  const clearConversationHistory = () => {
+    setTopConversationHistory([]);
+    setBottomConversationHistory([]);
+    setTopText('');
+    setBottomText('');
+  };
+
   // Models are ready when hooks are loaded (lazy loading)
   const modelsReady = true;
 
@@ -175,6 +182,12 @@ export default function TranslatorScreen() {
       // Check if already recording on the other side
       if (isRecording) {
         Alert.alert('Recording Error', 'Already recording on the other side. Please stop that recording first.');
+        return;
+      }
+
+      // Check if any processing is happening (transcribing or translating)
+      if (isTranscribing || isTranslating) {
+        Alert.alert('Processing', 'Currently processing speech. Please wait for completion.');
         return;
       }
 
@@ -410,6 +423,7 @@ export default function TranslatorScreen() {
         >
           <Text style={[styles.historyButtonText, { fontSize: Math.max(18, textSizeConfig.fontSize * 1.4) }]}>📚</Text>
         </TouchableOpacity>
+        
         <TouchableOpacity
           style={[
             styles.settingsButton,
@@ -473,30 +487,30 @@ export default function TranslatorScreen() {
               style={[
                 styles.micButton, 
                 isTopRecording && styles.recordingButton,
+                (!modelsReady || (isRecording && !isTopRecording) || (isTranscribing || isTranslating && recordingInitiatedByTop !== true)) && styles.disabledButton,
                 (recordingInitiatedByTop === true && (isTranscribing || isTranslating)) && styles.processingButton,
-                (!modelsReady || (isRecording && !isTopRecording)) && styles.disabledButton
               ]}
               onPress={() => handleMicPress(true)}
-              disabled={!modelsReady || (isRecording && !isTopRecording) || (recordingInitiatedByTop === true && (isTranscribing || isTranslating))}
+              disabled={!modelsReady || (isRecording && !isTopRecording) || isTranscribing || isTranslating}
               accessible={true}
               accessibilityRole="button"
               accessibilityLabel={
                 isTopRecording 
                   ? "Stop recording" 
-                  : (recordingInitiatedByTop === true && (isTranscribing || isTranslating))
+                  : (isTranscribing || isTranslating)
                     ? "Processing speech"
                     : "Start recording for top language"
               }
               accessibilityHint={
                 isTopRecording 
                   ? "Tap to stop recording and translate" 
-                  : (recordingInitiatedByTop === true && (isTranscribing || isTranslating))
+                  : (isTranscribing || isTranslating)
                     ? "Please wait while processing"
                     : `Tap to start recording in ${getLanguageDisplayName(topLanguage)}`
               }
               accessibilityState={{
-                disabled: !modelsReady || (isRecording && !isTopRecording) || (recordingInitiatedByTop === true && (isTranscribing || isTranslating)),
-                busy: recordingInitiatedByTop === true && (isTranscribing || isTranslating)
+                disabled: !modelsReady || (isRecording && !isTopRecording) || isTranscribing || isTranslating,
+                busy: isTranscribing || isTranslating
               }}
             >
               {isTopRecording ? (
@@ -507,7 +521,7 @@ export default function TranslatorScreen() {
                   <RecordingIndicator />
                 </>
               ) : (
-                <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && !isRecording) ? colors.buttonText : colors.disabled} />
+                <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && !isRecording && !isTranscribing && !isTranslating) ? colors.buttonText : colors.disabled} />
               )}
             </TouchableOpacity>
           </View>
@@ -540,30 +554,30 @@ export default function TranslatorScreen() {
             style={[
               styles.micButton, 
               isBottomRecording && styles.recordingButton,
+              (!modelsReady || (isRecording && !isBottomRecording) || (isTranscribing || isTranslating && recordingInitiatedByTop !== false)) && styles.disabledButton,
               (recordingInitiatedByTop === false && (isTranscribing || isTranslating)) && styles.processingButton,
-              (!modelsReady || (isRecording && !isBottomRecording)) && styles.disabledButton
             ]}
             onPress={() => handleMicPress(false)}
-            disabled={!modelsReady || (isRecording && !isBottomRecording) || (recordingInitiatedByTop === false && (isTranscribing || isTranslating))}
+            disabled={!modelsReady || (isRecording && !isBottomRecording) || isTranscribing || isTranslating}
             accessible={true}
             accessibilityRole="button"
             accessibilityLabel={
               isBottomRecording 
                 ? "Stop recording" 
-                : (recordingInitiatedByTop === false && (isTranscribing || isTranslating))
+                : (isTranscribing || isTranslating)
                   ? "Processing speech"
                   : "Start recording for bottom language"
             }
             accessibilityHint={
               isBottomRecording 
                 ? "Tap to stop recording and translate" 
-                : (recordingInitiatedByTop === false && (isTranscribing || isTranslating))
+                : (isTranscribing || isTranslating)
                   ? "Please wait while processing"
                   : `Tap to start recording in ${getLanguageDisplayName(bottomLanguage)}`
             }
             accessibilityState={{
-              disabled: !modelsReady || (isRecording && !isBottomRecording) || (recordingInitiatedByTop === false && (isTranscribing || isTranslating)),
-              busy: recordingInitiatedByTop === false && (isTranscribing || isTranslating)
+              disabled: !modelsReady || (isRecording && !isBottomRecording) || isTranscribing || isTranslating,
+              busy: isTranscribing || isTranslating
             }}
           >
             {isBottomRecording ? (
@@ -574,7 +588,7 @@ export default function TranslatorScreen() {
                 <RecordingIndicator />
               </>
             ) : (
-              <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && !isRecording) ? colors.buttonText : colors.disabled} />
+              <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && !isRecording && !isTranscribing && !isTranslating) ? colors.buttonText : colors.disabled} />
             )}
           </TouchableOpacity>
         </View>
@@ -635,22 +649,23 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 5,
     justifyContent: 'space-between',
-    paddingTop: 40, // Add more top padding to avoid header overlap
+    paddingTop: 50, // Add more top padding to avoid header overlap
     overflow: 'visible',
   },
   topSection: {
-    flex: 1.1,
+    flex: 1.07,
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
-    paddingTop: 50, // Extra padding for the rotated top section
+    paddingTop: 75, // Extra padding for the rotated top section
     paddingBottom: 3, // Add bottom padding to balance
     overflow: 'visible',
   },
   bottomSection: {
-    flex: 1.05,
+    flex: 1.1,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 3, // Add top padding to balance
+    paddingBottom: 40, // Add bottom padding for language container
     overflow: 'visible',
   },
   rotatedContent: {
@@ -665,11 +680,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 5,
     paddingHorizontal: 10,
-    marginTop: -25, // Overlap with translation display
+    marginTop: 20, // Overlap with translation display
   },
   micButton: {
-    width: 80,
-    height: 80,
+    width: 72,
+    height: 72,
     borderRadius: 40,
     backgroundColor: 'transparent',
     justifyContent: 'center',
@@ -677,28 +692,38 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.5)',
     position: 'absolute',
-    bottom: -4,
+    bottom: -41,
   },
   recordingButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
     borderColor: 'rgba(255, 255, 255, 0.8)',
   },
   processingButton: {
-    backgroundColor: 'rgba(255, 215, 0, 0.1)',
-    borderColor: 'rgba(255, 215, 0, 0.8)',
+    backgroundColor: 'transparent',
+    borderColor: '#FFD700',
+    borderWidth: 5,
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 1.0,
+    shadowRadius: 12,
+    elevation: 12,
+    // Ensure the yellow border always shows
+    borderStyle: 'solid',
   },
   disabledButton: {
     backgroundColor: 'transparent',
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   topLanguageSelectorContainer: {
-    marginBottom: 10,
+    marginBottom: 3,
     alignSelf: 'flex-end',
     width: '100%',
     overflow: 'visible',
   },
   bottomLanguageSelectorContainer: {
-    marginBottom: 10,
+    marginBottom: 3,
     alignSelf: 'flex-start',
     width: '100%',
     overflow: 'visible',
