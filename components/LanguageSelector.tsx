@@ -19,10 +19,11 @@ export default function LanguageSelector({
   const selectedLang = getLanguageByCode(selectedLanguage);
 
   return (
-    <View style={styles.container} pointerEvents="box-none">
+    <View style={styles.container} pointerEvents="auto">
       <TouchableOpacity
         style={styles.selector}
         onPress={() => setIsExpanded(!isExpanded)}
+        activeOpacity={0.7}
       >
         <Text style={styles.selectedText}>
           {selectedLang?.nativeName || 'Select Language'}
@@ -46,6 +47,8 @@ export default function LanguageSelector({
             bounces={true}
             scrollEnabled={true}
             keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
+            removeClippedSubviews={false}
           >
             {SUPPORTED_LANGUAGES.map((language) => (
               <TouchableOpacity
@@ -78,8 +81,9 @@ export default function LanguageSelector({
 
 const styles = StyleSheet.create({
   container: {
-    zIndex: 10000,
     position: 'relative',
+    overflow: 'visible',
+    zIndex: 10000,
     elevation: 1000,
   },
   selector: {
@@ -105,24 +109,21 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '180deg' }],
   },
   dropdown: {
-    position: 'absolute',
-    top: 52,
-    left: 0,
-    right: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.98)',
     borderRadius: 10,
     maxHeight: 200,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-    elevation: 1000,
-    zIndex: 10000,
+    marginTop: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+    elevation: 5,
   },
   scrollView: {
     maxHeight: 200,
+    flexGrow: 0,
   },
   scrollContent: {
     paddingVertical: 4,

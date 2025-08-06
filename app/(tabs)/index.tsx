@@ -8,7 +8,7 @@ import {
   Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { Mic, Volume2, RotateCcw, Settings } from 'lucide-react-native';
+import { Mic, Volume2, Settings } from 'lucide-react-native';
 import * as Speech from 'expo-speech';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
@@ -377,6 +377,14 @@ export default function TranslatorScreen() {
       {/* Top Section (Rotated 180 degrees) */}
       <View style={[styles.section, styles.topSection]}>
         <View style={styles.rotatedContent}>
+          <View style={styles.topLanguageSelectorContainer}>
+            <LanguageSelector
+              selectedLanguage={topLanguage}
+              onLanguageChange={setTopLanguage}
+              isRotated={true}
+            />
+          </View>
+          <View style={styles.flexibleSpacer} />
           <TranslationDisplay
             text={getDisplayText(topText, isStreamingToTop)}
             isRotated={true}
@@ -402,30 +410,19 @@ export default function TranslatorScreen() {
           </View>
         </View>
       </View>
-      {/* Center Divider with Language Selectors */}
+      {/* Center Divider */}
       <View style={styles.divider}>
-        <View style={styles.languageContainer}>
-          <View style={styles.topLanguageSelector}>
-            <LanguageSelector
-              selectedLanguage={topLanguage}
-              onLanguageChange={setTopLanguage}
-              isRotated={true}
-            />
-          </View>
-          <TouchableOpacity style={styles.swapButton} onPress={swapLanguages}>
-            <RotateCcw size={20} color="white" />
-          </TouchableOpacity>
-          <View style={styles.bottomLanguageSelector}>
-            <LanguageSelector
-              selectedLanguage={bottomLanguage}
-              onLanguageChange={setBottomLanguage}
-              isRotated={false}
-            />
-          </View>
-        </View>
       </View>
       {/* Bottom Section */}
       <View style={[styles.section, styles.bottomSection]}>
+        <View style={styles.bottomLanguageSelectorContainer}>
+          <LanguageSelector
+            selectedLanguage={bottomLanguage}
+            onLanguageChange={setBottomLanguage}
+            isRotated={false}
+          />
+        </View>
+        <View style={styles.flexibleSpacer} />
         <TranslationDisplay
           text={getDisplayText(bottomText, !isStreamingToTop)}
           isRotated={false}
@@ -458,6 +455,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#1a1a1a',
+    overflow: 'visible',
   },
   header: {
     position: 'absolute',
@@ -517,6 +515,7 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: 'space-between',
     paddingTop: 40, // Add more top padding to avoid header overlap
+    overflow: 'visible',
   },
   topSection: {
     backgroundColor: '#101010',
@@ -524,17 +523,20 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 20,
     paddingTop: 50, // Extra padding for the rotated top section
     paddingBottom: 0, // No bottom padding to match the divider
+    overflow: 'visible',
   },
   bottomSection: {
     backgroundColor: '#101010',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 0, // Match the top section padding
+    overflow: 'visible',
   },
   rotatedContent: {
     flex: 1,
     transform: [{ rotate: '180deg' }],
     justifyContent: 'space-between',
+    overflow: 'visible',
   },
   controls: {
     flexDirection: 'row',
@@ -569,31 +571,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 20,
-    overflow: 'visible',
-    zIndex: 1000,
   },
-  languageContainer: {
+  topLanguageSelectorContainer: {
+    marginBottom: 10,
+    alignSelf: 'flex-end',
     width: '100%',
-    height: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    zIndex: 1000,
     overflow: 'visible',
   },
-  topLanguageSelector: {
-    flex: 1,
-    transform: [{ rotate: '180deg' }],
-    paddingLeft: 10,
-    paddingRight: 0,
-    zIndex: 10001,
+  bottomLanguageSelectorContainer: {
+    marginBottom: 10,
+    alignSelf: 'flex-start',
+    width: '100%',
     overflow: 'visible',
   },
-  bottomLanguageSelector: {
+  flexibleSpacer: {
     flex: 1,
-    paddingLeft: 10,
-    zIndex: 10001,
-    overflow: 'visible',
   },
   swapButton: {
     width: 40,
@@ -604,6 +596,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-    marginHorizontal: 8,
   },
 });
