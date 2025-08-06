@@ -26,7 +26,18 @@ export default function ConversationDetailScreen() {
   const { colors } = useTheme();
   const { getTextSizeConfig } = useTextSize();
   const textSizeConfig = getTextSizeConfig();
-  const scale = textSizeConfig.fontSize / 16; // Base scale on medium (16px)
+  
+  // Use the same font scaling pattern as TranslationDisplay
+  const fonts = {
+    // Primary content text (same as translation display)
+    primary: textSizeConfig.fontSize,
+    // Emphasized text (same as translation display emphasized)
+    emphasized: textSizeConfig.fontSize + 2,
+    // Secondary text (2px smaller than primary)
+    secondary: Math.max(10, textSizeConfig.fontSize - 2),
+    // Small text (4px smaller than primary)
+    small: Math.max(8, textSizeConfig.fontSize - 4),
+  };
   
   const params = useLocalSearchParams();
   const languagePair = params.languagePair as string;
@@ -503,7 +514,7 @@ export default function ConversationDetailScreen() {
           }}
         >
         <View style={styles.entryHeader}>
-          <Text style={[styles.timestamp, { color: colors.textSecondary, fontSize: 12 * scale }]}>
+          <Text style={[styles.timestamp, { color: colors.textSecondary, fontSize: fonts.small }]}>
             {new Date(entry.timestamp).toLocaleString()}
           </Text>
           <View style={styles.entryActions}>
@@ -511,20 +522,20 @@ export default function ConversationDetailScreen() {
               style={styles.iconButton}
               onPress={() => handleAddToVocabulary(entry)}
             >
-              <Bookmark size={16 * scale} color={savedEntries.has(entry.id) ? "#34C759" : "#FF3B30"} />
+              <Bookmark size={Math.max(14, fonts.primary * 0.9)} color={savedEntries.has(entry.id) ? "#34C759" : "#FF3B30"} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => handleDeleteTranslation(entry.id)}
             >
-              <Trash2 size={16 * scale} color="#FF3B30" />
+              <Trash2 size={Math.max(14, fonts.primary * 0.9)} color="#FF3B30" />
             </TouchableOpacity>
           </View>
         </View>
 
         <View style={[styles.textContainer, styles.originalTextContainer]}>
           <View style={styles.textHeader}>
-            <Text style={[styles.languageLabel, { color: colors.textSecondary, fontSize: 12 * scale }]}>
+            <Text style={[styles.languageLabel, { color: colors.textSecondary, fontSize: fonts.small }]}>
               {getLanguageDisplayName(entry.fromLanguage)}
             </Text>
             <View style={styles.textActions}>
@@ -532,59 +543,59 @@ export default function ConversationDetailScreen() {
                 style={styles.speakButton}
                 onPress={() => handleSpeak(entry.originalText, entry.fromLanguage)}
               >
-                <Volume2 size={16 * scale} color="#007AFF" />
+                <Volume2 size={Math.max(14, fonts.primary * 0.9)} color="#007AFF" />
               </TouchableOpacity>
             </View>
           </View>
-          <Text style={[styles.originalText, { color: colors.text, fontSize: 16 * scale }]}>{entry.originalText}</Text>
+          <Text style={[styles.originalText, { color: colors.text, fontSize: fonts.primary }]}>{entry.originalText}</Text>
         </View>
 
         <View style={[styles.textContainer, styles.translatedTextContainer]}>
           <View style={styles.textHeader}>
-            <Text style={[styles.languageLabel, { color: colors.textSecondary, fontSize: 12 * scale }]}>
+            <Text style={[styles.languageLabel, { color: colors.textSecondary, fontSize: fonts.small }]}>
               {getLanguageDisplayName(entry.toLanguage)}
             </Text>
             <TouchableOpacity
               style={styles.speakButton}
               onPress={() => handleSpeak(entry.translatedText, entry.toLanguage)}
             >
-              <Volume2 size={16 * scale} color="#007AFF" />
+              <Volume2 size={Math.max(14, fonts.primary * 0.9)} color="#007AFF" />
             </TouchableOpacity>
           </View>
-          <Text style={[styles.translatedText, { color: colors.text, fontSize: 16 * scale }]}>{entry.translatedText}</Text>
+          <Text style={[styles.translatedText, { color: colors.text, fontSize: fonts.primary }]}>{entry.translatedText}</Text>
         </View>
         </Animated.View>
       </Animated.View>
     </Animated.View>
-  ), [highlightedEntryId, borderColorAnim, highlightOpacity, highlightScale, savedEntries, handleAddToVocabulary, handleDeleteTranslation, handleSpeak, colors, scale]);
+  ), [highlightedEntryId, borderColorAnim, highlightOpacity, highlightScale, savedEntries, handleAddToVocabulary, handleDeleteTranslation, handleSpeak, colors, fonts]);
 
   // Memoized footer component
   const renderFooter = useCallback(() => {
     if (entries.length >= allEntries.length) {
       return entries.length > 0 ? (
         <View style={styles.endFooter}>
-          <Text style={[styles.endText, { color: colors.textTertiary, fontSize: 14 * scale }]}>• • •</Text>
+          <Text style={[styles.endText, { color: colors.textTertiary, fontSize: fonts.secondary }]}>• • •</Text>
         </View>
       ) : null;
     }
 
     return loadingMore ? (
       <View style={styles.loadingFooter}>
-        <Text style={[styles.loadingText, { color: colors.text, fontSize: 16 * scale }]}>Loading more translations...</Text>
+        <Text style={[styles.loadingText, { color: colors.text, fontSize: fonts.primary }]}>Loading more translations...</Text>
       </View>
     ) : null;
-  }, [loadingMore, entries.length, allEntries.length, colors, scale]);
+  }, [loadingMore, entries.length, allEntries.length, colors, fonts]);
 
   // Memoized empty component
   const renderEmpty = useCallback(() => (
     <View style={styles.emptyContainer}>
-      <User size={48 * scale} color={colors.textTertiary} />
-      <Text style={[styles.emptyTitle, { color: colors.text, fontSize: 20 * scale }]}>No Translations Yet</Text>
-      <Text style={[styles.emptySubtitle, { color: colors.textSecondary, fontSize: 16 * scale }]}>
+      <User size={Math.max(48, fonts.emphasized * 2)} color={colors.textTertiary} />
+      <Text style={[styles.emptyTitle, { color: colors.text, fontSize: fonts.emphasized }]}>No Translations Yet</Text>
+      <Text style={[styles.emptySubtitle, { color: colors.textSecondary, fontSize: fonts.primary }]}>
         Start using the translator to build your conversation history
       </Text>
     </View>
-  ), [colors, scale]);
+  ), [colors, fonts]);
 
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -614,11 +625,11 @@ export default function ConversationDetailScreen() {
             style={[styles.backButton, { backgroundColor: colors.surfaceTransparent }]}
             onPress={() => router.back()}
           >
-            <ArrowLeft size={24 * scale} color={colors.text} />
+            <ArrowLeft size={Math.max(24, fonts.emphasized)} color={colors.text} />
           </TouchableOpacity>
           <View style={styles.headerTitleContainer}>
-            <Text style={[styles.headerTitle, { color: colors.text, fontSize: 18 * scale }]}>{displayName}</Text>
-            <Text style={[styles.headerSubtitle, { color: colors.textSecondary, fontSize: 12 * scale }]}>
+            <Text style={[styles.headerTitle, { color: colors.text, fontSize: fonts.emphasized }]}>{displayName}</Text>
+            <Text style={[styles.headerSubtitle, { color: colors.textSecondary, fontSize: fonts.small }]}>
               Loading translations...
             </Text>
           </View>
@@ -626,11 +637,11 @@ export default function ConversationDetailScreen() {
             style={[styles.clearButton, { backgroundColor: colors.surfaceTransparent }]}
             disabled={true}
           >
-            <Trash2 size={20 * scale} color={colors.disabled} />
+            <Trash2 size={Math.max(20, fonts.primary * 1.2)} color={colors.disabled} />
           </TouchableOpacity>
         </View>
         <View style={styles.loadingContainer}>
-          <Text style={[styles.loadingText, { color: colors.text, fontSize: 16 * scale }]}>Loading conversation...</Text>
+          <Text style={[styles.loadingText, { color: colors.text, fontSize: fonts.primary }]}>Loading conversation...</Text>
         </View>
       </View>
     );
@@ -646,11 +657,11 @@ export default function ConversationDetailScreen() {
           style={[styles.backButton, { backgroundColor: colors.surfaceTransparent }]}
           onPress={() => router.back()}
         >
-          <ArrowLeft size={24 * scale} color={colors.text} />
+          <ArrowLeft size={Math.max(24, fonts.emphasized)} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={[styles.headerTitle, { color: colors.text, fontSize: 18 * scale }]}>{displayName}</Text>
-          <Text style={[styles.headerSubtitle, { color: colors.textSecondary, fontSize: 12 * scale }]}>
+          <Text style={[styles.headerTitle, { color: colors.text, fontSize: fonts.emphasized }]}>{displayName}</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary, fontSize: fonts.small }]}>
             {entries.length} translation{entries.length !== 1 ? 's' : ''}
             {searchQuery && searchQuery.trim() !== '' && ` • Search: "${searchQuery}"`}
           </Text>
@@ -660,7 +671,7 @@ export default function ConversationDetailScreen() {
           onPress={handleClearConversation}
           disabled={entries.length === 0}
         >
-          <Trash2 size={20 * scale} color={entries.length > 0 ? "#FF3B30" : colors.disabled} />
+          <Trash2 size={Math.max(20, fonts.primary * 1.2)} color={entries.length > 0 ? "#FF3B30" : colors.disabled} />
         </TouchableOpacity>
       </View>
 
@@ -714,7 +725,7 @@ export default function ConversationDetailScreen() {
         
       {entries.length > 0 && (
         <View style={[styles.footer, { borderTopColor: colors.border }]}>
-          <Text style={[styles.footerText, { color: colors.textSecondary, fontSize: 14 * scale }]}>
+          <Text style={[styles.footerText, { color: colors.textSecondary, fontSize: fonts.secondary }]}>
             🔊 Tap the speaker icons to hear pronunciations and practice your listening skills
           </Text>
         </View>
@@ -735,7 +746,7 @@ export default function ConversationDetailScreen() {
           ]}
           pointerEvents="none"
         >
-          <Text style={styles.toastText}>{toastMessage}</Text>
+          <Text style={[styles.toastText, { fontSize: fonts.primary }]}>{toastMessage}</Text>
         </Animated.View>
       ) : null}
 
@@ -748,10 +759,10 @@ export default function ConversationDetailScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.deleteModalContent}>
-            <Text style={styles.deleteModalTitle}>
+            <Text style={[styles.deleteModalTitle, { fontSize: fonts.emphasized }]}>
               {deleteTarget?.type === 'translation' ? 'Delete Translation' : 'Clear Conversation'}
             </Text>
-            <Text style={styles.deleteModalMessage}>
+            <Text style={[styles.deleteModalMessage, { fontSize: fonts.primary }]}>
               {deleteTarget?.type === 'translation' 
                 ? 'Are you sure you want to delete this translation? This action cannot be undone.'
                 : `Are you sure you want to delete all translations for ${displayName}? This action cannot be undone.`
@@ -762,13 +773,13 @@ export default function ConversationDetailScreen() {
                 style={styles.deleteModalCancelButton}
                 onPress={cancelDelete}
               >
-                <Text style={styles.deleteModalCancelText}>Cancel</Text>
+                <Text style={[styles.deleteModalCancelText, { fontSize: fonts.primary }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.deleteModalConfirmButton}
                 onPress={confirmDelete}
               >
-                <Text style={styles.deleteModalConfirmText}>
+                <Text style={[styles.deleteModalConfirmText, { fontSize: fonts.primary }]}>
                   {deleteTarget?.type === 'translation' ? 'Delete' : 'Clear All'}
                 </Text>
               </TouchableOpacity>

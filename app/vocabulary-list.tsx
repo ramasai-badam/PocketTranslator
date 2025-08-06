@@ -19,6 +19,8 @@ import { TranslationHistoryManager, TranslationEntry } from '../utils/Translatio
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
 import { ModelManager } from '../utils/ModelManager';
+import { useTheme } from '../contexts/ThemeContext';
+import { useTextSize } from '../hooks/useTextSize';
 
 // Extend global type for caching
 declare global {
@@ -38,11 +40,13 @@ interface VocabularyItem {
 }
 
 // Memoized vocabulary item component
-const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState }: {
+const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState, colors, fonts }: {
   item: VocabularyItem;
   onDelete: (id: string) => void;
   onBreakdown: (item: VocabularyItem) => void;
   getBreakdownState: (item: VocabularyItem) => 'cached' | 'analyzing' | 'fresh';
+  colors: any;
+  fonts: any;
 }) => {
   if (!item.translationEntry) return null;
   
@@ -79,16 +83,16 @@ const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState }:
             return (
               <TouchableOpacity
                 key={index}
-                style={styles.wordButton}
+                style={[styles.wordButton, { backgroundColor: colors.surfaceTransparent, borderColor: colors.borderTransparent }]}
                 onPress={() => handleSpellWord(part, languageCode)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.interactiveWord}>{part}</Text>
+                <Text style={[styles.interactiveWord, { color: colors.text, fontSize: fonts.primary }]}>{part}</Text>
               </TouchableOpacity>
             );
           } else {
             return (
-              <Text key={index} style={styles.wordSpace}>
+              <Text key={index} style={[styles.wordSpace, { color: colors.text, fontSize: fonts.primary }]}>
                 {part}
               </Text>
             );
@@ -96,25 +100,25 @@ const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState }:
         })}
       </View>
     );
-  }, [handleSpellWord]);
+  }, [handleSpellWord, colors, fonts]);
   
   return (
-    <View style={styles.wordContainer}>
+    <View style={[styles.wordContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.wordHeader}>
         <View style={styles.languageInfo}>
-          <Text style={styles.languageLabel}>
+          <Text style={[styles.languageLabel, { color: "#007AFF", fontSize: fonts.secondary }]}>
             {getLanguageDisplayName(translationEntry.fromLanguage)} → {getLanguageDisplayName(translationEntry.toLanguage)}
           </Text>
         </View>
         
         <View style={styles.wordHeaderRight}>
-          <Text style={styles.dateAdded}>{vocabularyEntry.dateAdded}</Text>
+          <Text style={[styles.dateAdded, { color: colors.textSecondary, fontSize: fonts.small }]}>{vocabularyEntry.dateAdded}</Text>
           <TouchableOpacity
             style={styles.breakdownButton}
             onPress={() => onBreakdown(item)}
           >
             <GraduationCap 
-              size={16} 
+              size={Math.max(14, fonts.primary * 0.9)} 
               color={
                 breakdownState === 'cached' ? "#FFD700" : 
                 breakdownState === 'analyzing' ? "#007AFF" : 
@@ -126,7 +130,7 @@ const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState }:
             style={styles.deleteButton}
             onPress={() => onDelete(vocabularyEntry.translationId)}
           >
-            <Trash2 size={16} color="#FF3B30" />
+            <Trash2 size={Math.max(14, fonts.primary * 0.9)} color="#FF3B30" />
           </TouchableOpacity>
         </View>
       </View>
@@ -134,12 +138,12 @@ const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState }:
       {/* Original Text */}
       <View style={[styles.textContainer, styles.originalTextContainer]}>
         <View style={styles.textHeader}>
-          <Text style={styles.textLabel}>Original</Text>
+          <Text style={[styles.textLabel, { color: colors.textSecondary, fontSize: fonts.small }]}>Original</Text>
           <TouchableOpacity
             style={styles.speakButton}
             onPress={() => Speech.speak(translationEntry.originalText, { language: translationEntry.fromLanguage })}
           >
-            <Volume2 size={16} color="#007AFF" />
+            <Volume2 size={Math.max(14, fonts.primary * 0.9)} color="#007AFF" />
           </TouchableOpacity>
         </View>
         {renderInteractiveText(translationEntry.originalText, translationEntry.fromLanguage)}
@@ -148,12 +152,12 @@ const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState }:
       {/* Translation */}
       <View style={[styles.textContainer, styles.translatedTextContainer]}>
         <View style={styles.textHeader}>
-          <Text style={styles.textLabel}>Translation</Text>
+          <Text style={[styles.textLabel, { color: colors.textSecondary, fontSize: fonts.small }]}>Translation</Text>
           <TouchableOpacity
             style={styles.speakButton}
             onPress={() => Speech.speak(translationEntry.translatedText, { language: translationEntry.toLanguage })}
           >
-            <Volume2 size={16} color="#007AFF" />
+            <Volume2 size={Math.max(14, fonts.primary * 0.9)} color="#007AFF" />
           </TouchableOpacity>
         </View>
         {renderInteractiveText(translationEntry.translatedText, translationEntry.toLanguage)}
@@ -163,25 +167,41 @@ const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState }:
 });
 
 // Empty state component
-const EmptyComponent = memo(() => (
+const EmptyComponent = memo(({ colors, fonts }: { colors: any; fonts: any }) => (
   <View style={styles.emptyContainer}>
-    <BookOpen size={48} color="#666" />
-    <Text style={styles.emptyTitle}>No Vocabulary Words Yet</Text>
-    <Text style={styles.emptySubtitle}>
+    <BookOpen size={Math.max(40, fonts.emphasized * 2.4)} color={colors.textTertiary} />
+    <Text style={[styles.emptyTitle, { color: colors.text, fontSize: fonts.emphasized }]}>No Vocabulary Words Yet</Text>
+    <Text style={[styles.emptySubtitle, { color: colors.textSecondary, fontSize: fonts.primary }]}>
       Add words from your translation history to start building your vocabulary
     </Text>
   </View>
 ));
 
 // Loading footer component
-const LoadingFooter = memo(() => (
+const LoadingFooter = memo(({ colors, fonts }: { colors: any; fonts: any }) => (
   <View style={{ padding: 20, alignItems: 'center' }}>
-    <Text style={styles.loadingText}>Loading more...</Text>
+    <Text style={[styles.loadingText, { color: colors.text, fontSize: fonts.primary }]}>Loading more...</Text>
   </View>
 ));
 
 
 export default function VocabularyListScreen() {
+  const { colors } = useTheme();
+  const { getTextSizeConfig } = useTextSize();
+  const textSizeConfig = getTextSizeConfig();
+  
+  // Use the same font scaling pattern as TranslationDisplay
+  const fonts = {
+    // Primary content text (same as translation display)
+    primary: textSizeConfig.fontSize,
+    // Emphasized text (same as translation display emphasized)
+    emphasized: textSizeConfig.fontSize + 2,
+    // Secondary text (2px smaller than primary)
+    secondary: Math.max(10, textSizeConfig.fontSize - 2),
+    // Small text (4px smaller than primary)
+    small: Math.max(8, textSizeConfig.fontSize - 4),
+  };
+  
   const [vocabularyItems, setVocabularyItems] = useState<VocabularyItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -482,39 +502,39 @@ export default function VocabularyListScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <StatusBar style="light" />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar style={colors.background === '#1a1a1a' ? 'light' : 'dark'} />
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading vocabulary...</Text>
+          <Text style={[styles.loadingText, { color: colors.text, fontSize: fonts.primary }]}>Loading vocabulary...</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar style={colors.background === '#1a1a1a' ? 'light' : 'dark'} />
       
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={[styles.backButton, { backgroundColor: colors.surfaceTransparent }]}
           onPress={() => router.back()}
         >
-          <ArrowLeft size={24} color="#FFF" />
+          <ArrowLeft size={Math.max(20, fonts.emphasized * 1.2)} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>My Vocabulary</Text>
-          <Text style={styles.headerSubtitle}>
-            {vocabularyItems.length} word{vocabularyItems.length !== 1 ? 's' : ''}
+          <Text style={[styles.headerTitle, { color: colors.text, fontSize: fonts.emphasized }]}>My Vocabulary</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary, fontSize: fonts.small }]}>
+            {vocabularyItems.length} Translation{vocabularyItems.length !== 1 ? 's' : ''}
           </Text>
         </View>
         <TouchableOpacity
-          style={styles.clearAllButton}
+          style={[styles.clearAllButton, { backgroundColor: colors.surfaceTransparent }]}
           onPress={handleClearAllVocabulary}
           disabled={vocabularyItems.length === 0}
         >
-          <Trash2 size={20} color={vocabularyItems.length > 0 ? "#FF3B30" : "#666"} />
+          <Trash2 size={Math.max(18, fonts.emphasized)} color={vocabularyItems.length > 0 ? "#FF3B30" : colors.disabled} />
         </TouchableOpacity>
       </View>
 
@@ -528,15 +548,17 @@ export default function VocabularyListScreen() {
             onDelete={handleDeleteWord}
             onBreakdown={handleLinguisticBreakdown}
             getBreakdownState={isBreakdownCached}
+            colors={colors}
+            fonts={fonts}
           />
         )}
         style={styles.scrollView}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.text} />
         }
         showsVerticalScrollIndicator={false}
-        ListEmptyComponent={<EmptyComponent />}
-        ListFooterComponent={loadingMore ? <LoadingFooter /> : null}
+        ListEmptyComponent={<EmptyComponent colors={colors} fonts={fonts} />}
+        ListFooterComponent={loadingMore ? <LoadingFooter colors={colors} fonts={fonts} /> : null}
         onEndReached={loadMore}
         onEndReachedThreshold={0.5}
         initialNumToRender={10}
@@ -546,8 +568,8 @@ export default function VocabularyListScreen() {
       />
 
       {vocabularyItems.length > 0 && (
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
+        <View style={[styles.footer, { borderTopColor: colors.border }]}>
+          <Text style={[styles.footerText, { color: colors.textSecondary, fontSize: fonts.secondary }]}>
             💡 Tap words to hear pronunciation • 🎓 Green: fresh analysis, Blue: analyzing, Gold: cached
           </Text>
         </View>
@@ -561,23 +583,23 @@ export default function VocabularyListScreen() {
         onRequestClose={cancelDeleteWord}
       >
         <View style={styles.deleteModalOverlay}>
-          <View style={styles.deleteModalContent}>
-            <Text style={styles.deleteModalTitle}>Delete Translation</Text>
-            <Text style={styles.deleteModalMessage}>
+          <View style={[styles.deleteModalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.deleteModalTitle, { color: colors.text, fontSize: fonts.emphasized }]}>Delete Translation</Text>
+            <Text style={[styles.deleteModalMessage, { color: colors.textSecondary, fontSize: fonts.primary }]}>
               Are you sure you want to remove this translation from your vocabulary?
             </Text>
             <View style={styles.deleteModalButtons}>
               <TouchableOpacity
-                style={styles.deleteModalCancelButton}
+                style={[styles.deleteModalCancelButton, { backgroundColor: colors.surfaceTransparent }]}
                 onPress={cancelDeleteWord}
               >
-                <Text style={styles.deleteModalCancelText}>Cancel</Text>
+                <Text style={[styles.deleteModalCancelText, { color: colors.text, fontSize: fonts.primary }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.deleteModalConfirmButton}
                 onPress={confirmDeleteWord}
               >
-                <Text style={styles.deleteModalConfirmText}>Delete</Text>
+                <Text style={[styles.deleteModalConfirmText, { fontSize: fonts.primary }]}>Delete</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -592,23 +614,23 @@ export default function VocabularyListScreen() {
         onRequestClose={cancelClearAllVocabulary}
       >
         <View style={styles.deleteModalOverlay}>
-          <View style={styles.deleteModalContent}>
-            <Text style={styles.deleteModalTitle}>Clear All Vocabulary</Text>
-            <Text style={styles.deleteModalMessage}>
+          <View style={[styles.deleteModalContent, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.deleteModalTitle, { color: colors.text, fontSize: fonts.emphasized }]}>Clear All Vocabulary</Text>
+            <Text style={[styles.deleteModalMessage, { color: colors.textSecondary, fontSize: fonts.primary }]}>
               Are you sure you want to delete all vocabulary words? This action cannot be undone.
             </Text>
             <View style={styles.deleteModalButtons}>
               <TouchableOpacity
-                style={styles.deleteModalCancelButton}
+                style={[styles.deleteModalCancelButton, { backgroundColor: colors.surfaceTransparent }]}
                 onPress={cancelClearAllVocabulary}
               >
-                <Text style={styles.deleteModalCancelText}>Cancel</Text>
+                <Text style={[styles.deleteModalCancelText, { color: colors.text, fontSize: fonts.primary }]}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.deleteModalConfirmButton}
                 onPress={confirmClearAllVocabulary}
               >
-                <Text style={styles.deleteModalConfirmText}>Clear All</Text>
+                <Text style={[styles.deleteModalConfirmText, { fontSize: fonts.primary }]}>Clear All</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -621,7 +643,6 @@ export default function VocabularyListScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   loadingContainer: {
     flex: 1,
@@ -629,8 +650,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#FFF',
-    fontSize: 16,
+    // Dynamic in usage
   },
   header: {
     flexDirection: 'row',
@@ -644,7 +664,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -653,20 +672,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFF',
   },
   headerSubtitle: {
-    fontSize: 12,
-    color: '#999',
     marginTop: 2,
   },
   clearAllButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -680,26 +694,20 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   emptyTitle: {
-    fontSize: 20,
     fontWeight: '600',
-    color: '#FFF',
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 16,
-    color: '#999',
     textAlign: 'center',
     paddingHorizontal: 40,
   },
   wordContainer: {
-    backgroundColor: '#1A1A1A',
     marginHorizontal: 20,
     marginBottom: 16,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#333',
   },
   wordHeader: {
     flexDirection: 'row',
@@ -711,8 +719,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   languageLabel: {
-    fontSize: 14,
-    color: '#007AFF',
     fontWeight: '500',
   },
   wordHeaderRight: {
@@ -721,8 +727,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   dateAdded: {
-    fontSize: 12,
-    color: '#999',
+    // Dynamic in usage
   },
   deleteButton: {
     padding: 4,
@@ -750,8 +755,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   textLabel: {
-    fontSize: 12,
-    color: '#999',
     fontWeight: '500',
   },
   iconGroup: {
@@ -774,32 +777,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     paddingVertical: 2,
     borderRadius: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     marginHorizontal: 1,
     marginVertical: 1,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   interactiveWord: {
-    fontSize: 16,
-    color: '#FFF',
     lineHeight: 20,
     fontWeight: '500',
   },
   wordSpace: {
-    fontSize: 16,
-    color: '#FFF',
     lineHeight: 20,
   },
   footer: {
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: '#333',
   },
   footerText: {
-    fontSize: 14,
-    color: '#999',
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -812,13 +806,11 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   deleteModalContent: {
-    backgroundColor: '#1A1A1A',
     borderRadius: 16,
     padding: 24,
     width: '100%',
     maxWidth: 400,
     borderWidth: 1,
-    borderColor: '#333',
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -829,15 +821,11 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   deleteModalTitle: {
-    fontSize: 20,
     fontWeight: 'bold',
-    color: '#FFF',
     textAlign: 'center',
     marginBottom: 12,
   },
   deleteModalMessage: {
-    fontSize: 16,
-    color: '#999',
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 24,
@@ -848,15 +836,12 @@ const styles = StyleSheet.create({
   },
   deleteModalCancelButton: {
     flex: 1,
-    backgroundColor: '#333',
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 12,
     alignItems: 'center',
   },
   deleteModalCancelText: {
-    color: '#FFF',
-    fontSize: 16,
     fontWeight: '600',
   },
   deleteModalConfirmButton: {
@@ -869,7 +854,6 @@ const styles = StyleSheet.create({
   },
   deleteModalConfirmText: {
     color: '#FFF',
-    fontSize: 16,
     fontWeight: '600',
   },
 });
