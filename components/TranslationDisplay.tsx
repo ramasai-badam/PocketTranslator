@@ -104,7 +104,11 @@ export default function TranslationDisplay({
       {/* Placeholder when no content */}
       {!hasText && conversationHistory.length === 0 && (
         <View style={styles.placeholderContainer}>
-          <Text style={[styles.placeholderText, isRotated && styles.rotatedText]}>
+          <Text style={[
+            styles.placeholderText, 
+            isRotated && styles.rotatedText,
+            { fontSize: textSizeConfig.fontSize, lineHeight: textSizeConfig.lineHeight }
+          ]}>
             Tap and hold the microphone to start speaking...
           </Text>
         </View>
@@ -136,8 +140,6 @@ const styles = StyleSheet.create({
   },
   messageText: {
     color: 'rgba(255, 255, 255, 0.9)',
-    fontSize: 16,
-    lineHeight: 22,
     flexShrink: 1,
   },
   messageSpeakerButton: {
@@ -173,8 +175,6 @@ const styles = StyleSheet.create({
   },
   currentText: {
     color: 'white',
-    fontSize: 18,
-    lineHeight: 26,
     textAlign: 'left',
     flexShrink: 1,
     fontWeight: '500',
@@ -182,8 +182,6 @@ const styles = StyleSheet.create({
   // Legacy text style (keeping for compatibility)
   text: {
     color: 'white',
-    fontSize: 18,
-    lineHeight: 26,
     textAlign: 'left',
     flexShrink: 1,
   },
@@ -209,7 +207,6 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     color: 'rgba(255, 255, 255, 0.6)',
-    fontSize: 16,
     textAlign: 'center',
     fontStyle: 'italic',
   },
