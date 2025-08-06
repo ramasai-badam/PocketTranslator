@@ -19,7 +19,6 @@ export const SUPPORTED_LANGUAGES: Language[] = [
   { code: 'ko', name: 'Korean', nativeName: '한국어' },
   { code: 'zh', name: 'Chinese', nativeName: '中文' },
   { code: 'ar', name: 'Arabic', nativeName: 'العربية' },
-  { code: 'hi', name: 'Hindi', nativeName: 'हिन्दी' },
   { code: 'th', name: 'Thai', nativeName: 'ไทย' },
   { code: 'vi', name: 'Vietnamese', nativeName: 'Tiếng Việt' },
   { code: 'nl', name: 'Dutch', nativeName: 'Nederlands' },

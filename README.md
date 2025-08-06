@@ -8,7 +8,7 @@ An **Android-focused** React Native app that provides real-time speech translati
 - **🎤 Speech-to-Text**: Uses `whisper.rn` with Whisper base model for voice recognition  
 - **🔊 Text-to-Speech**: Integrated `expo-speech` for audio playback of translations
 - **💬 Conversation History**: Chat-like interface showing translation history
-- **🌍 Multi-language Support**: 20+ languages including Hindi, Arabic, Chinese, and European languages
+- **🌍 Multi-language Support**: 19 languages including Arabic, Chinese, and European languages
 - **📱 Android Optimized**: TalkBack accessibility support and Android-specific optimizations
 - **⚡ Offline Capability**: All processing happens on-device, no internet required after model download
 
@@ -25,9 +25,9 @@ An **Android-focused** React Native app that provides real-time speech translati
 - **Audio**: `expo-audio`, `expo-speech`, `react-native-audio-record`
 - **Platform**: Android-focused with development build support
 
-## 📱 Supported Languages
+## 📱 Supported Languages (19 total)
 
-English, Spanish, French, German, Italian, Portuguese, Russian, Japanese, Korean, Chinese, Arabic, Hindi, Thai, Vietnamese, Dutch, Polish, Turkish, Swedish, Danish, Norwegian
+English, Spanish, French, German, Italian, Portuguese, Russian, Japanese, Korean, Chinese, Arabic, Thai, Vietnamese, Dutch, Polish, Turkish, Swedish, Danish, Norwegian
 
 ## 🛠️ Installation & Setup
 
