@@ -509,24 +509,26 @@ const styles = StyleSheet.create({
   },
   section: {
     flex: 1,
-    padding: 20,
+    padding: 5,
     justifyContent: 'space-between',
     paddingTop: 40, // Add more top padding to avoid header overlap
     overflow: 'visible',
   },
   topSection: {
+    flex: 1.1,
     backgroundColor: '#101010',
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
     paddingTop: 50, // Extra padding for the rotated top section
-    paddingBottom: 0, // No bottom padding to match the divider
+    paddingBottom: 3, // Add bottom padding to balance
     overflow: 'visible',
   },
   bottomSection: {
+    flex: 1.05,
     backgroundColor: '#101010',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingTop: 0, // Match the top section padding
+    paddingTop: 3, // Add top padding to balance
     overflow: 'visible',
   },
   rotatedContent: {
@@ -539,9 +541,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 40,
-    marginTop: -20, // Overlap with translation display
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    marginTop: -25, // Overlap with translation display
   },
   micButton: {
     width: 80,
@@ -553,6 +555,7 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: 'rgba(255, 255, 255, 0.5)',
     position: 'absolute',
+    bottom: 10,
   },
   recordingButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
@@ -575,6 +578,6 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   flexibleSpacer: {
-    flex: 1,
+    flex: 0,
   },
 });
