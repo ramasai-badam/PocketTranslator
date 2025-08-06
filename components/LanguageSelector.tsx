@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '../utils/LanguageConfig';
+import { useTextSize } from '../contexts/TextSizeContext';
 
 interface LanguageSelectorProps {
   selectedLanguage: string;
@@ -15,6 +16,8 @@ export default function LanguageSelector({
   isRotated = false,
 }: LanguageSelectorProps) {
   const [isExpanded, setIsExpanded] = React.useState(false);
+  const { getTextSizeConfig } = useTextSize();
+  const textConfig = getTextSizeConfig();
 
   const selectedLang = getLanguageByCode(selectedLanguage);
 
@@ -25,7 +28,7 @@ export default function LanguageSelector({
         onPress={() => setIsExpanded(!isExpanded)}
         activeOpacity={0.7}
       >
-        <Text style={styles.selectedText}>
+        <Text style={[styles.selectedText, { fontSize: textConfig.fontSize }]}>
           {selectedLang?.nativeName || 'Select Language'}
         </Text>
         <ChevronDown 
@@ -65,6 +68,7 @@ export default function LanguageSelector({
                 <Text
                   style={[
                     styles.optionText,
+                    { fontSize: textConfig.fontSize },
                     selectedLanguage === language.code && styles.selectedOptionText
                   ]}
                 >
@@ -99,7 +103,6 @@ const styles = StyleSheet.create({
   },
   selectedText: {
     color: 'white',
-    fontSize: 16,
     fontWeight: '600',
   },
   chevron: {
@@ -139,7 +142,6 @@ const styles = StyleSheet.create({
   },
   optionText: {
     color: 'white',
-    fontSize: 16,
   },
   selectedOptionText: {
     fontWeight: '600',
