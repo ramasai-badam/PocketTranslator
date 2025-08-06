@@ -91,6 +91,45 @@ export default function SettingsScreen() {
     }, [isLoading, refreshTextSize])
   );
 
+  // Create scaled font sizes based on current text size context
+  const getScaleMultiplier = (textSize: TextSizeId) => {
+    switch (textSize) {
+      case 'small': return 0.9;
+      case 'medium': return 1.0;
+      case 'large': return 1.1;
+      case 'xlarge': return 1.2;
+      case 'xxlarge': return 1.3;
+      default: return 1.0;
+    }
+  };
+
+  const scaleMultiplier = getScaleMultiplier(currentTextSize);
+
+  const fonts = {
+    small: { fontSize: 12 * scaleMultiplier },
+    secondary: { fontSize: 14 * scaleMultiplier },
+    primary: { fontSize: 16 * scaleMultiplier },
+    emphasized: { fontSize: 18 * scaleMultiplier },
+    large: { fontSize: 20 * scaleMultiplier },
+  };
+
+  // Dynamic styles that override static StyleSheet font sizes
+  const dynamicStyles = {
+    loadingText: [styles.loadingText, fonts.primary],
+    headerTitle: [styles.headerTitle, fonts.large],
+    headerSubtitle: [styles.headerSubtitle, fonts.primary],
+    sectionTitle: [styles.sectionTitle, fonts.large],
+    sectionDescription: [styles.sectionDescription, fonts.secondary],
+    languageName: [styles.languageName, fonts.primary],
+    defaultLabel: [styles.defaultLabel, fonts.small],
+    themeLabel: [styles.themeLabel, fonts.primary],
+    themeOptionTitle: [styles.themeOptionTitle, fonts.primary],
+    themeOptionDescription: [styles.themeOptionDescription, fonts.secondary],
+    currentSizeLabel: [styles.currentSizeLabel, fonts.primary],
+    downloadButtonText: [styles.downloadButtonText, fonts.secondary],
+    footerText: [styles.footerText, fonts.secondary],
+  };
+
   const initializeTTSVoices = async () => {
     try {
       console.log('Loading TTS voices from storage...');
@@ -323,7 +362,7 @@ export default function SettingsScreen() {
         <StatusBar style={theme === 'light' ? 'dark' : 'light'} />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={[styles.loadingText, { color: colors.text }]}>Loading TTS voices...</Text>
+          <Text style={[dynamicStyles.loadingText, { color: colors.text }]}>Loading TTS voices...</Text>
         </View>
       </View>
     );
@@ -340,26 +379,26 @@ export default function SettingsScreen() {
         >
           <ArrowLeft size={24} color={colors.buttonText} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
+        <Text style={[dynamicStyles.headerTitle, { color: colors.text }]}>Settings</Text>
         <View style={styles.headerSpacer} />
       </View>
 
       <View style={[styles.headerSubtitleContainer, { borderBottomColor: colors.border }]}>
-        <Text style={[styles.headerSubtitle, { color: colors.textTertiary }]}>
+        <Text style={[dynamicStyles.headerSubtitle, { color: colors.textTertiary }]}>
           Customize your translation experience
         </Text>
       </View>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Appearance</Text>
-          <Text style={[styles.sectionDescription, { color: colors.textTertiary }]}>
+          <Text style={[dynamicStyles.sectionTitle, { color: colors.text }]}>Appearance</Text>
+          <Text style={[dynamicStyles.sectionDescription, { color: colors.textTertiary }]}>
             Choose your preferred theme. High contrast themes provide better visibility for visually impaired users.
           </Text>
         </View>
 
         <View style={[styles.themeContainer, { borderBottomColor: colors.border }]}>
-          <Text style={[styles.themeLabel, { color: colors.text }]}>Theme Options</Text>
+          <Text style={[dynamicStyles.themeLabel, { color: colors.text }]}>Theme Options</Text>
           
           {/* Regular Light Theme */}
           <TouchableOpacity
@@ -373,10 +412,8 @@ export default function SettingsScreen() {
             onPress={() => handleThemeSelection('light')}
           >
             <View style={styles.themeOptionContent}>
-              <Text style={[styles.themeOptionTitle, { color: colors.text }]}>☀️ Light</Text>
-              <Text style={[styles.themeOptionDescription, { color: colors.textSecondary }]}>
-                Standard light theme with comfortable contrast
-              </Text>
+              <Text style={[dynamicStyles.themeOptionTitle, { color: colors.text }]}>☀️ Light</Text>
+              
             </View>
             {theme === 'light' && <Check size={20} color={colors.primary} />}
           </TouchableOpacity>
@@ -393,10 +430,8 @@ export default function SettingsScreen() {
             onPress={() => handleThemeSelection('dark')}
           >
             <View style={styles.themeOptionContent}>
-              <Text style={[styles.themeOptionTitle, { color: colors.text }]}>🌙 Dark</Text>
-              <Text style={[styles.themeOptionDescription, { color: colors.textSecondary }]}>
-                Standard dark theme for low-light environments
-              </Text>
+              <Text style={[dynamicStyles.themeOptionTitle, { color: colors.text }]}>🌙 Dark</Text>
+            
             </View>
             {theme === 'dark' && <Check size={20} color={colors.primary} />}
           </TouchableOpacity>
@@ -413,10 +448,8 @@ export default function SettingsScreen() {
             onPress={() => handleThemeSelection('high-contrast-light')}
           >
             <View style={styles.themeOptionContent}>
-              <Text style={[styles.themeOptionTitle, { color: colors.text }]}>⚫ High Contrast Light</Text>
-              <Text style={[styles.themeOptionDescription, { color: colors.textSecondary }]}>
-                Maximum contrast light theme for better visibility
-              </Text>
+              <Text style={[dynamicStyles.themeOptionTitle, { color: colors.text }]}>⚪ High Contrast Light</Text>
+              
             </View>
             {theme === 'high-contrast-light' && <Check size={20} color={colors.primary} />}
           </TouchableOpacity>
@@ -433,18 +466,16 @@ export default function SettingsScreen() {
             onPress={() => handleThemeSelection('high-contrast-dark')}
           >
             <View style={styles.themeOptionContent}>
-              <Text style={[styles.themeOptionTitle, { color: colors.text }]}>⚪ High Contrast Dark</Text>
-              <Text style={[styles.themeOptionDescription, { color: colors.textSecondary }]}>
-                Maximum contrast dark theme for better visibility
-              </Text>
+              <Text style={[dynamicStyles.themeOptionTitle, { color: colors.text }]}>⚫ High Contrast Dark</Text>
+              
             </View>
             {theme === 'high-contrast-dark' && <Check size={20} color={colors.primary} />}
           </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Text Size</Text>
-          <Text style={[styles.sectionDescription, { color: colors.textTertiary }]}>
+          <Text style={[dynamicStyles.sectionTitle, { color: colors.text }]}>Text Size</Text>
+          <Text style={[dynamicStyles.sectionDescription, { color: colors.textTertiary }]}>
             Choose the text size for translation display to improve readability.
           </Text>
         </View>
@@ -452,13 +483,13 @@ export default function SettingsScreen() {
         <View style={[styles.textSizeContainer, { borderBottomColor: colors.border }]}>
           <View style={styles.textSizeHeader}>
             <Type size={18} color={colors.buttonText} />
-            <Text style={[styles.currentSizeLabel, { color: colors.text }]}>
+            <Text style={[dynamicStyles.currentSizeLabel, { color: colors.text }]}>
               {TEXT_SIZE_OPTIONS.find(opt => opt.id === currentTextSize)?.label || 'Large'}
             </Text>
           </View>
           
           <View style={styles.sliderContainer}>
-            <Text style={[styles.sliderLabel, { fontSize: 12, color: colors.textTertiary }]}>A</Text>
+            <Text style={[styles.sliderLabel, fonts.small, { color: colors.textTertiary }]}>A</Text>
             <View 
               style={styles.slider}
               onLayout={(event) => {
@@ -505,13 +536,13 @@ export default function SettingsScreen() {
                 }
               ]} />
             </View>
-            <Text style={[styles.sliderLabel, { fontSize: 18, color: colors.textTertiary }]}>A</Text>
+            <Text style={[styles.sliderLabel, fonts.emphasized, { color: colors.textTertiary }]}>A</Text>
           </View>
         </View>
 
         <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>TTS Voices</Text>
-          <Text style={[styles.sectionDescription, { color: colors.textTertiary }]}>
+          <Text style={[dynamicStyles.sectionTitle, { color: colors.text }]}>TTS Voices</Text>
+          <Text style={[dynamicStyles.sectionDescription, { color: colors.textTertiary }]}>
             Voices marked with a checkmark are available for text-to-speech output.
           </Text>
         </View>
@@ -519,9 +550,9 @@ export default function SettingsScreen() {
         {ttsVoices.map((voice) => (
           <View key={voice.code} style={[styles.languageItem, { borderBottomColor: colors.border }]}>
             <View style={styles.languageInfo}>
-              <Text style={[styles.languageName, { color: colors.text }]}>{voice.name}</Text>
+              <Text style={[dynamicStyles.languageName, { color: colors.text }]}>{voice.name}</Text>
               {voice.isDefault && (
-                <Text style={[styles.defaultLabel, { backgroundColor: colors.button }]}>Default</Text>
+                <Text style={[dynamicStyles.defaultLabel, { backgroundColor: colors.button }]}>Default</Text>
               )}
             </View>
             
@@ -546,7 +577,7 @@ export default function SettingsScreen() {
                   onPress={() => enableTTSVoice(voice.code)}
                 >
                   <Download size={20} color="#007AFF" />
-                  <Text style={styles.downloadButtonText}>Enable</Text>
+                  <Text style={dynamicStyles.downloadButtonText}>Enable</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -555,7 +586,7 @@ export default function SettingsScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { borderTopColor: colors.border }]}>
-        <Text style={[styles.footerText, { color: colors.textTertiary }]}>
+        <Text style={[dynamicStyles.footerText, { color: colors.textTertiary }]}>
           💡 Tip: Adjust text size for better readability and download TTS voices to hear translations in different languages.
         </Text>
       </View>
