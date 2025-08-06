@@ -19,7 +19,7 @@ export default function LanguageSelector({
   const selectedLang = getLanguageByCode(selectedLanguage);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
       <TouchableOpacity
         style={styles.selector}
         onPress={() => setIsExpanded(!isExpanded)}
@@ -38,12 +38,14 @@ export default function LanguageSelector({
       </TouchableOpacity>
 
       {isExpanded && (
-        <View style={styles.dropdown}>
+        <View style={styles.dropdown} pointerEvents="auto">
           <ScrollView 
             style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={true}
             bounces={true}
-            nestedScrollEnabled={true}
+            scrollEnabled={true}
+            keyboardShouldPersistTaps="handled"
           >
             {SUPPORTED_LANGUAGES.map((language) => (
               <TouchableOpacity
@@ -78,8 +80,7 @@ const styles = StyleSheet.create({
   container: {
     zIndex: 10000,
     position: 'relative',
-    overflow: 'visible',
-    elevation: 1000, // Add elevation for Android
+    elevation: 1000,
   },
   selector: {
     flexDirection: 'row',
@@ -103,29 +104,12 @@ const styles = StyleSheet.create({
   chevronExpanded: {
     transform: [{ rotate: '180deg' }],
   },
-  chevronRotated: {
-    transform: [{ rotate: '180deg' }],
-  },
-  chevronRotatedExpanded: {
-    transform: [{ rotate: '360deg' }], // 180° for rotation + 180° for expansion = 360° (back to normal)
-  },
-  rotatedSelector: {
-    transform: [{ rotate: '180deg' }],
-    backgroundColor: 'rgba(255, 0, 0, 0.3)', // Temporarily add red background to see rotation
-  },
-  rotatedText: {
-    transform: [{ rotate: '180deg' }],
-  },
-  rotatedDropdown: {
-    transform: [{ rotate: '180deg' }],
-    top: -250, // Adjust position for rotated dropdown
-  },
   dropdown: {
     position: 'absolute',
     top: 52,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    backgroundColor: 'rgba(0, 0, 0, 0.98)',
     borderRadius: 10,
     maxHeight: 200,
     borderWidth: 1,
@@ -138,14 +122,16 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   scrollView: {
-    flex: 1,
+    maxHeight: 200,
+  },
+  scrollContent: {
+    paddingVertical: 4,
   },
   option: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-    marginVertical: 0,
   },
   selectedOption: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
