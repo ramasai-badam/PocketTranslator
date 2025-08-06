@@ -72,44 +72,22 @@ export default function ConversationDetailScreen() {
     if (highlightTranslationId && entries.length > 0) {
       setHighlightedEntryId(highlightTranslationId);
       
-      // Animate highlight in - run animations separately to avoid driver conflicts
-      Animated.timing(borderColorAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: false, // Color animations don't support native driver
-      }).start();
-      
-      Animated.sequence([
-        Animated.timing(highlightScale, {
-          toValue: 1.02,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-        Animated.timing(highlightScale, {
-          toValue: 1,
-          duration: 250,
-          useNativeDriver: true,
-        }),
-      ]).start();
-      
       // Find the entry index first
       const entryIndex = entries.findIndex(entry => entry.id === highlightTranslationId);
       
       if (entryIndex !== -1) {
-        // Use a longer delay to ensure FlatList has finished rendering
+        // Scroll to the item first with a shorter delay
         setTimeout(() => {
           try {
-            // Try scrollToIndex first (more reliable for virtualized lists)
             flatListRef.current?.scrollToIndex({ 
               index: entryIndex,
               animated: true,
               viewOffset: 100,
-              viewPosition: 0.3 // Position the item at 30% from the top
+              viewPosition: 0.3
             });
           } catch (error) {
-            console.log('scrollToIndex failed, trying fallback method');
             // Fallback: Use estimated offset calculation
-            const estimatedItemHeight = 200; // Approximate height of each entry
+            const estimatedItemHeight = 200;
             const estimatedOffset = Math.max(0, (entryIndex * estimatedItemHeight) - 100);
             
             flatListRef.current?.scrollToOffset({ 
@@ -117,28 +95,52 @@ export default function ConversationDetailScreen() {
               animated: true 
             });
           }
-        }, 800); // Longer delay for better reliability
+        }, 100);
+        
+        // Start animations after scroll begins
+        setTimeout(() => {
+          // Smooth border color animation
+          Animated.timing(borderColorAnim, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: false,
+          }).start();
+          
+          // Smooth scale animation with easing
+          Animated.sequence([
+            Animated.timing(highlightScale, {
+              toValue: 1.03,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+            Animated.timing(highlightScale, {
+              toValue: 1,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+          ]).start();
+        }, 200);
       }
       
-      // Remove highlight after 4 seconds (extended to see the effect better)
+      // Remove highlight after 3.5 seconds
       const timeout = setTimeout(() => {
-        Animated.timing(borderColorAnim, {
-          toValue: 0,
-          duration: 800,
-          useNativeDriver: false, // Color animations don't support native driver
-        }).start();
-        
-        Animated.timing(highlightScale, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }).start((finished) => {
-          // Only clear the highlighted entry ID after animation completes
+        Animated.parallel([
+          Animated.timing(borderColorAnim, {
+            toValue: 0,
+            duration: 600,
+            useNativeDriver: false,
+          }),
+          Animated.timing(highlightScale, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ]).start((finished) => {
           if (finished) {
             setHighlightedEntryId(null);
           }
         });
-      }, 4000);
+      }, 3500);
       return () => clearTimeout(timeout);
     }
   }, [highlightTranslationId, entries]);
@@ -430,10 +432,20 @@ export default function ConversationDetailScreen() {
           borderColor: highlightedEntryId === entry.id 
             ? borderColorAnim.interpolate({
                 inputRange: [0, 1],
-                outputRange: [colors.border, colors.text],
+                outputRange: [colors.border, '#007AFF'],
               })
             : colors.border,
-          borderWidth: 2,
+          borderWidth: highlightedEntryId === entry.id ? 3 : 2,
+          transform: highlightedEntryId === entry.id ? [{ scale: highlightScale }] : [],
+          shadowOpacity: highlightedEntryId === entry.id 
+            ? borderColorAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, 0.15],
+              })
+            : 0,
+          shadowRadius: highlightedEntryId === entry.id ? 8 : 0,
+          shadowOffset: { width: 0, height: 2 },
+          elevation: highlightedEntryId === entry.id ? 4 : 0,
         },
       ]}
     >
@@ -442,7 +454,7 @@ export default function ConversationDetailScreen() {
           opacity: highlightedEntryId === entry.id 
             ? borderColorAnim.interpolate({
                 inputRange: [0, 1],
-                outputRange: [1, 0.95],
+                outputRange: [1, 0.98],
               })
             : 1,
         }}
