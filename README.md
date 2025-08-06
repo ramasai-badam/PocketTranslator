@@ -156,3 +156,10 @@ Modify `utils/LanguageConfig.ts` to:
 - Enable "Install unknown apps" for development builds
 - Grant microphone and storage permissions
 - Disable battery optimization for consistent performance
+
+## 📦 Download
+
+### Latest Production APK
+**[Download PocketTranslator v1.0.0 APK](https://github.com/ramasai-badam/PocketTranslator/releases/tag/v1.0.0)**
+
+
