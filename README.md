@@ -118,18 +118,6 @@ hooks/
 - **Storage**: 5GB+ free space for models and app data
 - **CPU**: ARM64 processor (modern Android devices)
 
-## 🧪 Testing
-
-### Model Validation
-- File size validation ensures complete downloads
-- Automatic cleanup of incomplete/corrupted models
-- Error handling for network interruptions during download
-
-### Development Features
-- Skip button for testing without models
-- Detailed logging for debugging translation issues
-- Model reinitialization on context loss
-
 ## 📝 Configuration
 
 ### Adjusting Model Settings
