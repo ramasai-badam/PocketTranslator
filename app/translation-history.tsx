@@ -20,6 +20,8 @@ import { router } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { TranslationHistoryManager, LanguagePairConversation, TranslationEntry } from '../utils/TranslationHistory';
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '../utils/LanguageConfig';
+import { useTheme } from '../contexts/ThemeContext';
+import { useTextSize } from '../hooks/useTextSize';
 
 interface DaySection {
   title: string;
@@ -29,6 +31,10 @@ interface DaySection {
 const { width } = Dimensions.get('window');
 
 export default function TranslationHistoryScreen() {
+  const { colors } = useTheme();
+  const { getTextSizeConfig } = useTextSize();
+  const textSizeConfig = getTextSizeConfig();
+  const scale = textSizeConfig.fontSize / 16; // Base scale on medium (16px)
   const [translationsByDay, setTranslationsByDay] = useState<{ [date: string]: { [languagePair: string]: { conversation: LanguagePairConversation; entries: TranslationEntry[] } } }>({});
   const [sectionsData, setSectionsData] = useState<DaySection[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -353,45 +359,45 @@ export default function TranslationHistoryScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
-        <StatusBar style="light" />
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
+        <StatusBar style={colors.background === '#1a1a1a' ? 'light' : 'dark'} />
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading history...</Text>
+          <Text style={[styles.loadingText, { color: colors.text, fontSize: 16 * scale }]}>Loading history...</Text>
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar style={colors.background === '#1a1a1a' ? 'light' : 'dark'} />
       
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={[styles.backButton, { backgroundColor: colors.button, borderColor: colors.buttonBorder }]}
           onPress={() => router.back()}
         >
-          <ArrowLeft size={24} color="#FFF" />
+          <ArrowLeft size={24 * scale} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Translation History</Text>
+        <Text style={[styles.headerTitle, { color: colors.text, fontSize: 18 * scale }]}>Translation History</Text>
         <TouchableOpacity
-          style={styles.clearButton}
+          style={[styles.clearButton, { backgroundColor: colors.button, borderColor: colors.buttonBorder }]}
           onPress={handleClearAllHistory}
           disabled={Object.keys(translationsByDay).length === 0}
         >
-          <Trash2 size={20} color={Object.keys(translationsByDay).length > 0 ? "#FF3B30" : "#666"} />
+          <Trash2 size={20 * scale} color={Object.keys(translationsByDay).length > 0 ? "#FF3B30" : colors.disabled} />
         </TouchableOpacity>
       </View>
 
       {/* Search */}
       <View style={styles.searchContainer}>
-        <View style={styles.searchInputContainer}>
-          <Search size={20} color="#999" style={styles.searchIcon} />
+        <View style={[styles.searchInputContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Search size={20 * scale} color={colors.textTertiary} style={styles.searchIcon} />
           <TextInput
-            style={styles.searchInput}
+            style={[styles.searchInput, { color: colors.text, fontSize: 16 * scale }]}
             placeholder="Search translations..."
-            placeholderTextColor="#999"
+            placeholderTextColor={colors.placeholderText}
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -400,28 +406,28 @@ export default function TranslationHistoryScreen() {
               style={styles.clearSearchButton}
               onPress={clearFilters}
             >
-              <X size={16} color="#999" />
+              <X size={16 * scale} color={colors.textTertiary} />
             </TouchableOpacity>
           )}
           <TouchableOpacity
             style={[styles.filterButton, hasActiveFilters() && styles.filterButtonActive]}
             onPress={() => setShowFilterModal(true)}
           >
-            <Filter size={16} color={hasActiveFilters() ? "#007AFF" : "#999"} />
+            <Filter size={16 * scale} color={hasActiveFilters() ? "#007AFF" : colors.textTertiary} />
           </TouchableOpacity>
         </View>
         
         {/* Active Filters Indicator */}
         {hasActiveFilters() && (
-          <View style={styles.activeFiltersContainer}>
-            <Text style={styles.activeFiltersText}>
+          <View style={[styles.activeFiltersContainer, { backgroundColor: 'rgba(0, 122, 255, 0.1)', borderColor: 'rgba(0, 122, 255, 0.3)' }]}>
+            <Text style={[styles.activeFiltersText, { fontSize: 14 * scale }]}>
               Filters: {getFilterSummary()}
             </Text>
             <TouchableOpacity
               style={styles.clearFiltersButton}
               onPress={clearFilters}
             >
-              <X size={14} color="#007AFF" />
+              <X size={14 * scale} color="#007AFF" />
             </TouchableOpacity>
           </View>
         )}
@@ -767,23 +773,25 @@ export default function TranslationHistoryScreen() {
             conversation={item.conversation}
             entries={item.entries}
             onConversationPress={handleConversationPress}
+            colors={colors}
+            scale={scale}
           />
         )}
         renderSectionHeader={({ section }) => (
-          <Text style={styles.dayHeader}>{formatDateHeader(section.title)}</Text>
+          <Text style={[styles.dayHeader, { color: colors.text, fontSize: 18 * scale }]}>{formatDateHeader(section.title)}</Text>
         )}
         style={styles.scrollView}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#FFF" />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.text} />
         }
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={() => (
           <View style={styles.emptyContainer}>
-            <MessageCircle size={48} color="#666" />
-            <Text style={styles.emptyTitle}>
+            <MessageCircle size={48 * scale} color={colors.textTertiary} />
+            <Text style={[styles.emptyTitle, { color: colors.text, fontSize: 20 * scale }]}>
               {hasActiveFilters() ? 'No matching translations' : searchQuery ? 'No matching translations' : 'No Translation History'}
             </Text>
-            <Text style={styles.emptySubtitle}>
+            <Text style={[styles.emptySubtitle, { color: colors.textSecondary, fontSize: 16 * scale }]}>
               {hasActiveFilters() ? 'Try adjusting your filters or clear them to see more results' : searchQuery ? 'Try a different search term' : 'Start translating to build your learning history'}
             </Text>
           </View>
@@ -795,8 +803,8 @@ export default function TranslationHistoryScreen() {
       />
 
       {sectionsData.length > 0 && (
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>
+        <View style={[styles.footer, { borderTopColor: colors.border }]}>
+          <Text style={[styles.footerText, { color: colors.textSecondary, fontSize: 14 * scale }]}>
             💡 Tip: Tap any conversation to review and practice your translations
           </Text>
         </View>
@@ -841,12 +849,16 @@ const LanguagePairSection = React.memo(({
   languagePair, 
   conversation, 
   entries, 
-  onConversationPress 
+  onConversationPress,
+  colors,
+  scale
 }: {
   languagePair: string;
   conversation: LanguagePairConversation;
   entries: TranslationEntry[];
   onConversationPress: (conversation: LanguagePairConversation, highlightTranslationId?: string) => void;
+  colors: any;
+  scale: number;
 }) => {
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleTimeString([], { 
@@ -856,20 +868,20 @@ const LanguagePairSection = React.memo(({
   };
 
   return (
-    <View style={styles.languagePairSection}>
+    <View style={[styles.languagePairSection, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       {/* Language Pair Header */}
       <TouchableOpacity
-        style={styles.languagePairHeader}
+        style={[styles.languagePairHeader, { backgroundColor: colors.borderTransparent }]}
         onPress={() => onConversationPress(conversation)}
       >
-        <Text style={styles.languagePairTitle}>
+        <Text style={[styles.languagePairTitle, { color: colors.text, fontSize: 16 * scale }]}>
           {conversation.displayName}
         </Text>
         <View style={styles.languagePairInfo}>
-          <Text style={styles.entryCount}>
+          <Text style={[styles.entryCount, { color: colors.textSecondary, fontSize: 12 * scale }]}>
             {entries.length} translation{entries.length !== 1 ? 's' : ''}
           </Text>
-          <Text style={styles.arrowText}>›</Text>
+          <Text style={[styles.arrowText, { color: colors.textTertiary, fontSize: 16 * scale }]}>›</Text>
         </View>
       </TouchableOpacity>
       
@@ -877,18 +889,18 @@ const LanguagePairSection = React.memo(({
       {entries.slice(0, 3).map((entry) => (
         <TouchableOpacity
           key={entry.id}
-          style={styles.translationItem}
+          style={[styles.translationItem, { borderTopColor: colors.border }]}
           onPress={() => onConversationPress(conversation, entry.id)}
           activeOpacity={0.7}
         >
           <View style={styles.translationContent}>
-            <Text style={styles.originalText} numberOfLines={1}>
+            <Text style={[styles.originalText, { color: colors.text, fontSize: 14 * scale }]} numberOfLines={1}>
               {entry.originalText}
             </Text>
-            <Text style={styles.translatedText} numberOfLines={1}>
+            <Text style={[styles.translatedText, { color: colors.textSecondary, fontSize: 14 * scale }]} numberOfLines={1}>
               {entry.translatedText}
             </Text>
-            <Text style={styles.translationTime}>
+            <Text style={[styles.translationTime, { color: colors.textTertiary, fontSize: 12 * scale }]}>
               {formatDate(entry.timestamp)}
             </Text>
           </View>
@@ -897,10 +909,10 @@ const LanguagePairSection = React.memo(({
       
       {entries.length > 3 && (
         <TouchableOpacity
-          style={styles.viewMoreButton}
+          style={[styles.viewMoreButton, { borderTopColor: colors.border }]}
           onPress={() => onConversationPress(conversation)}
         >
-          <Text style={styles.viewMoreText}>
+          <Text style={[styles.viewMoreText, { fontSize: 14 * scale }]}>
             View {entries.length - 3} more translation{entries.length - 3 !== 1 ? 's' : ''}
           </Text>
         </TouchableOpacity>
@@ -912,16 +924,11 @@ const LanguagePairSection = React.memo(({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingText: {
-    color: '#FFF',
-    fontSize: 16,
   },
   header: {
     flexDirection: 'row',
@@ -935,14 +942,11 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFF',
     flex: 1,
     textAlign: 'center',
   },
@@ -950,7 +954,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -961,19 +964,15 @@ const styles = StyleSheet.create({
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1A1A1A',
     borderRadius: 12,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#333',
   },
   searchIcon: {
     marginRight: 12,
   },
   searchInput: {
     flex: 1,
-    color: '#FFF',
-    fontSize: 16,
     paddingVertical: 12,
   },
   clearSearchButton: {
@@ -992,23 +991,97 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
     marginTop: 8,
     borderWidth: 1,
-    borderColor: 'rgba(0, 122, 255, 0.3)',
-  },
-  activeFiltersText: {
-    color: '#007AFF',
-    fontSize: 14,
-    fontWeight: '500',
-    flex: 1,
   },
   clearFiltersButton: {
     padding: 2,
   },
+  scrollView: {
+    flex: 1,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontWeight: '600',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    textAlign: 'center',
+    paddingHorizontal: 40,
+  },
+  dayHeader: {
+    fontWeight: 'bold',
+    marginHorizontal: 20,
+    marginBottom: 12,
+  },
+  languagePairSection: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  languagePairHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+  },
+  languagePairTitle: {
+    fontWeight: '600',
+    flex: 1,
+  },
+  languagePairInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  translationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderTopWidth: 1,
+  },
+  translationContent: {
+    flex: 1,
+  },
+  originalText: {
+    marginBottom: 4,
+  },
+  translatedText: {
+    marginBottom: 4,
+  },
+  viewMoreButton: {
+    padding: 12,
+    borderTopWidth: 1,
+    alignItems: 'center',
+  },
+  viewMoreText: {
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  arrowText: {
+    fontWeight: 'bold',
+  },
+  footer: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: 1,
+  },
+  footerText: {
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  // Modal styles remain mostly static for overlays
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -1370,119 +1443,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  scrollView: {
-    flex: 1,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 60,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#FFF',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptySubtitle: {
-    fontSize: 16,
-    color: '#999',
-    textAlign: 'center',
-    paddingHorizontal: 40,
-  },
-  daySection: {
-    marginBottom: 24,
-  },
-  dayHeader: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFF',
-    marginHorizontal: 20,
-    marginBottom: 12,
-  },
-  languagePairSection: {
-    backgroundColor: '#1A1A1A',
-    marginHorizontal: 20,
-    marginBottom: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#333',
-    overflow: 'hidden',
-  },
-  languagePairHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  },
-  languagePairTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFF',
-    flex: 1,
-  },
-  languagePairInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  entryCount: {
-    fontSize: 12,
-    color: '#999',
-  },
-  translationItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
-  },
-  translationContent: {
-    flex: 1,
-  },
-  originalText: {
-    fontSize: 14,
-    color: '#FFF',
-    marginBottom: 4,
-  },
-  translatedText: {
-    fontSize: 14,
-    color: '#999',
-    marginBottom: 4,
-  },
-  translationTime: {
-    fontSize: 12,
-    color: '#666',
-  },
-  viewMoreButton: {
-    padding: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
-    alignItems: 'center',
-  },
-  viewMoreText: {
-    fontSize: 14,
+  activeFiltersText: {
     color: '#007AFF',
     fontWeight: '500',
+    flex: 1,
   },
-  arrowText: {
-    fontSize: 16,
-    color: '#666',
-    fontWeight: 'bold',
+  entryCount: {
+    //
   },
-  footer: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#333',
+  translationTime: {
+    //
   },
-  footerText: {
-    fontSize: 14,
-    color: '#999',
-    textAlign: 'center',
-    lineHeight: 20,
+  loadingText: {
+    //
   },
 });
