@@ -526,7 +526,7 @@ export default function VocabularyListScreen() {
   if (isLoading) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background }]}>
-        <StatusBar style={colors.background === '#1a1a1a' ? 'light' : 'dark'} />
+        <StatusBar style={colors.background === '#1a1a1a' || colors.background === '#000000' ? 'light' : 'dark'} />
         <View style={styles.loadingContainer}>
           <Text style={[styles.loadingText, { color: colors.text, fontSize: fonts.primary }]}>Loading vocabulary...</Text>
         </View>
@@ -536,7 +536,7 @@ export default function VocabularyListScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <StatusBar style={colors.background === '#1a1a1a' ? 'light' : 'dark'} />
+      <StatusBar style={colors.background === '#1a1a1a' || colors.background === '#000000' ? 'light' : 'dark'} />
       
       {/* Header */}
       <View style={styles.header}>

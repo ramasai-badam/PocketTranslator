@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import { MODEL_CONFIG, getModelPath, getModelUrl, getModelSize, getModelDisplayName } from '@/utils/ModelConfig';
 import { ModelManager } from '@/utils/ModelManager';
+import { useTheme } from '../contexts/ThemeContext';
+import { useTextSize } from '../hooks/useTextSize';
 
 interface ModelDownloadProgress {
   whisper: { progress: number; downloaded: boolean; error?: string };
@@ -10,6 +12,20 @@ interface ModelDownloadProgress {
 }
 
 export default function WelcomeScreen({ onReady }: { onReady: () => void }) { 
+  const { colors } = useTheme();
+  const { getTextSizeConfig } = useTextSize();
+  const textSizeConfig = getTextSizeConfig();
+  
+  // Create scaled font sizes based on current text size context
+  const fonts = {
+    small: Math.max(8, textSizeConfig.fontSize - 4),
+    secondary: Math.max(10, textSizeConfig.fontSize - 2),
+    primary: textSizeConfig.fontSize,
+    emphasized: textSizeConfig.fontSize + 2,
+    large: textSizeConfig.fontSize + 4,
+    xlarge: textSizeConfig.fontSize + 8,
+  };
+
   const [isDownloading, setIsDownloading] = useState(false);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
   const [progress, setProgress] = useState<ModelDownloadProgress>({
@@ -157,44 +173,43 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
   const isProcessing = isDownloading || isLoadingModels;
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>PocketTranslator</Text>
-      <Text style={styles.subtitle}>AI-Powered Translation</Text>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.title, { color: colors.text, fontSize: fonts.xlarge }]}>PocketTranslator</Text>
       
       <View style={styles.progressContainer}>
-        <Text style={styles.progressTitle}>
+        <Text style={[styles.progressTitle, { color: colors.text, fontSize: fonts.emphasized }]}>
           {isLoadingModels ? 'Loading Models into Memory...' : 'Preparing AI Models'}
         </Text>
         
         {/* Whisper Progress */}
         <View style={styles.modelProgress}>
-          <Text style={styles.modelName}>{getModelDisplayName('whisper')}</Text>
-          <View style={styles.progressBar}>
+          <Text style={[styles.modelName, { color: colors.textSecondary, fontSize: fonts.secondary }]}>{getModelDisplayName('whisper')}</Text>
+          <View style={[styles.progressBar, { backgroundColor: colors.surfaceTransparent }]}>
             <View 
-              style={[styles.progressFill, { width: `${progress.whisper.progress}%` }]} 
+              style={[styles.progressFill, { width: `${progress.whisper.progress}%`, backgroundColor: colors.primary }]} 
             />
           </View>
-          <Text style={styles.progressText}>
+          <Text style={[styles.progressText, { color: colors.textSecondary, fontSize: fonts.small }]}>
             {progress.whisper.downloaded ? '✅ Ready' : `${progress.whisper.progress}%`}
           </Text>
         </View>
 
         {/* Translation Model Progress */}
         <View style={styles.modelProgress}>
-          <Text style={styles.modelName}>{getModelDisplayName('llama')}</Text>
-          <View style={styles.progressBar}>
+          <Text style={[styles.modelName, { color: colors.textSecondary, fontSize: fonts.secondary }]}>{getModelDisplayName('llama')}</Text>
+          <View style={[styles.progressBar, { backgroundColor: colors.surfaceTransparent }]}>
             <View 
-              style={[styles.progressFill, { width: `${progress.llama.progress}%` }]} 
+              style={[styles.progressFill, { width: `${progress.llama.progress}%`, backgroundColor: colors.primary }]} 
             />
           </View>
-          <Text style={styles.progressText}>
+          <Text style={[styles.progressText, { color: colors.textSecondary, fontSize: fonts.small }]}>
             {progress.llama.downloaded ? '✅ Ready' : `${progress.llama.progress}%`}
           </Text>
         </View>
 
         {/* Overall Progress */}
-        <View style={styles.overallProgress}>
-          <Text style={styles.overallProgressText}>
+        <View style={[styles.overallProgress, { borderTopColor: colors.border }]}>
+          <Text style={[styles.overallProgressText, { color: colors.text, fontSize: fonts.primary }]}>
             Overall: {Math.round(totalProgress)}%
           </Text>
         </View>
@@ -202,24 +217,24 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
 
       <View style={styles.buttonContainer}>
         {!allDownloaded && !isProcessing && (
-          <TouchableOpacity style={styles.downloadButton} onPress={startDownload}>
-            <Text style={styles.downloadButtonText}>Download Models</Text>
+          <TouchableOpacity style={[styles.downloadButton, { backgroundColor: colors.primary }]} onPress={startDownload}>
+            <Text style={[styles.downloadButtonText, { color: colors.buttonText, fontSize: fonts.primary }]}>Download Models</Text>
           </TouchableOpacity>
         )}
 
         {isDownloading && (
-          <Text style={styles.downloadingText}>Downloading models...</Text>
+          <Text style={[styles.downloadingText, { color: colors.textSecondary, fontSize: fonts.primary }]}>Downloading models...</Text>
         )}
 
         {isLoadingModels && (
-          <Text style={styles.downloadingText}>Loading models into memory...</Text>
+          <Text style={[styles.downloadingText, { color: colors.textSecondary, fontSize: fonts.primary }]}>Loading models into memory...</Text>
         )}
 
         {/* Continue to Translator button removed as requested */}
 
         {showSkip && !isProcessing && (
           <TouchableOpacity style={styles.skipButton} onPress={onReady}>
-            <Text style={styles.skipText}>Skip (For Testing)</Text>
+            <Text style={[styles.skipText, { color: colors.textTertiary, fontSize: fonts.secondary }]}>Skip (For Testing)</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -230,20 +245,15 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
   },
   title: {
-    fontSize: 32,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#ccc',
     marginBottom: 40,
   },
   progressContainer: {
@@ -252,8 +262,6 @@ const styles = StyleSheet.create({
     marginBottom: 40,
   },
   progressTitle: {
-    fontSize: 18,
-    color: '#fff',
     textAlign: 'center',
     marginBottom: 20,
     fontWeight: '600',
@@ -262,36 +270,27 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modelName: {
-    fontSize: 14,
-    color: '#ccc',
     marginBottom: 5,
   },
   progressBar: {
     height: 8,
-    backgroundColor: '#333',
     borderRadius: 4,
     overflow: 'hidden',
     marginBottom: 5,
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#3498db',
     borderRadius: 4,
   },
   progressText: {
-    fontSize: 12,
-    color: '#ccc',
     textAlign: 'right',
   },
   overallProgress: {
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#333',
   },
   overallProgressText: {
-    fontSize: 16,
-    color: '#fff',
     textAlign: 'center',
     fontWeight: '600',
   },
@@ -299,32 +298,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   downloadButton: {
-    backgroundColor: '#3498db',
     paddingHorizontal: 30,
     paddingVertical: 15,
     borderRadius: 25,
     marginBottom: 15,
   },
   downloadButtonText: {
-    color: '#fff',
-    fontSize: 16,
     fontWeight: 'bold',
   },
   continueButton: {
-    backgroundColor: '#27ae60',
     paddingHorizontal: 30,
     paddingVertical: 15,
     borderRadius: 25,
     marginBottom: 15,
   },
   continueButtonText: {
-    color: '#fff',
-    fontSize: 16,
     fontWeight: 'bold',
   },
   downloadingText: {
-    color: '#ccc',
-    fontSize: 16,
     marginBottom: 15,
   },
   skipButton: {
@@ -332,8 +323,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   skipText: {
-    color: '#ccc',
-    fontSize: 14,
     textDecorationLine: 'underline',
   },
 });
