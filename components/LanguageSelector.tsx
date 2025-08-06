@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, FlatList } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from '../utils/LanguageConfig';
 
@@ -39,17 +39,13 @@ export default function LanguageSelector({
 
       {isExpanded && (
         <View style={styles.dropdown}>
-          <FlatList 
-            style={styles.scrollView} 
-            contentContainerStyle={styles.scrollContent}
+          <ScrollView 
+            style={styles.scrollView}
             showsVerticalScrollIndicator={true}
-            scrollEnabled={true}
             bounces={true}
             nestedScrollEnabled={true}
-            keyboardShouldPersistTaps="handled"
-            data={SUPPORTED_LANGUAGES}
-            keyExtractor={(item) => item.code}
-            renderItem={({ item: language }) => (
+          >
+            {SUPPORTED_LANGUAGES.map((language) => (
               <TouchableOpacity
                 key={language.code}
                 style={[
@@ -70,8 +66,8 @@ export default function LanguageSelector({
                   {language.nativeName}
                 </Text>
               </TouchableOpacity>
-            )}
-          />
+            ))}
+          </ScrollView>
         </View>
       )}
     </View>
@@ -126,16 +122,16 @@ const styles = StyleSheet.create({
   },
   dropdown: {
     position: 'absolute',
-    top: 50,
+    top: 52,
     left: 0,
     right: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.95)',
     borderRadius: 10,
-    height: 200,
+    maxHeight: 200,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.2)',
-    elevation: 50,
-    zIndex: 99999,
+    elevation: 1000,
+    zIndex: 10000,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -144,15 +140,12 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
-    paddingVertical: 8,
-    flexGrow: 1,
-  },
   option: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    marginVertical: 0,
   },
   selectedOption: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
