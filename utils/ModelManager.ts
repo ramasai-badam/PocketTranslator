@@ -354,19 +354,72 @@ Translate this ${fromLang} text to ${toLang}: "${text}" Strictly Provide only si
     }
   }
 
-  // Check if models exist
+  // Clear incomplete or corrupted models
+  static async clearIncompleteModels(): Promise<void> {
+    try {
+      const { getModelSize } = await import('./ModelConfig');
+      
+      for (const [modelName, path] of Object.entries(this.MODEL_PATHS)) {
+        const fileInfo = await FileSystem.getInfoAsync(path);
+        if (fileInfo.exists) {
+          const expectedSize = getModelSize(modelName as 'whisper' | 'llama');
+          const isValid = 'size' in fileInfo && 
+            fileInfo.size && 
+            fileInfo.size >= expectedSize * 0.99;
+          
+          if (!isValid) {
+            console.log(`Removing incomplete ${modelName} model (size: ${fileInfo.size}, expected: ${expectedSize})`);
+            await FileSystem.deleteAsync(path);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error clearing incomplete models:', error);
+      throw error;
+    }
+  }
+
+  // Check if models exist and are valid (correct size)
   static async checkModelsExist(): Promise<{ whisper: boolean; llama: boolean; both: boolean }> {
     try {
       const whisperInfo = await FileSystem.getInfoAsync(this.MODEL_PATHS.whisper);
       const llamaInfo = await FileSystem.getInfoAsync(this.MODEL_PATHS.llama);
       
-      const whisperExists = whisperInfo.exists;
-      const llamaExists = llamaInfo.exists;
+      // Import model sizes for validation
+      const { getModelSize } = await import('./ModelConfig');
+      const whisperExpectedSize = getModelSize('whisper');
+      const llamaExpectedSize = getModelSize('llama');
+      
+      // Validate both existence and size (with 1% tolerance for compression/filesystem differences)
+      const whisperValid = whisperInfo.exists && 
+        'size' in whisperInfo && 
+        whisperInfo.size && 
+        whisperInfo.size >= whisperExpectedSize * 0.99;
+        
+      const llamaValid = llamaInfo.exists && 
+        'size' in llamaInfo && 
+        llamaInfo.size && 
+        llamaInfo.size >= llamaExpectedSize * 0.99;
+      
+      console.log('ModelManager: Model validation results:', {
+        whisper: { 
+          exists: whisperInfo.exists, 
+          size: 'size' in whisperInfo ? whisperInfo.size : 0,
+          expected: whisperExpectedSize,
+          valid: whisperValid 
+        },
+        llama: { 
+          exists: llamaInfo.exists, 
+          size: 'size' in llamaInfo ? llamaInfo.size : 0,
+          expected: llamaExpectedSize,
+          valid: llamaValid 
+        }
+      });
       
       return {
-        whisper: whisperExists,
-        llama: llamaExists,
-        both: whisperExists && llamaExists
+        whisper: Boolean(whisperValid),
+        llama: Boolean(llamaValid),
+        both: Boolean(whisperValid && llamaValid)
       };
     } catch (error) {
       console.error('Error checking model existence:', error);

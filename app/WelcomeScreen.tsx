@@ -35,6 +35,7 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
   const [showSkip, setShowSkip] = useState(false);
 
   useEffect(() => {
+    console.log('WelcomeScreen: Component mounted, checking existing models...');
     checkExistingModels();
     // Show skip button after 3 seconds for testing
     const timer = setTimeout(() => setShowSkip(true), 3000);
@@ -43,22 +44,96 @@ export default function WelcomeScreen({ onReady }: { onReady: () => void }) {
 
   const checkExistingModels = async () => {
     try {
-      const whisperExists = await FileSystem.getInfoAsync(getModelPath('whisper'));
-      const llamaExists = await FileSystem.getInfoAsync(getModelPath('llama'));
+      console.log('WelcomeScreen: Starting model validation check...');
+      
+      const whisperPath = getModelPath('whisper');
+      const llamaPath = getModelPath('llama');
+      
+      console.log('WelcomeScreen: Model paths:', { whisperPath, llamaPath });
+      
+      const whisperExists = await FileSystem.getInfoAsync(whisperPath);
+      const llamaExists = await FileSystem.getInfoAsync(llamaPath);
+
+      // Validate file sizes to ensure complete downloads
+      const whisperExpectedSize = getModelSize('whisper');
+      const llamaExpectedSize = getModelSize('llama');
+      
+      console.log('WelcomeScreen: Expected sizes:', { 
+        whisper: whisperExpectedSize, 
+        llama: llamaExpectedSize 
+      });
+      
+      console.log('WelcomeScreen: File info results:', {
+        whisper: {
+          exists: whisperExists.exists,
+          hasSize: 'size' in whisperExists,
+          size: 'size' in whisperExists ? whisperExists.size : 'no size property',
+          uri: whisperExists.uri
+        },
+        llama: {
+          exists: llamaExists.exists,
+          hasSize: 'size' in llamaExists,
+          size: 'size' in llamaExists ? llamaExists.size : 'no size property',
+          uri: llamaExists.uri
+        }
+      });
+      
+      // More strict validation - ALL conditions must be true
+      const whisperValid = whisperExists.exists && 
+        'size' in whisperExists && 
+        typeof whisperExists.size === 'number' &&
+        whisperExists.size > 0 &&
+        whisperExists.size >= whisperExpectedSize * 0.99; // Allow 1% tolerance
+      
+      const llamaValid = llamaExists.exists && 
+        'size' in llamaExists && 
+        typeof llamaExists.size === 'number' &&
+        llamaExists.size > 0 &&
+        llamaExists.size >= llamaExpectedSize * 0.99; // Allow 1% tolerance
+
+      console.log('WelcomeScreen: Model validation results:', {
+        whisper: { 
+          exists: whisperExists.exists, 
+          size: 'size' in whisperExists ? whisperExists.size : 'no size', 
+          expected: whisperExpectedSize, 
+          valid: whisperValid,
+          sizeCheck: whisperExists.exists && 'size' in whisperExists ? 
+            (whisperExists.size >= whisperExpectedSize * 0.99) : false
+        },
+        llama: { 
+          exists: llamaExists.exists, 
+          size: 'size' in llamaExists ? llamaExists.size : 'no size', 
+          expected: llamaExpectedSize, 
+          valid: llamaValid,
+          sizeCheck: llamaExists.exists && 'size' in llamaExists ? 
+            (llamaExists.size >= llamaExpectedSize * 0.99) : false
+        }
+      });
 
       setProgress(prev => ({
-        whisper: { ...prev.whisper, downloaded: whisperExists.exists, progress: whisperExists.exists ? 100 : 0 },
-        llama: { ...prev.llama, downloaded: llamaExists.exists, progress: llamaExists.exists ? 100 : 0 }
+        whisper: { 
+          ...prev.whisper, 
+          downloaded: Boolean(whisperValid), 
+          progress: whisperValid ? 100 : 0 
+        },
+        llama: { 
+          ...prev.llama, 
+          downloaded: Boolean(llamaValid), 
+          progress: llamaValid ? 100 : 0 
+        }
       }));
 
-      // If both models exist, load them into memory
-      if (whisperExists.exists && llamaExists.exists) {
-        console.log('Both models exist, loading into memory...');
+      // Only proceed if both models exist AND are valid (correct size)
+      if (whisperValid && llamaValid) {
+        console.log('WelcomeScreen: Both models exist and are valid, loading into memory...');
         await loadModelsIntoMemory();
         setTimeout(() => onReady(), 1000);
+      } else {
+        console.log('WelcomeScreen: Models invalid or missing, staying on download screen');
       }
     } catch (error) {
-      console.error('Error checking existing models:', error);
+      console.error('WelcomeScreen: Error checking existing models:', error);
+      // On error, don't auto-proceed - stay on download screen
     }
   };
 

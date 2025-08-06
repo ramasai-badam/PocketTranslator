@@ -5,7 +5,7 @@ export const MODEL_CONFIG = {
   whisper: {
     url: 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin', // Multilingual version - much faster
     path: `${FileSystem.documentDirectory}whisper-base.bin`,
-    size: 39 * 1024 * 1024, // ~148MB for base model (much faster)
+    size: 148 * 1024 * 1024, // ~148MB for base model - TODO: verify actual size
     displayName: 'Speech Recognition (Whisper)'
   },
   llama: {
