@@ -106,7 +106,7 @@ const VocabularyItem = memo(({ item, onDelete, onBreakdown, getBreakdownState, c
     <View style={[styles.wordContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
       <View style={styles.wordHeader}>
         <View style={styles.languageInfo}>
-          <Text style={[styles.languageLabel, { color: "#007AFF", fontSize: fonts.secondary }]}>
+          <Text style={[styles.languageLabel, { color: colors.primary, fontSize: fonts.secondary }]}>
             {getLanguageDisplayName(translationEntry.fromLanguage)} → {getLanguageDisplayName(translationEntry.toLanguage)}
           </Text>
         </View>

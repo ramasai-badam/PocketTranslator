@@ -14,6 +14,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as Speech from 'expo-speech';
 import { ModelManager } from '../utils/ModelManager';
 import { getLanguageDisplayName } from '../utils/LanguageConfig';
+import { useTheme } from '../contexts/ThemeContext';
+import { useTextSize } from '../contexts/TextSizeContext';
 
 // Extend global type for ongoing analyses tracking
 declare global {
@@ -41,6 +43,19 @@ interface LinguisticAnalysis {
 }
 
 export default function LinguisticBreakdownScreen() {
+  const { colors } = useTheme();
+  const { getTextSizeConfig } = useTextSize();
+  const textSizeConfig = getTextSizeConfig();
+  
+  // Create consistent font sizing object like other screens
+  const fonts = {
+    small: textSizeConfig.fontSize * 0.75,      // 12px at medium
+    secondary: textSizeConfig.fontSize * 0.875, // 14px at medium  
+    primary: textSizeConfig.fontSize,           // 16px at medium
+    emphasized: textSizeConfig.fontSize * 1.125, // 18px at medium
+    large: textSizeConfig.fontSize * 1.25,      // 20px at medium
+  };
+
   const params = useLocalSearchParams();
   const originalText = params.originalText as string;
   const translatedText = params.translatedText as string;
@@ -290,14 +305,14 @@ export default function LinguisticBreakdownScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar style="light" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>
+          <Text style={[styles.loadingText, { color: colors.text, fontSize: fonts.emphasized }]}>
             {isWaitingForOngoing ? 'Waiting for analysis to complete...' : 'Analyzing sentence structure...'}
           </Text>
-          <Text style={styles.loadingSubtext}>
+          <Text style={[styles.loadingSubtext, { color: colors.textSecondary, fontSize: fonts.secondary }]}>
             {isWaitingForOngoing 
               ? 'Another analysis is in progress. Please wait...'
               : `Breaking down "${originalText}" into linguistic components`
@@ -310,12 +325,12 @@ export default function LinguisticBreakdownScreen() {
 
   if (error) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar style="light" />
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={[styles.errorText, { fontSize: fonts.primary }]}>{error}</Text>
           <TouchableOpacity style={styles.retryButton} onPress={() => performLinguisticAnalysis()}>
-            <Text style={styles.retryButtonText}>Try Again</Text>
+            <Text style={[styles.retryButtonText, { fontSize: fonts.primary }]}>Try Again</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -324,10 +339,10 @@ export default function LinguisticBreakdownScreen() {
 
   if (!analysis) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { backgroundColor: colors.background }]}>
         <StatusBar style="light" />
         <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>No analysis data available</Text>
+          <Text style={[styles.errorText, { fontSize: fonts.primary }]}>No analysis data available</Text>
         </View>
       </View>
     );
@@ -336,20 +351,20 @@ export default function LinguisticBreakdownScreen() {
   const originalLanguageKey = getOriginalLanguageKey();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       <StatusBar style="light" />
       
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, { backgroundColor: colors.background }]}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={[styles.backButton, { backgroundColor: colors.surfaceTransparent }]}
           onPress={handleBackPress}
         >
-          <ArrowLeft size={24} color="#FFF" />
+          <ArrowLeft size={Math.max(24, fonts.emphasized)} color={colors.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Breakdown</Text>
-          <Text style={styles.headerSubtitle}>
+          <Text style={[styles.headerTitle, { color: colors.text, fontSize: fonts.emphasized }]}>Breakdown</Text>
+          <Text style={[styles.headerSubtitle, { color: colors.textSecondary, fontSize: fonts.small }]}>
             {getLanguageDisplayName(originalLanguage)} → {getLanguageDisplayName(translatedLanguage)}
           </Text>
         </View>
@@ -358,17 +373,17 @@ export default function LinguisticBreakdownScreen() {
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Word Breakdown */}
-        <View style={styles.section}>
-          <Text style={styles.sectionDescription}>
+        <View style={[styles.section, { borderBottomColor: colors.border }]}>
+          <Text style={[styles.sectionDescription, { color: colors.textSecondary, fontSize: fonts.secondary }]}>
             Tap on any phrase to hear its pronunciation
           </Text>
           
           <View style={styles.twoColumnContainer}>
-            <View style={styles.columnHeader}>
-              <Text style={styles.columnTitle}>{getLanguageDisplayName(translatedLanguage)}</Text>
+            <View style={[styles.columnHeader, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.columnTitle, { fontSize: fonts.primary }]}>{getLanguageDisplayName(translatedLanguage)}</Text>
             </View>
-            <View style={styles.columnHeader}>
-              <Text style={styles.columnTitle}>{getLanguageDisplayName(originalLanguage)}</Text>
+            <View style={[styles.columnHeader, { backgroundColor: colors.surface }]}>
+              <Text style={[styles.columnTitle, { fontSize: fonts.primary }]}>{getLanguageDisplayName(originalLanguage)}</Text>
             </View>
           </View>
           
@@ -376,25 +391,25 @@ export default function LinguisticBreakdownScreen() {
             {analysis.phrases.map((phrase, index) => (
               <View key={index} style={styles.wordPairRow}>
                 <TouchableOpacity
-                  style={styles.wordButton}
+                  style={[styles.wordButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   onPress={() => handlePronounceToken(getTokenDisplayText(phrase, true), translatedLanguage)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.wordText}>
+                  <Text style={[styles.wordText, { color: colors.text, fontSize: fonts.emphasized }]}>
                     {getTokenDisplayText(phrase, true)}
                   </Text>
-                  <Volume2 size={16} color="#007AFF" />
+                  <Volume2 size={Math.max(16, fonts.primary * 1.0)} color="#007AFF" />
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.wordButton}
+                  style={[styles.wordButton, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   onPress={() => handlePronounceToken(getTokenDisplayText(phrase, false), originalLanguage)}
                   activeOpacity={0.7}
                 >
-                  <Text style={styles.wordText}>
+                  <Text style={[styles.wordText, { color: colors.text, fontSize: fonts.emphasized }]}>
                     {getTokenDisplayText(phrase, false)}
                   </Text>
-                  <Volume2 size={16} color="#007AFF" />
+                  <Volume2 size={Math.max(16, fonts.primary * 1.0)} color="#007AFF" />
                 </TouchableOpacity>
               </View>
             ))}
@@ -404,8 +419,8 @@ export default function LinguisticBreakdownScreen() {
 
       </ScrollView>
 
-      <View style={styles.footer}>
-        <Text style={styles.footerText}>
+      <View style={[styles.footer, { borderTopColor: colors.border }]}>
+        <Text style={[styles.footerText, { color: colors.textSecondary, fontSize: fonts.secondary }]}>
           🔊 Tap words to hear their pronunciation and practice speaking
         </Text>
       </View>
@@ -416,7 +431,6 @@ export default function LinguisticBreakdownScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
   },
   loadingContainer: {
     flex: 1,
@@ -425,15 +439,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40,
   },
   loadingText: {
-    color: '#FFF',
-    fontSize: 18,
     fontWeight: '600',
     marginTop: 20,
     textAlign: 'center',
   },
   loadingSubtext: {
-    color: '#999',
-    fontSize: 14,
     marginTop: 8,
     textAlign: 'center',
   },
@@ -445,7 +455,6 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#FF3B30',
-    fontSize: 16,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -457,7 +466,6 @@ const styles = StyleSheet.create({
   },
   retryButtonText: {
     color: '#FFF',
-    fontSize: 16,
     fontWeight: '600',
   },
   header: {
@@ -472,7 +480,6 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -481,13 +488,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
     fontWeight: 'bold',
-    color: '#FFF',
   },
   headerSubtitle: {
-    fontSize: 12,
-    color: '#999',
     marginTop: 2,
   },
   headerSpacer: {
@@ -500,17 +503,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#333',
   },
   sectionTitle: {
-    fontSize: 18,
     fontWeight: '600',
-    color: '#FFF',
     marginBottom: 12,
   },
   sectionDescription: {
-    fontSize: 14,
-    color: '#999',
     marginBottom: 16,
     lineHeight: 20,
   },
@@ -518,23 +516,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1A1A1A',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#333',
   },
   sentenceText: {
     flex: 1,
-    fontSize: 18,
-    color: '#FFF',
     lineHeight: 26,
     marginRight: 12,
   },
   translationText: {
     flex: 1,
-    fontSize: 16,
-    color: '#FFF',
     lineHeight: 24,
     marginRight: 12,
   },
@@ -542,14 +534,10 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   meaningText: {
-    fontSize: 16,
-    color: '#CCC',
     lineHeight: 24,
-    backgroundColor: '#1A1A1A',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#333',
   },
   twoColumnContainer: {
     flexDirection: 'row',
@@ -560,12 +548,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: 12,
-    backgroundColor: '#2A2A2A',
     marginHorizontal: 4,
     borderRadius: 8,
   },
   columnTitle: {
-    fontSize: 16,
     fontWeight: '600',
     color: '#007AFF',
   },
@@ -581,37 +567,26 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#1A1A1A',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#333',
   },
   wordText: {
-    fontSize: 18,
-    color: '#FFF',
     fontWeight: '500',
     flex: 1,
   },
   explanationText: {
-    fontSize: 15,
-    color: '#CCC',
     lineHeight: 22,
-    backgroundColor: '#1A1A1A',
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#333',
   },
   footer: {
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderTopWidth: 1,
-    borderTopColor: '#333',
   },
   footerText: {
-    fontSize: 14,
-    color: '#999',
     textAlign: 'center',
     lineHeight: 20,
   },
