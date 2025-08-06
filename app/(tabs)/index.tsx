@@ -53,7 +53,8 @@ export default function TranslatorScreen() {
   const { translateText, isTranslating, streamingText } = useTranslation();
   const { startRecording, stopRecording, isRecording, isInitialized, error: audioError, cleanup } = useAudioRecording();
   const { transcribeWav, isTranscribing, error: whisperError } = useSpeechToText();
-  const { refreshTextSize } = useTextSize();
+  const { refreshTextSize, getTextSizeConfig } = useTextSize();
+  const textSizeConfig = getTextSizeConfig();
   const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
   const [isStreamingToTop, setIsStreamingToTop] = useState(false);
 
@@ -342,7 +343,14 @@ export default function TranslatorScreen() {
       {/* Header with Settings Button */}
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.historyButton}
+          style={[
+            styles.historyButton,
+            {
+              width: Math.max(44, textSizeConfig.fontSize * 3.0),
+              height: Math.max(44, textSizeConfig.fontSize * 3.0),
+              borderRadius: Math.max(22, textSizeConfig.fontSize * 1.5)
+            }
+          ]}
           onPress={() => {
             requestAnimationFrame(() => {
               router.push('/history');
@@ -350,10 +358,17 @@ export default function TranslatorScreen() {
           }}
           activeOpacity={0.7}
         >
-          <Text style={styles.historyButtonText}>📚</Text>
+          <Text style={[styles.historyButtonText, { fontSize: Math.max(18, textSizeConfig.fontSize * 1.4) }]}>📚</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.settingsButton}
+          style={[
+            styles.settingsButton,
+            {
+              width: Math.max(44, textSizeConfig.fontSize * 3.0),
+              height: Math.max(44, textSizeConfig.fontSize * 3.0),
+              borderRadius: Math.max(22, textSizeConfig.fontSize * 1.5)
+            }
+          ]}
           onPress={() => {
             requestAnimationFrame(() => {
               router.push('/settings');
@@ -361,7 +376,7 @@ export default function TranslatorScreen() {
           }}
           activeOpacity={0.7}
         >
-          <Settings size={24} color="#FFF" />
+          <Settings size={Math.max(20, textSizeConfig.fontSize * 1.4)} color="#FFF" />
         </TouchableOpacity>
       </View>
       
@@ -404,7 +419,7 @@ export default function TranslatorScreen() {
               onPressOut={() => handleStopRecording(true)}
               disabled={!modelsReady || isRecording || isBottomRecording}
             >
-              <Mic size={32} color={(modelsReady && !isRecording && !isBottomRecording) ? "white" : "#666"} />
+              <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && !isRecording && !isBottomRecording) ? "white" : "#666"} />
               {isTopRecording && <RecordingIndicator />}
             </TouchableOpacity>
           </View>
@@ -439,7 +454,7 @@ export default function TranslatorScreen() {
             onPressOut={() => handleStopRecording(false)}
             disabled={!modelsReady || isRecording || isTopRecording}
           >
-            <Mic size={32} color={(modelsReady && !isRecording && !isTopRecording) ? "white" : "#666"} />
+            <Mic size={Math.max(28, textSizeConfig.fontSize * 1.6)} color={(modelsReady && !isRecording && !isTopRecording) ? "white" : "#666"} />
             {isBottomRecording && <RecordingIndicator />}
           </TouchableOpacity>
         </View>
@@ -466,9 +481,6 @@ const styles = StyleSheet.create({
     pointerEvents: 'box-none', // Allow touch events to pass through to children
   },
   historyButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -477,12 +489,9 @@ const styles = StyleSheet.create({
     pointerEvents: 'auto', // Ensure button itself is touchable
   },
   historyButtonText: {
-    fontSize: 20,
+    // fontSize will be set dynamically
   },
   settingsButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',

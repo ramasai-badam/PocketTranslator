@@ -50,12 +50,19 @@ export default function TranslationDisplay({
       </Text>
       {message.language && onSpeak && (
         <TouchableOpacity 
-          style={styles.messageSpeakerButton} 
+          style={[
+            styles.messageSpeakerButton,
+            { 
+              width: Math.max(24, textSizeConfig.fontSize * 1.2),
+              height: Math.max(24, textSizeConfig.fontSize * 1.2),
+              borderRadius: Math.max(12, textSizeConfig.fontSize * 0.6)
+            }
+          ]} 
           onPress={() => handleSpeak(message.text, message.language)}
           disabled={isSpeaking}
         >
           <Volume2 
-            size={14} 
+            size={Math.max(12, textSizeConfig.fontSize * 0.7)} 
             color={isSpeaking ? "#666" : "#fff"} 
           />
         </TouchableOpacity>
@@ -87,12 +94,19 @@ export default function TranslationDisplay({
             </Text>
             {onSpeak && language && (
               <TouchableOpacity 
-                style={styles.speakerButton} 
+                style={[
+                  styles.speakerButton,
+                  { 
+                    width: Math.max(28, textSizeConfig.fontSize * 1.4),
+                    height: Math.max(28, textSizeConfig.fontSize * 1.4),
+                    borderRadius: Math.max(14, textSizeConfig.fontSize * 0.7)
+                  }
+                ]} 
                 onPress={() => handleSpeak(text)}
                 disabled={isSpeaking}
               >
                 <Volume2 
-                  size={16} 
+                  size={Math.max(14, textSizeConfig.fontSize * 0.8)} 
                   color={isSpeaking ? "#666" : "#fff"} 
                 />
               </TouchableOpacity>
@@ -143,9 +157,6 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   messageSpeakerButton: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -189,9 +200,6 @@ const styles = StyleSheet.create({
     // Text is already rotated by parent container
   },
   speakerButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',

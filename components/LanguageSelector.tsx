@@ -32,7 +32,7 @@ export default function LanguageSelector({
           {selectedLang?.nativeName || 'Select Language'}
         </Text>
         <ChevronDown 
-          size={12} 
+          size={Math.max(10, textConfig.fontSize * 0.6)} 
           color="white" 
           style={[
             styles.chevron,
