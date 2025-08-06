@@ -410,9 +410,6 @@ export default function TranslatorScreen() {
           </View>
         </View>
       </View>
-      {/* Center Divider */}
-      <View style={styles.divider}>
-      </View>
       {/* Bottom Section */}
       <View style={[styles.section, styles.bottomSection]}>
         <View style={styles.bottomLanguageSelectorContainer}>
@@ -565,13 +562,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     borderColor: 'rgba(255, 255, 255, 0.2)',
   },
-  divider: {
-    height: 80,
-    backgroundColor: '#1a1a1a',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
   topLanguageSelectorContainer: {
     marginBottom: 10,
     alignSelf: 'flex-end',
@@ -586,15 +576,5 @@ const styles = StyleSheet.create({
   },
   flexibleSpacer: {
     flex: 1,
-  },
-  swapButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#374151',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
 });
