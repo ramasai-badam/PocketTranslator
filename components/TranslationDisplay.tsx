@@ -88,13 +88,14 @@ export default function TranslationDisplay({
       ]}
       contentContainerStyle={styles.scrollContent}
       showsVerticalScrollIndicator={true}
+      ref={(ref) => {
+        // Auto-scroll to top when new content is added (since newest is now at top)
+        if (ref && conversationHistory.length > 0) {
+          setTimeout(() => ref.scrollTo({ y: 0, animated: true }), 100);
+        }
+      }}
     >
-      {/* Conversation History - exclude the latest message if we have current text */}
-      {conversationHistory
-        .slice(0, hasText ? -1 : conversationHistory.length)
-        .map((message, index) => renderMessage(message, index))}
-      
-      {/* Current/Streaming Text - only show if we have current text */}
+      {/* Current/Streaming Text - show at TOP when we have current text */}
       {hasText && (
         <View style={[
           styles.currentMessageContainer, 
@@ -140,6 +141,12 @@ export default function TranslationDisplay({
           </View>
         </View>
       )}
+
+      {/* Conversation History - exclude the latest message if we have current text */}
+      {conversationHistory
+        .slice(0, hasText ? -1 : conversationHistory.length)
+        .reverse()
+        .map((message, index) => renderMessage(message, index))}
       
       {/* Placeholder when no content */}
       {!hasText && conversationHistory.length === 0 && (
@@ -166,12 +173,12 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRadius: 16,
     padding: 8,
-    marginVertical: 10,
+    marginVertical: 1,
     minHeight: 100,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingTop: 5,
+    paddingTop: 0,
     paddingBottom: 5,
   },
   // Message styles for conversation history
@@ -201,7 +208,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   currentMessageWithHistory: {
-    marginTop: 8,
+    marginTop: 2,
   },
   textContainer: {
     flexDirection: 'row',
