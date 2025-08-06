@@ -40,6 +40,7 @@ export default function ConversationDetailScreen() {
   const [currentPage, setCurrentPage] = useState(1);
   const [loadingMore, setLoadingMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitialRender, setIsInitialRender] = useState(true);
 
   const ITEMS_PER_PAGE = 20;
   const [refreshing, setRefreshing] = useState(false);
@@ -58,92 +59,107 @@ export default function ConversationDetailScreen() {
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'translation' | 'conversation'; id?: string } | null>(null);
 
   useEffect(() => {
-    loadConversationEntries();
+    // Defer heavy operations to allow screen to render first
+    const loadData = async () => {
+      await loadConversationEntries();
+      // Mark initial render complete after data loads
+      setTimeout(() => setIsInitialRender(false), 50);
+    };
+    
+    loadData();
   }, [languagePair]);
 
   useEffect(() => {
-    if (entries.length > 0) {
-      checkSavedEntries();
+    // Only check saved entries after initial render is complete
+    if (entries.length > 0 && !isInitialRender) {
+      // Use requestAnimationFrame to defer to next frame
+      requestAnimationFrame(() => {
+        checkSavedEntries();
+      });
     }
-  }, [entries]);
+  }, [entries, isInitialRender]);
 
   // Handle highlighting specific translation
   useEffect(() => {
-    if (highlightTranslationId && entries.length > 0) {
-      setHighlightedEntryId(highlightTranslationId);
-      
-      // Find the entry index first
-      const entryIndex = entries.findIndex(entry => entry.id === highlightTranslationId);
-      
-      if (entryIndex !== -1) {
-        // Scroll to the item first with a shorter delay
-        setTimeout(() => {
-          try {
-            flatListRef.current?.scrollToIndex({ 
-              index: entryIndex,
-              animated: true,
-              viewOffset: 100,
-              viewPosition: 0.3
-            });
-          } catch (error) {
-            // Fallback: Use estimated offset calculation
-            const estimatedItemHeight = 200;
-            const estimatedOffset = Math.max(0, (entryIndex * estimatedItemHeight) - 100);
-            
-            flatListRef.current?.scrollToOffset({ 
-              offset: estimatedOffset,
-              animated: true 
-            });
-          }
-        }, 100);
+    // Only process highlighting after initial render is complete
+    if (highlightTranslationId && entries.length > 0 && !isInitialRender) {
+      // Use requestAnimationFrame to ensure smooth execution
+      requestAnimationFrame(() => {
+        setHighlightedEntryId(highlightTranslationId);
         
-        // Start animations after scroll begins
-        setTimeout(() => {
-          // Smooth border color animation
-          Animated.timing(borderColorAnim, {
-            toValue: 1,
-            duration: 600,
-            useNativeDriver: false,
-          }).start();
+        // Find the entry index first
+        const entryIndex = entries.findIndex(entry => entry.id === highlightTranslationId);
+        
+        if (entryIndex !== -1) {
+          // Scroll to the item with optimized timing
+          setTimeout(() => {
+            try {
+              flatListRef.current?.scrollToIndex({ 
+                index: entryIndex,
+                animated: true,
+                viewOffset: 100,
+                viewPosition: 0.3
+              });
+            } catch (error) {
+              // Fallback: Use estimated offset calculation
+              const estimatedItemHeight = 200;
+              const estimatedOffset = Math.max(0, (entryIndex * estimatedItemHeight) - 100);
+              
+              flatListRef.current?.scrollToOffset({ 
+                offset: estimatedOffset,
+                animated: true 
+              });
+            }
+          }, 150);
           
-          // Smooth scale animation with easing
-          Animated.sequence([
-            Animated.timing(highlightScale, {
-              toValue: 1.03,
-              duration: 300,
-              useNativeDriver: true,
+          // Start animations after scroll
+          setTimeout(() => {
+            // Smooth border color animation
+            Animated.timing(borderColorAnim, {
+              toValue: 1,
+              duration: 600,
+              useNativeDriver: false,
+            }).start();
+            
+            // Smooth scale animation
+            Animated.sequence([
+              Animated.timing(highlightScale, {
+                toValue: 1.03,
+                duration: 300,
+                useNativeDriver: true,
+              }),
+              Animated.timing(highlightScale, {
+                toValue: 1,
+                duration: 400,
+                useNativeDriver: true,
+              }),
+            ]).start();
+          }, 250);
+        }
+        
+        // Remove highlight after 3.5 seconds
+        const timeout = setTimeout(() => {
+          Animated.parallel([
+            Animated.timing(borderColorAnim, {
+              toValue: 0,
+              duration: 600,
+              useNativeDriver: false,
             }),
             Animated.timing(highlightScale, {
               toValue: 1,
-              duration: 400,
+              duration: 600,
               useNativeDriver: true,
             }),
-          ]).start();
-        }, 200);
-      }
-      
-      // Remove highlight after 3.5 seconds
-      const timeout = setTimeout(() => {
-        Animated.parallel([
-          Animated.timing(borderColorAnim, {
-            toValue: 0,
-            duration: 600,
-            useNativeDriver: false,
-          }),
-          Animated.timing(highlightScale, {
-            toValue: 1,
-            duration: 600,
-            useNativeDriver: true,
-          }),
-        ]).start((finished) => {
-          if (finished) {
-            setHighlightedEntryId(null);
-          }
-        });
-      }, 3500);
-      return () => clearTimeout(timeout);
+          ]).start((finished) => {
+            if (finished) {
+              setHighlightedEntryId(null);
+            }
+          });
+        }, 3500);
+        return () => clearTimeout(timeout);
+      });
     }
-  }, [highlightTranslationId, entries]);
+  }, [highlightTranslationId, entries, isInitialRender]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -266,9 +282,10 @@ export default function ConversationDetailScreen() {
         // Sort entries by timestamp (newest first)
         const sortedEntries = filteredEntries.sort((a, b) => b.timestamp - a.timestamp);
         
-        // Store all entries and display first page
+        // Store all entries and display first page with reduced initial batch
         setAllEntries(sortedEntries);
-        setEntries(sortedEntries.slice(0, ITEMS_PER_PAGE));
+        const initialBatch = sortedEntries.slice(0, Math.min(ITEMS_PER_PAGE, 10)); // Start with max 10 items
+        setEntries(initialBatch);
         setCurrentPage(1);
       }
     } catch (error) {
@@ -614,24 +631,32 @@ export default function ConversationDetailScreen() {
         onEndReachedThreshold={0.3}
         ListEmptyComponent={renderEmpty}
         ListFooterComponent={renderFooter}
-        removeClippedSubviews={false} // Disable to ensure all items are rendered for highlighting
-        maxToRenderPerBatch={15}
-        windowSize={15}
-        initialNumToRender={15}
+        removeClippedSubviews={false}
+        maxToRenderPerBatch={5} // Reduced for smoother initial render
+        windowSize={8} // Smaller window for better performance
+        initialNumToRender={5} // Start with fewer items for faster initial render
+        updateCellsBatchingPeriod={100} // Slower batching to avoid blocking UI
+        getItemLayout={(data, index) => ({
+          length: 200, // Estimated item height
+          offset: 200 * index,
+          index,
+        })}
         maintainVisibleContentPosition={{
           minIndexForVisible: 0,
         }}
         onScrollToIndexFailed={(info) => {
-          // Handle scroll to index failure with a fallback
-          console.log('ScrollToIndex failed, using fallback for index:', info.index);
-          const wait = new Promise(resolve => setTimeout(resolve, 500));
+          // Handle scroll to index failure with optimized fallback
+          const wait = new Promise(resolve => setTimeout(resolve, 100));
           wait.then(() => {
-            flatListRef.current?.scrollToIndex({ 
-              index: Math.min(info.index, entries.length - 1), 
-              animated: true,
-              viewOffset: 100,
-              viewPosition: 0.3
-            });
+            if (flatListRef.current && entries.length > 0) {
+              const safeIndex = Math.min(info.index, entries.length - 1);
+              flatListRef.current.scrollToIndex({ 
+                index: safeIndex, 
+                animated: true,
+                viewOffset: 100,
+                viewPosition: 0.3
+              });
+            }
           });
         }}
       />
