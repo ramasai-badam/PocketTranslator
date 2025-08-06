@@ -1,6 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
+import { SUPPORTED_LANGUAGES, getLanguageByCode } from '../utils/LanguageConfig';
+import { useTextSize } from '../contexts/TextSizeContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface LanguageSelectorProps {
   selectedLanguage: string;
@@ -8,72 +11,100 @@ interface LanguageSelectorProps {
   isRotated?: boolean;
 }
 
-const LANGUAGES = [
-  { code: 'en', name: 'English' },
-  { code: 'es', name: 'Español' },
-  { code: 'fr', name: 'Français' },
-  { code: 'de', name: 'Deutsch' },
-  { code: 'it', name: 'Italiano' },
-  { code: 'pt', name: 'Português' },
-  { code: 'ru', name: 'Русский' },
-  { code: 'ja', name: '日本語' },
-  { code: 'ko', name: '한국어' },
-  { code: 'zh', name: '中文' },
-  { code: 'ar', name: 'العربية' },
-  { code: 'hi', name: 'हिन्दी' },
-];
-
 export default function LanguageSelector({
   selectedLanguage,
   onLanguageChange,
   isRotated = false,
 }: LanguageSelectorProps) {
   const [isExpanded, setIsExpanded] = React.useState(false);
+  const { getTextSizeConfig } = useTextSize();
+  const textConfig = getTextSizeConfig();
+  const { colors } = useTheme();
 
-  const selectedLang = LANGUAGES.find(lang => lang.code === selectedLanguage);
+  const selectedLang = getLanguageByCode(selectedLanguage);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="auto">
       <TouchableOpacity
-        style={styles.selector}
+        style={[
+          styles.selector,
+          {
+            backgroundColor: colors.selectorBackground,
+            borderColor: colors.selectorBorder,
+          }
+        ]}
         onPress={() => setIsExpanded(!isExpanded)}
+        activeOpacity={0.7}
+        accessible={true}
+        accessibilityRole="button"
+        accessibilityLabel={`Language selector. Currently selected: ${selectedLang?.nativeName || 'No language selected'}`}
+        accessibilityHint={isExpanded ? "Tap to close language options" : "Tap to open language options"}
+        accessibilityState={{ expanded: isExpanded }}
       >
-        <Text style={styles.selectedText}>
-          {selectedLang?.name || 'Select Language'}
+        <Text style={[styles.selectedText, { fontSize: textConfig.fontSize, color: colors.buttonText }]}>
+          {selectedLang?.nativeName || 'Select Language'}
         </Text>
         <ChevronDown 
-          size={12} 
-          color="white" 
+          size={Math.max(10, textConfig.fontSize * 0.6)} 
+          color={colors.buttonText} 
           style={[
             styles.chevron,
-            isExpanded && styles.chevronExpanded,
-            isRotated && styles.chevronRotated
+            isExpanded && styles.chevronExpanded
           ]} 
         />
       </TouchableOpacity>
 
       {isExpanded && (
-        <View style={styles.dropdown}>
-          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={true}>
-            {LANGUAGES.map((language) => (
+        <View style={[
+          styles.dropdown,
+          {
+            backgroundColor: colors.dropdownBackground,
+            borderColor: colors.dropdownBorder,
+          }
+        ]} pointerEvents="auto">
+          <ScrollView 
+            style={styles.scrollView}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={true}
+            bounces={true}
+            scrollEnabled={true}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
+            removeClippedSubviews={false}
+          >
+            {SUPPORTED_LANGUAGES.map((language) => (
               <TouchableOpacity
                 key={language.code}
                 style={[
                   styles.option,
-                  selectedLanguage === language.code && styles.selectedOption,
+                  {
+                    borderBottomColor: colors.borderTransparent,
+                  },
+                  selectedLanguage === language.code && [
+                    styles.selectedOption,
+                    { backgroundColor: colors.optionSelected }
+                  ],
                 ]}
                 onPress={() => {
                   onLanguageChange(language.code);
                   setIsExpanded(false);
                 }}
+                accessible={true}
+                accessibilityRole="button"
+                accessibilityLabel={`Select ${language.nativeName} language`}
+                accessibilityState={{ selected: selectedLanguage === language.code }}
               >
                 <Text
                   style={[
                     styles.optionText,
-                    selectedLanguage === language.code && styles.selectedOptionText,
+                    { 
+                      fontSize: textConfig.fontSize,
+                      color: colors.buttonText,
+                    },
+                    selectedLanguage === language.code && styles.selectedOptionText
                   ]}
                 >
-                  {language.name}
+                  {language.nativeName}
                 </Text>
               </TouchableOpacity>
             ))}
@@ -86,23 +117,21 @@ export default function LanguageSelector({
 
 const styles = StyleSheet.create({
   container: {
-    zIndex: 1000,
     position: 'relative',
+    overflow: 'visible',
+    zIndex: 10000,
+    elevation: 1000,
   },
   selector: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   selectedText: {
-    color: 'white',
-    fontSize: 16,
     fontWeight: '600',
   },
   chevron: {
@@ -111,37 +140,34 @@ const styles = StyleSheet.create({
   chevronExpanded: {
     transform: [{ rotate: '180deg' }],
   },
-  chevronRotated: {
-    transform: [{ rotate: '180deg' }],
-  },
   dropdown: {
-    position: 'relative',
-    top: 10,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.95)',
     borderRadius: 10,
-    maxHeight: 240,
+    maxHeight: 200,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)',
-    elevation: 40,
-    zIndex: 9999,
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
   },
   scrollView: {
     maxHeight: 200,
+    flexGrow: 0,
+  },
+  scrollContent: {
+    paddingVertical: 4,
   },
   option: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
   },
   selectedOption: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    // backgroundColor will be set dynamically
   },
   optionText: {
-    color: 'white',
-    fontSize: 16,
+    // color will be set dynamically
   },
   selectedOptionText: {
     fontWeight: '600',

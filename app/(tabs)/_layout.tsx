@@ -1,12 +1,18 @@
 import { Tabs } from 'expo-router';
-import { Mic } from 'lucide-react-native';
+import { Mic, History } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { display: 'none' }, // Hide tab bar for full screen experience
+        tabBarStyle: { 
+          backgroundColor: '#1a1a1a',
+          borderTopColor: '#333',
+          borderTopWidth: 1,
+        },
+        tabBarActiveTintColor: '#007AFF',
+        tabBarInactiveTintColor: '#666',
       }}>
       <Tabs.Screen
         name="index"
@@ -14,6 +20,15 @@ export default function TabLayout() {
           title: 'Translator',
           tabBarIcon: ({ size, color }) => (
             <Mic size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: 'History',
+          tabBarIcon: ({ size, color }) => (
+            <History size={size} color={color} />
           ),
         }}
       />
